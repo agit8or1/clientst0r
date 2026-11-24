@@ -1,5 +1,5 @@
 [Unit]
-Description=Client St0r PSA Sync Timer
+Description=Clientst0r PSA Sync Timer
 Requires=clientst0r-psa-sync.service
 
 [Timer]

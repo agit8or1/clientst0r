@@ -2,7 +2,7 @@
 
 ## Overview
 
-Client St0r now supports Azure AD (Microsoft Entra ID) Single Sign-On authentication. Users can log in using their Microsoft work accounts.
+Clientst0r now supports Azure AD (Microsoft Entra ID) Single Sign-On authentication. Users can log in using their Microsoft work accounts.
 
 ## Setup Steps
 
@@ -12,7 +12,7 @@ Client St0r now supports Azure AD (Microsoft Entra ID) Single Sign-On authentica
 2. Navigate to **Azure Active Directory** → **App registrations**
 3. Click **New registration**
 4. Configure:
-   - **Name**: Client St0r
+   - **Name**: Clientst0r
    - **Supported account types**: Accounts in this organizational directory only
    - **Redirect URI**:
      - Type: Web
@@ -30,7 +30,7 @@ After registration, note the following values (you'll need them later):
 
 1. Go to **Certificates & secrets** → **Client secrets**
 2. Click **New client secret**
-3. Add description: "Client St0r OAuth"
+3. Add description: "Clientst0r OAuth"
 4. Select expiration (recommended: 24 months)
 5. Click **Add**
 6. **IMPORTANT**: Copy the **Value** immediately (you won't be able to see it again)
@@ -49,11 +49,11 @@ After registration, note the following values (you'll need them later):
      consent for new permissions.
 4. Click **Grant admin consent** (if you have admin rights)
 
-### 5. Configure Client St0r
+### 5. Configure Clientst0r
 
 #### Option A: Via Admin UI (Recommended)
 
-1. Log in to Client St0r as superuser
+1. Log in to Clientst0r as superuser
 2. Go to **Settings** → **Users & Access** → **Directory Services**
 3. Under **Azure AD / Microsoft Entra ID**, configure:
    - **Enable Azure AD**: ✓ (checked)
@@ -107,7 +107,7 @@ python manage.py migrate accounts
 2. You should see a **"Sign in with Microsoft"** button
 3. Click the button
 4. You'll be redirected to Microsoft login
-5. After successful authentication, you'll be logged into Client St0r
+5. After successful authentication, you'll be logged into Clientst0r
 
 ## Features
 
@@ -160,7 +160,7 @@ An administrator grants access afterwards as for any new user.
 
 A Microsoft sign-in counts as 2FA only when Microsoft confirms MFA (`amr`
 contains `mfa`), or the server sets `AZURE_SSO_TRUSTED_AS_2FA`. Otherwise the
-user enters their ClientSt0r authenticator code (v3.17.660).
+user enters their Clientst0r authenticator code (v3.17.660).
 
 ### Upgrading to v3.17.688
 
@@ -197,7 +197,7 @@ user enters their ClientSt0r authenticator code (v3.17.660).
 ### "Failed to obtain access token" Error
 
 - Verify client secret is correct (may have expired)
-- Check redirect URI matches exactly between Azure and Client St0r
+- Check redirect URI matches exactly between Azure and Clientst0r
 - Ensure Azure app has User.Read permission
 
 ### "Authentication failed" Error
@@ -243,7 +243,7 @@ user enters their ClientSt0r authenticator code (v3.17.660).
 3. MSAL generates authorization URL
 4. User redirected to Microsoft login
 5. After authentication, Microsoft redirects to `/accounts/auth/azure/callback/`
-6. Client St0r exchanges the code (MSAL checks state and PKCE)
+6. Clientst0r exchanges the code (MSAL checks state and PKCE)
 7. Verifies the ID token (signature, audience, expiry, nonce, tenant)
 8. Finds the account linked to the token's tenant and object ID
 9. Creates an account only if auto-create is on and nothing matches

@@ -1,4 +1,4 @@
-# Client St0r Mobile — Play Store Beta Release Guide
+# Clientst0r Mobile — Play Store Beta Release Guide
 
 > **Single source of truth** for building the AAB and shipping it to Google Play Open Testing.
 > If something in this guide is wrong, fix this file rather than working around it.

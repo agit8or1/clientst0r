@@ -1,5 +1,5 @@
 #!/bin/bash
-# One-time setup of the Client St0r root helper (v3.17.597). Run as root:
+# One-time setup of the Clientst0r root helper (v3.17.597). Run as root:
 #
 #     sudo bash <app dir>/deploy/root-helper/install-root-helper.sh
 #
@@ -38,7 +38,7 @@ for f in "$SRC_DIR/clientst0r-root-helper" "$SRC_DIR/allowed_signers"; do
     [ -f "$f" ] || { echo "Missing $f" >&2; exit 1; }
 done
 
-echo "Installing the Client St0r root helper for user '$APP_USER' ($APP_DIR)"
+echo "Installing the Clientst0r root helper for user '$APP_USER' ($APP_DIR)"
 
 install -d -m 0755 -o root -g root /etc/clientst0r
 umask 022

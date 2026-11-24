@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Feature Toggles - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+{% block title %}Feature Toggles - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Clientst0r" }}{% endblock %}
 
 {% block content %}
 
@@ -114,7 +114,7 @@
                                 </label>
                             </div>
                             <div class="form-text ms-5">
-                                Enable Webhooks for event notifications. Configure webhook endpoints to receive real-time notifications when events occur in Client St0r. <a href="{% url 'core:webhook_list' %}">Manage Webhooks</a>
+                                Enable Webhooks for event notifications. Configure webhook endpoints to receive real-time notifications when events occur in Clientst0r. <a href="{% url 'core:webhook_list' %}">Manage Webhooks</a>
                             </div>
                         </div>
                     </div>

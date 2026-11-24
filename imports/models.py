@@ -334,7 +334,7 @@ def resolve_target_model(name):
 
 class OrganizationMapping(BaseModel):
     """
-    Tracks mappings between source organizations/companies and Client St0r organizations.
+    Tracks mappings between source organizations/companies and Clientst0r organizations.
     """
 
     import_job = models.ForeignKey(
@@ -390,7 +390,7 @@ class ImportMapping(BaseModel):
 
     # Target object
     target_model = models.CharField(max_length=100, help_text="Django model name (Asset, Password, etc.)")
-    target_id = models.PositiveIntegerField(help_text="ID in Client St0r")
+    target_id = models.PositiveIntegerField(help_text="ID in Clientst0r")
     target_organization = models.ForeignKey(
         Organization,
         on_delete=models.CASCADE,
@@ -626,7 +626,7 @@ class PlanItem(models.Model):
 
 
 class SourceMapping(BaseModel):
-    """Source record -> ClientSt0r record, scoped by customer.
+    """Source record -> Clientst0r record, scoped by customer.
 
     Every lookup goes through (organization, source_system, source_account,
     source_type, source_id): the same source ID in another customer, another

@@ -2,7 +2,7 @@
 Request signing for the ticket-rmm-v1 integration, both directions.
 
 Each paired RMM has two shared secrets (integrations/ticket_rmm.py):
-ClientSt0r signs what it sends with the outbound secret, and the RMM signs
+Clientst0r signs what it sends with the outbound secret, and the RMM signs
 what it sends with the inbound secret. A leaked copy of one
 direction's secret can't forge the other direction.
 

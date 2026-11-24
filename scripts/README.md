@@ -1,4 +1,4 @@
-# Client St0r Scripts
+# Clientst0r Scripts
 
 ## Version Management
 

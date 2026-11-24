@@ -9,7 +9,7 @@ says why.
 
 Where the pairing lives:
 
-  encrypted credentials   integration_outbound_secret  ClientSt0r signs with it
+  encrypted credentials   integration_outbound_secret  Clientst0r signs with it
                           integration_inbound_secret   the RMM signs with it
   field_mappings          ticket_rmm_enabled           approved and switched on
                           ticket_rmm_key_id            quoted by both sides
@@ -24,7 +24,7 @@ rem0te_integration_key_id, rem0te_processing_location and
 rem0te_capabilities, and the pin was rem0te's inventory pin
 rem0te_business_id. Migration integrations 0034 moved them.)
 
-One pairing = one remote tenant = one ClientSt0r customer. The tenant is
+One pairing = one remote tenant = one Clientst0r customer. The tenant is
 pinned from the first successful, signed capabilities response (its
 `tenant.id`); a later response naming a different tenant stops the pairing
 instead of re-pinning. For rem0te, the tenant must also agree with the

@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a bug in ClientSt0r
+description: Report a bug in Clientst0r
 labels: ["bug"]
 body:
   - type: textarea
@@ -21,7 +21,7 @@ body:
     id: version
     attributes:
       label: Version
-      description: What version of ClientSt0r are you running? (Settings → System → System Updates, or account menu → Help → About)
+      description: What version of Clientst0r are you running? (Settings → System → System Updates, or account menu → Help → About)
       placeholder: "e.g. 3.17.680"
     validations:
       required: false

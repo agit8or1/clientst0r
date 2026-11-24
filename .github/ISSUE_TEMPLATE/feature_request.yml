@@ -1,5 +1,5 @@
 name: 💡 Feature Request
-description: Suggest a new feature or enhancement for Client St0r
+description: Suggest a new feature or enhancement for Clientst0r
 title: "[Feature]: "
 labels: ["type:feature", "needs-triage"]
 body:
@@ -58,7 +58,7 @@ body:
     id: area
     attributes:
       label: Feature Area
-      description: Which part of Client St0r does this affect?
+      description: Which part of Clientst0r does this affect?
       multiple: true
       options:
         - "Assets - Asset Management"
@@ -116,7 +116,7 @@ body:
       options:
         - label: "I have searched existing issues and discussions to avoid duplicates"
           required: true
-        - label: "This feature aligns with Client St0r's purpose (IT documentation platform)"
+        - label: "This feature aligns with Clientst0r's purpose (IT documentation platform)"
           required: true
         - label: "I have provided enough detail for someone else to understand the request"
           required: true

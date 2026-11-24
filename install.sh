@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Client St0r Installer - Simple automated setup
+# Clientst0r Installer - Simple automated setup
 # Usage: bash install.sh
 #
 
@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 echo -e "${BLUE}"
 echo "╔═══════════════════════════════════════════════════════════╗"
 echo "║                                                           ║"
-echo "║            Client St0r Automated Installer                ║"
+echo "║            Clientst0r Automated Installer                ║"
 echo "║                      v2.2.0                               ║"
 echo "║                                                           ║"
 echo "╚═══════════════════════════════════════════════════════════╝"
@@ -120,7 +120,7 @@ fi
 
 if [ "$EXISTING_INSTALL" = true ]; then
     echo ""
-    print_warning "Existing Client St0r installation detected!"
+    print_warning "Existing Clientst0r installation detected!"
     echo ""
 
     # Show what exists
@@ -249,7 +249,7 @@ if [ "$EXISTING_INSTALL" = true ]; then
                 print_info "Service file not found, creating it..."
                 sudo tee /etc/systemd/system/clientst0r-gunicorn.service > /dev/null << 'SVCEOF'
 [Unit]
-Description=Client St0r Gunicorn
+Description=Clientst0r Gunicorn
 After=network.target mariadb.service
 Wants=mariadb.service
 
@@ -710,7 +710,7 @@ EMAIL_HOST_USER=
 EMAIL_HOST_PASSWORD=
 
 # Application
-SITE_NAME=Client St0r
+SITE_NAME=Clientst0r
 SITE_URL=http://localhost:8000
 
 # Security policy (2FA, session limits, password rules) is managed in
@@ -873,7 +873,7 @@ sleep 2
 # Create systemd service file
 sudo tee /etc/systemd/system/clientst0r-gunicorn.service > /dev/null << 'SVCEOF'
 [Unit]
-Description=Client St0r Gunicorn
+Description=Clientst0r Gunicorn
 After=network.target mariadb.service
 Wants=mariadb.service
 
@@ -1065,13 +1065,13 @@ echo ""
 echo ""
 echo -e "${GREEN}╔═══════════════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║                                                           ║${NC}"
-echo -e "${GREEN}║       Client St0r Installation Complete! 🎉               ║${NC}"
+echo -e "${GREEN}║       Clientst0r Installation Complete! 🎉               ║${NC}"
 echo -e "${GREEN}║              Server is RUNNING!                           ║${NC}"
 echo -e "${GREEN}║                                                           ║${NC}"
 echo -e "${GREEN}╚═══════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
-print_info "🌐 Access your Client St0r installation at:"
+print_info "🌐 Access your Clientst0r installation at:"
 echo ""
 echo -e "  ${GREEN}➜  http://${SERVER_IP}:8000${NC}"
 echo -e "  ${GREEN}➜  http://localhost:8000${NC} (if accessing from this server)"

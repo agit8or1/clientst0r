@@ -18,7 +18,7 @@
 # The setup script rewrites /home/administrator for the actual install; this
 # file is written for the reference install.
 [Unit]
-Description=Client St0r AI gateway worker (restricted, own user)
+Description=Clientst0r AI gateway worker (restricted, own user)
 After=network.target mariadb.service
 
 [Service]

@@ -1,6 +1,6 @@
 """A deterministic Ollama-compatible model for the cross-peer run.
 
-POST /api/chat answers the analysis-output JSON ClientSt0r's Rem0te prompt
+POST /api/chat answers the analysis-output JSON Clientst0r's Rem0te prompt
 asks for, citing the ticket body (and the first endpoint segment when there
 is one) by the refs it finds in the prompt. The same prompt always gets the
 same answer. GET /calls returns how many chat calls it has served (so the

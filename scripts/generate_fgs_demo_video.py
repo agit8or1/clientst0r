@@ -204,7 +204,7 @@ def screen_notification_shade():
 
     # App name + flag
     d.text((card_x + 160, card_y + 50),
-           'Client St0r', font=load_font(32, bold=True), fill=TEXT)
+           'Clientst0r', font=load_font(32, bold=True), fill=TEXT)
     d.text((card_x + 160, card_y + 92),
            'now', font=load_font(24), fill=(160, 160, 180))
     d.text((card_x + card_w - 240, card_y + 50),

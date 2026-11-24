@@ -714,7 +714,7 @@ class SystemSetting(models.Model):
     Singleton pattern - only one instance should exist.
     """
     # General Settings
-    site_name = models.CharField(max_length=255, default='Client St0r')
+    site_name = models.CharField(max_length=255, default='Clientst0r')
     site_url = models.URLField(max_length=500, blank=True, help_text='Base URL for email links')
     # Optional dedicated host name for the customer portal (core/portal_surface.py).
     # Empty: portal and staff pages share one host and are told apart by path.
@@ -781,7 +781,7 @@ class SystemSetting(models.Model):
     default_timezone =models.CharField(max_length=50, default='UTC', help_text='Default timezone for new users')
 
     # Whitelabeling Settings
-    custom_company_name = models.CharField(max_length=255, blank=True, help_text='Custom company name (replaces Client St0r branding)')
+    custom_company_name = models.CharField(max_length=255, blank=True, help_text='Custom company name (replaces Clientst0r branding)')
     custom_logo = models.ImageField(upload_to='branding/', blank=True, null=True, help_text='Custom logo (recommended: 200x40px PNG with transparent background)')
 
     # GeoIP map backdrop (v3.17.522) — styling for the click-to-select world
@@ -875,7 +875,7 @@ class SystemSetting(models.Model):
     smtp_use_tls = models.BooleanField(default=True, help_text='Use TLS for SMTP')
     smtp_use_ssl = models.BooleanField(default=False, help_text='Use SSL for SMTP')
     smtp_from_email = models.EmailField(blank=True, help_text='From email address')
-    smtp_from_name = models.CharField(max_length=255, default='Client St0r', help_text='From name')
+    smtp_from_name = models.CharField(max_length=255, default='Clientst0r', help_text='From name')
 
     # Notification Settings
     notify_on_user_created = models.BooleanField(default=True, help_text='Notify admins when users are created')
@@ -1856,7 +1856,7 @@ class ScheduledTask(models.Model):
         {
             # v3.17.649: feeds the navbar's "update available" badge.
             'task_type': 'update_check',
-            'description': 'Check GitHub for a newer Client St0r release',
+            'description': 'Check GitHub for a newer Clientst0r release',
             # v3.17.678: every 15 minutes (was hourly) so the update pill
             # appears soon after a release.
             'interval_minutes': 15,

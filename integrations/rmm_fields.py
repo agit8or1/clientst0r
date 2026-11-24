@@ -56,14 +56,14 @@ UNSUPPORTED: Dict[str, Dict[str, str]] = {
     'ninjaone': {
         'agent_version': "NinjaOne's device records don't carry the agent version.",
         'last_patched': "NinjaOne reports patch installs on /v2/device/{id}/os-patch-installs, which "
-                        "ClientSt0r's NinjaOne client doesn't read.",
+                        "Clientst0r's NinjaOne client doesn't read.",
         'nics': "NinjaOne's device record lists IP and MAC addresses without adapter names "
-                "(adapters are on a query endpoint ClientSt0r doesn't read).",
+                "(adapters are on a query endpoint Clientst0r doesn't read).",
     },
     'datto_rmm': {
         'disks': "Datto RMM reports disks in the per-device audit (/api/v2/audit/device/{uid}), which "
-                 "ClientSt0r's Datto client doesn't read.",
-        'nics': "Datto RMM reports network adapters in the per-device audit, which ClientSt0r's Datto "
+                 "Clientst0r's Datto client doesn't read.",
+        'nics': "Datto RMM reports network adapters in the per-device audit, which Clientst0r's Datto "
                 "client doesn't read.",
         'last_patched': "Datto RMM's device record has a patch status summary but no last-patched date.",
     },
@@ -74,7 +74,7 @@ UNSUPPORTED: Dict[str, Dict[str, str]] = {
                         "was last patched.",
     },
     'connectwise_automate': {
-        'disks': "ConnectWise Automate lists drives on a separate endpoint ClientSt0r's Automate client "
+        'disks': "ConnectWise Automate lists drives on a separate endpoint Clientst0r's Automate client "
                  "doesn't read.",
         'nics': "ConnectWise Automate's computer record has one local IP and MAC, not an adapter list.",
         'public_ip': "ConnectWise Automate's computer record doesn't carry a public IP.",
@@ -382,19 +382,19 @@ def facts(device) -> Dict[str, Any]:
 
 
 # Services, processes and Windows events: what each provider's API offers
-# and why ClientSt0r doesn't have it. Only Tactical RMM's services come
-# with a route ClientSt0r's client already calls (integrations/rmm_snapshots.py);
+# and why Clientst0r doesn't have it. Only Tactical RMM's services come
+# with a route Clientst0r's client already calls (integrations/rmm_snapshots.py);
 # the others would need new calls, listed here instead of added.
 LIST_GAPS: Dict[str, Dict[str, str]] = {
     'tactical_rmm': {
         'processes': "Tactical RMM reads processes live from the agent (GET /agents/{agent_id}/processes/), "
-                     "which ClientSt0r's Tactical RMM client doesn't call.",
+                     "which Clientst0r's Tactical RMM client doesn't call.",
         'events': "Tactical RMM reads the event log live from the agent "
-                  "(GET /agents/{agent_id}/eventlog/{logtype}/{days}/), which ClientSt0r's Tactical RMM client "
+                  "(GET /agents/{agent_id}/eventlog/{logtype}/{days}/), which Clientst0r's Tactical RMM client "
                   "doesn't call.",
     },
     'ninjaone': {
-        'services': "NinjaOne lists services on GET /v2/device/{id}/windows-services, which ClientSt0r's NinjaOne "
+        'services': "NinjaOne lists services on GET /v2/device/{id}/windows-services, which Clientst0r's NinjaOne "
                     "client doesn't call.",
         'processes': "NinjaOne's public API has no per-device process list.",
         'events': "NinjaOne's public API has no per-device event log list.",
@@ -410,16 +410,16 @@ LIST_GAPS: Dict[str, Dict[str, str]] = {
         'events': "Atera's API has no event log list.",
     },
     'connectwise_automate': {
-        'services': "ClientSt0r's ConnectWise Automate client doesn't read a computer's services.",
-        'processes': "ClientSt0r's ConnectWise Automate client doesn't read a computer's processes.",
-        'events': "ClientSt0r's ConnectWise Automate client doesn't read a computer's event log.",
+        'services': "Clientst0r's ConnectWise Automate client doesn't read a computer's services.",
+        'processes': "Clientst0r's ConnectWise Automate client doesn't read a computer's processes.",
+        'events': "Clientst0r's ConnectWise Automate client doesn't read a computer's event log.",
     },
     'rem0te': {
-        'services': "Rem0te's integration doesn't give ClientSt0r services (Rem0te reads them on its own "
+        'services': "Rem0te's integration doesn't give Clientst0r services (Rem0te reads them on its own "
                     "monitoring pages).",
-        'processes': "Rem0te's integration doesn't give ClientSt0r processes (Rem0te reads them on its own "
+        'processes': "Rem0te's integration doesn't give Clientst0r processes (Rem0te reads them on its own "
                      "monitoring pages).",
-        'events': "Rem0te's integration doesn't give ClientSt0r Windows events (Rem0te reads them on its own "
+        'events': "Rem0te's integration doesn't give Clientst0r Windows events (Rem0te reads them on its own "
                   "monitoring pages).",
     },
 }
@@ -428,4 +428,4 @@ LIST_GAPS: Dict[str, Dict[str, str]] = {
 def list_gap(provider_type: str, kind: str, label: str = '') -> str:
     what = {'events': 'Windows events'}.get(kind, kind)
     return (LIST_GAPS.get(provider_type, {}).get(kind)
-            or f"{label or 'This'} integration doesn't give ClientSt0r {what}.")
+            or f"{label or 'This'} integration doesn't give Clientst0r {what}.")

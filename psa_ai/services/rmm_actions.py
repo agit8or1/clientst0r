@@ -14,7 +14,7 @@ ticket-rmm-v1 pairing of that same customer with a pinned tenant
 device IDs; an ID outside it is refused. The RMM's device ID is never taken
 from the browser, a hostname or model output.
 
-What ClientSt0r does and doesn't do:
+What Clientst0r does and doesn't do:
 
   * Handoff — sends the ticket's redacted context (the same evidence and
     redaction rules as "Analyze ticket", previewed first). Shown as Sent only
@@ -29,7 +29,7 @@ What ClientSt0r does and doesn't do:
     forgets it. The launch is audited; the URL is never stored or logged.
   * Fix referral — records a referral; the RMM's signed status updates move
     it (received / approved / rejected / running / succeeded / failed).
-    ClientSt0r never executes anything, never marks a fix approved itself,
+    Clientst0r never executes anything, never marks a fix approved itself,
     and no status can close the ticket or send a customer reply: events only
     ever update the RMMRequest row.
 """
@@ -286,7 +286,7 @@ def panel(user, ticket) -> dict:
 
 
 def _catalog(target: Target) -> List[dict]:
-    """Rem0te only: the catalog actions it advertised that ClientSt0r knows."""
+    """Rem0te only: the catalog actions it advertised that Clientst0r knows."""
     if target.connection.provider_type != 'rem0te':
         return []
     from integrations.rem0te import pairing
@@ -516,7 +516,7 @@ def refer_fix(user, ticket, device_pk, key, risk='low', title='', description=''
                                    request=request, audit_text=f'Fix referred for independent approval ({risk} risk)',
                                    extra={'fix_title': title[:200], 'fix_risk': risk})
     if not replay and rem0te_action is not None and req.status == 'rejected':
-        # Rem0te refused what ClientSt0r allowed: its refusal wins, on record.
+        # Rem0te refused what Clientst0r allowed: its refusal wins, on record.
         from rmm_permissions import record_remote_refusal
         record_remote_refusal(decision, user, ticket.organization, code=req.remote_status, message=req.error,
                               request=request)

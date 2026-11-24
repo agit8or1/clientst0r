@@ -1,4 +1,4 @@
-# Client St0r — production docker-compose
+# Clientst0r — production docker-compose
 #
 # Quick start:
 #   cp .env.example .env
@@ -65,7 +65,7 @@ services:
       --innodb_buffer_pool_size=512M
 
   # ────────────────────────────────────────────────────────────────────
-  # Client St0r — Django app, served by gunicorn.
+  # Clientst0r — Django app, served by gunicorn.
   # ────────────────────────────────────────────────────────────────────
   app:
     image: ${CLIENTST0R_IMAGE:-ghcr.io/agit8or1/clientst0r:latest}

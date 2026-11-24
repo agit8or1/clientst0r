@@ -1,5 +1,5 @@
 """
-REST API Views for Client St0r
+REST API Views for Clientst0r
 Provides full CRUD operations via RESTful API
 """
 from rest_framework import viewsets, filters, status

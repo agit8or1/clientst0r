@@ -1,6 +1,6 @@
-# ClientSt0r User Guide
+# Clientst0r User Guide
 
-ClientSt0r is a self-hosted IT management platform for MSPs and IT teams — combining asset inventory, a password vault, fleet management, website monitoring, and security tooling, all scoped per organization.
+Clientst0r is a self-hosted IT management platform for MSPs and IT teams — combining asset inventory, a password vault, fleet management, website monitoring, and security tooling, all scoped per organization.
 
 > **In-app help** is also available at `/help/` once logged in.
 

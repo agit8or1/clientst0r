@@ -151,7 +151,7 @@ class BackgroundPolicyViewTests(TestCase):
     def test_settings_page_saves_a_policy(self):
         self.client.force_login(self.admin)
         r = self.client.post(reverse('core:settings_general'), {
-            'site_name': 'Client St0r',
+            'site_name': 'Clientst0r',
             'background_policy': 'color',
             'background_color_style': 'solid',
             'background_color': '#0a0b0c',
@@ -170,7 +170,7 @@ class BackgroundPolicyViewTests(TestCase):
         s.save()
         self.client.force_login(self.admin)
         self.client.post(reverse('core:settings_general'), {
-            'site_name': 'Client St0r',
+            'site_name': 'Clientst0r',
             'background_policy': 'color',
             'background_color': 'red; background-image:url(//evil)',
             'map_default_zoom': '4',
@@ -184,7 +184,7 @@ class BackgroundPolicyViewTests(TestCase):
         before = SystemSetting.get_settings().background_policy
         self.client.force_login(self.admin)
         self.client.post(reverse('core:settings_general'), {
-            'site_name': 'Client St0r',
+            'site_name': 'Clientst0r',
             'background_policy': 'whatever-i-like',
             'map_default_zoom': '4',
         })

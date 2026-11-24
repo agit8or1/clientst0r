@@ -9,7 +9,7 @@ with `manage.py rem0te_reconcile`). Per connection:
   1. Capabilities re-check when due: hourly after a good check; after a
      failure 1, 2, 4 … minutes up to an hour (exponential backoff, kept in
      the check document as `failures`); at once when an event arrived that
-     this ClientSt0r could not understand (`recheck` flag).
+     this Clientst0r could not understand (`recheck` flag).
   2. Alert events after the gap-free cursor (GET /alerts/events), applied
      exactly once; an event that cannot be applied is recorded and skipped
      so the cursor never loops on it, with a visible health issue.

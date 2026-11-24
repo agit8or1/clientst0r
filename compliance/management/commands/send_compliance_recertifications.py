@@ -75,7 +75,7 @@ def _build_email(oc):
         f'evidence, then click "Mark recertified now" on the dashboard '
         f'when finished. The next reminder will fire after another '
         f'{oc.recertification_interval_days} days.\n\n'
-        f'— Client St0r compliance scheduler\n'
+        f'— Clientst0r compliance scheduler\n'
     )
     return subject, body
 

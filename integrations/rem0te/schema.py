@@ -16,16 +16,16 @@ holds the revision-1 copies of the schemas revision 2 changed, so a Rem0te
 (`errors(..., revision=1)`). Rem0te's schemas are `additionalProperties:
 false`, although the contract says revisions only add fields; until Rem0te
 says how a peer should treat fields from a newer revision (request R2), a
-document *from* a Rem0te that reports a revision newer than ClientSt0r
+document *from* a Rem0te that reports a revision newer than Clientst0r
 implements is validated with unknown fields tolerated (`lenient=True`) —
-every field ClientSt0r knows is still checked strictly, and the unknown
+every field Clientst0r knows is still checked strictly, and the unknown
 field paths (never their values) are returned in `unknown` and logged by
-the caller. Documents ClientSt0r sends are always validated strictly.
+the caller. Documents Clientst0r sends are always validated strictly.
 
 Rem0te also applies rules zod expresses as refinements and the JSON Schema
 cannot (`refinements()` below): control characters in ticket text, https-only
 ticket links, duplicate model profiles, at most 8 action parameters. Both
-layers run on everything ClientSt0r sends and receives.
+layers run on everything Clientst0r sends and receives.
 """
 from __future__ import annotations
 
@@ -186,7 +186,7 @@ def peer_revision(doc_or_revision) -> int:
 
 def errors_from_peer(name: str, value: Any, peer_rev: int) -> Tuple[List[str], List[str], int]:
     """Validate a document Rem0te sent. (errors, unknown field paths, the
-    revision it validated against.) Tried against every revision ClientSt0r
+    revision it validated against.) Tried against every revision Clientst0r
     implements, newest first, so a Rem0te upgraded (or downgraded) since the
     last check is still understood. Unknown fields are tolerated only when
     the last check said Rem0te speaks a revision newer than

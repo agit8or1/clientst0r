@@ -1,8 +1,8 @@
 """
-Rem0te monitoring alerts → ClientSt0r tickets (contract ticket-rmm-v1,
+Rem0te monitoring alerts → Clientst0r tickets (contract ticket-rmm-v1,
 Rem0te ≥ 0.29).
 
-Rem0te pushes `{alert_event, signature}` to ClientSt0r's events URL, signed
+Rem0te pushes `{alert_event, signature}` to Clientst0r's events URL, signed
 over `rem0te-alert-event-v1` (a different prefix from job events, so neither
 can stand in for the other), sequenced per organization from 1 with no
 gaps. A gap is recovered with GET /alerts/events?organization_id=…&after=n
@@ -33,7 +33,7 @@ and are stored and shown as text.
 Revision 2 (Rem0te 0.30) adds `alert.patch_summary` on REBOOT_PENDING
 alerts: validated against the pinned patch-summary schema, stored on the
 alert row, shown on the ticket and refreshed by update events. An event is
-validated against the newest revision ClientSt0r implements, then older
+validated against the newest revision Clientst0r implements, then older
 ones; unknown fields are tolerated (and logged) only when Rem0te declared a
 newer contract_revision ("revisions only add fields").
 
@@ -96,7 +96,7 @@ def apply_signed_alert_event(connection, signed: dict, via='push') -> Tuple[int,
     outcome). Order: envelope → signature → peer/organization → schema of
     the negotiated revision → de-duplicate → apply.
 
-    An authentic event (signature verified, ours) that this ClientSt0r cannot
+    An authentic event (signature verified, ours) that this Clientst0r cannot
     understand is recorded as skipped (applied=False) and acknowledged, so
     neither Rem0te's push retries nor the poll cursor loop on it; the
     connection's health shows it and reconciliation re-tries it after the
@@ -105,7 +105,7 @@ def apply_signed_alert_event(connection, signed: dict, via='push') -> Tuple[int,
     from . import health
     why = _envelope_problem(signed)
     if why:
-        health.note(connection, 'events', f'Rem0te sent an alert event ClientSt0r could not read ({why}).',
+        health.note(connection, 'events', f'Rem0te sent an alert event Clientst0r could not read ({why}).',
                     code='INVALID_EVENT', action='Run Test connection; if it repeats, report it with the Rem0te version.')
         return 400, 'invalid: ' + why
     event, signature = signed['alert_event'], signed['signature']
@@ -189,8 +189,8 @@ def _skip(connection, event, via, why, foreign=False) -> Tuple[int, str]:
     n = _retryable(connection).count()
     health.note(connection, 'events', f'{n} authentic alert event(s) from Rem0te could not be applied and were '
                                       f'skipped (latest: sequence {event["sequence"]}, {why}).',
-                code='EVENT_NOT_UNDERSTOOD', action='Press Test connection (ClientSt0r re-reads the contract revision '
-                                                    'and retries them); if it persists, update ClientSt0r.')
+                code='EVENT_NOT_UNDERSTOOD', action='Press Test connection (Clientst0r re-reads the contract revision '
+                                                    'and retries them); if it persists, update Clientst0r.')
     _flag_recheck(connection)
     return 200, 'skipped'
 
@@ -400,7 +400,7 @@ def _open_ticket(connection, alert):
     lines += patch_summary_lines(patch_summary(alert))
     lines += [
         '',
-        'Acknowledge or resolve the alert in Rem0te. Nothing in ClientSt0r acts on the computer.',
+        'Acknowledge or resolve the alert in Rem0te. Nothing in Clientst0r acts on the computer.',
     ]
     return Ticket.objects.create(
         organization=connection.organization, subject=f'[Rem0te] {title}'[:300], description='\n'.join(lines),
@@ -492,7 +492,7 @@ def poll(connection, pages=5) -> int:
         if not r.ok:
             logger.warning('Rem0te alert poll failed for connection %s: %s %s', connection.pk, r.code, r.message)
             health.note(connection, 'alerts_poll', f'Fetching alert events from Rem0te failed ({r.code}: {r.message})',
-                        code=r.code, action='ClientSt0r retries every minute; Test connection shows why.')
+                        code=r.code, action='Clientst0r retries every minute; Test connection shows why.')
             break
         polled = True
         data = r.data if isinstance(r.data, dict) else {}
@@ -518,8 +518,8 @@ def poll(connection, pages=5) -> int:
         have = cursor(connection)
         if last_seq is not None and have < last_seq:
             health.note(connection, 'alerts_gap', f'Rem0te has sequenced {last_seq} alert event(s) for this '
-                                                  f'organization; ClientSt0r has 1–{have} without a gap.',
-                        code='ALERT_GAP', action='ClientSt0r keeps polling; a gap that stays open means an event '
+                                                  f'organization; Clientst0r has 1–{have} without a gap.',
+                        code='ALERT_GAP', action='Clientst0r keeps polling; a gap that stays open means an event '
                                                  'is refused — see the other issues.')
         else:
             health.clear(connection, 'alerts_gap')
@@ -532,12 +532,12 @@ def poll(connection, pages=5) -> int:
         last = failing.order_by('-updated_at').first()
         health.note(connection, 'ticket_link', f'{failing.count()} ticket(s) could not be linked back to their Rem0te '
                                                f'alert (latest: {last.link_error})', code='LINK_FAILED',
-                    action='ClientSt0r retries with backoff (up to hourly).')
+                    action='Clientst0r retries with backoff (up to hourly).')
     else:
         health.clear(connection, 'ticket_link')
     conflicts = Rem0teAlertTicket.objects.filter(connection=connection, link_status='conflict').count()
     if conflicts:
         health.note(connection, 'ticket_link', f'{conflicts} Rem0te alert(s) are already linked to a different '
-                                               'ticket; ClientSt0r did not overwrite them.', code='TICKET_ALREADY_LINKED',
+                                               'ticket; Clientst0r did not overwrite them.', code='TICKET_ALREADY_LINKED',
                     action='Check the alert in Rem0te.')
     return n

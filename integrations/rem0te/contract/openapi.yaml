@@ -1,13 +1,13 @@
 openapi: 3.1.0
 info:
-  title: ticket-rmm-v1 — ClientSt0r ↔ rem0te
+  title: ticket-rmm-v1 — Clientst0r ↔ rem0te
   version: 1.0.0
   description: |
-    Canonical contract between ClientSt0r (tickets, customer communication, AI
+    Canonical contract between Clientst0r (tickets, customer communication, AI
     configuration and provider keys) and rem0te (endpoint evidence, analysis
     orchestration, and — in later milestones — independently approved actions).
 
-    Milestone 1 is read-only ticket analysis. From rem0te 0.26 ClientSt0r may
+    Milestone 1 is read-only ticket analysis. From rem0te 0.26 Clientst0r may
     also PROPOSE a catalog action (`/action-proposals`). No route in this
     contract can open a session, issue a launcher token, queue an endpoint
     command, or approve or execute anything: a proposal becomes a plan that
@@ -22,12 +22,12 @@ servers:
   - url: https://rem0te.example.com
     description: rem0te (routes tagged rem0te)
   - url: https://clientst0r.example.com
-    description: ClientSt0r (routes tagged clientst0r)
+    description: Clientst0r (routes tagged clientst0r)
 tags:
   - name: rem0te
     description: Hosted by rem0te
   - name: clientst0r
-    description: Hosted by ClientSt0r; rem0te is the caller
+    description: Hosted by Clientst0r; rem0te is the caller
 components:
   securitySchemes:
     serviceSignature:
@@ -229,7 +229,7 @@ paths:
   /api/integration/v1/alerts/{alert_id}/ticket:
     post:
       tags: [rem0te]
-      summary: Link the ticket ClientSt0r opened for an alert (grants nothing)
+      summary: Link the ticket Clientst0r opened for an alert (grants nothing)
       description: |
         The only write in the alert routes. The same ticket again → 200 with
         `idempotent-replayed: true`; a different ticket → 409
@@ -256,9 +256,9 @@ paths:
   /api/integration/v1/inference:
     post:
       tags: [clientst0r]
-      summary: Restricted inference gateway (ClientSt0r)
+      summary: Restricted inference gateway (Clientst0r)
       description: |
-        rem0te names a model *profile*; ClientSt0r chooses the model, holds the
+        rem0te names a model *profile*; Clientst0r chooses the model, holds the
         provider key, enforces per-organization AI policy and usage limits.
         The response MUST be signed: `rem0te-key-id: {peer-id}/{kid}` and
         `rem0te-response-signature` = Ed25519 over
@@ -277,7 +277,7 @@ paths:
   /api/integration/v1/events:
     post:
       tags: [clientst0r]
-      summary: Receive a signed job event (ClientSt0r)
+      summary: Receive a signed job event (Clientst0r)
       description: |
         Any 2xx is the acknowledgement. Anything else is retried with backoff for
         up to 7 days. From 0.29 the same URL also receives signed alert events

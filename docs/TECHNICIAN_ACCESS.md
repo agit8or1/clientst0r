@@ -36,12 +36,12 @@ flags never imply a preset — superusers who work tickets need an assignment li
 | Unattended access / clipboard / file transfer | Off | Off | Off |
 
 **Request** means the technician may ask for time-limited access. The grant comes from the paired RMM, per
-session — never from ClientSt0r.
+session — never from Clientst0r.
 
 **Locked** for everyone, whatever the preset:
 
 - endpoint fix approval;
-- endpoint commands from ClientSt0r;
+- endpoint commands from Clientst0r;
 - vault data in AI evidence;
 - cross-customer access from one assignment;
 - bulk export;
@@ -351,7 +351,7 @@ card shows a **Paired RMM** block with what the technician's assignment allows o
 - **Run read-only** — one diagnostic from the RMM's advertised list, on standard workstations only. The result is
   sanitised, limited to 32 KiB, staff-only, and counts toward theft detection's diagnostic bytes.
 - **View session / Control session** (or **Request …** on presets where they are by request) — the RMM returns a
-  short-lived launch address, which ClientSt0r checks against the connection's console hosts, opens and forgets.
+  short-lived launch address, which Clientst0r checks against the connection's console hosts, opens and forgets.
 - **Refer a fix** — a title and description (or one of the ticket's analysis suggestions) for the RMM to approve
   and run. Its status — received, approved, rejected, running, succeeded, failed — comes only from the RMM's signed
   events.
@@ -389,8 +389,8 @@ Each entry shows, where it applies:
   reviewer with *Review other technicians' work* (no expiry; it waits for a reviewer). Fix referrals and Rem0te
   action proposals are approved only in the RMM, by its approvers: the entry shows how many approvals Rem0te
   requires, whether customer sign-off is required, when Rem0te's approval window closes (`window.not_after`),
-  and the approval link while it is open. ClientSt0r never approves or runs anything. Handoffs and diagnostics
-  show when ClientSt0r stops waiting for an answer.
+  and the approval link while it is open. Clientst0r never approves or runs anything. Handoffs and diagnostics
+  show when Clientst0r stops waiting for an answer.
 - **Rem0te outcome** — analysis job status and Rem0te's error code (e.g. `FORBIDDEN`), per-run status and
   errors; for action proposals Rem0te's status, outcome and observed result (e.g. `after10s=running`).
 - **Routing** — each routing decision (status, trigger, mode, rule version, previous → new assignment, reason),

@@ -99,7 +99,7 @@ class SupportLinksConfigTests(TestCase):
         self.assertEqual(data['SPONSOR']['url'], '')
         # A shallow merge, so the sibling key survives.
         self.assertEqual(data['SPONSOR']['label'], 'GitHub Sponsors')
-        self.assertEqual(data['PROJECT']['name'], 'ClientSt0r')
+        self.assertEqual(data['PROJECT']['name'], 'Clientst0r')
 
 
 class TemplatesCarryNoUrlsTests(TestCase):
@@ -311,7 +311,7 @@ class RenderedPageTests(TestCase):
         self.assertIn('Share This Project', html)
 
     @override_settings(SUPPORT_LINKS={'PROJECT': {
-        'name': 'ClientSt0r', 'description': 'a test', 'public_url':
+        'name': 'Clientst0r', 'description': 'a test', 'public_url':
         'https://example.com', 'repo_url': ''}})
     def test_the_star_button_is_omitted_when_no_repository_is_known(self):
         html = self._html()

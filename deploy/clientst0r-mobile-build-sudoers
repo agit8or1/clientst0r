@@ -1,4 +1,4 @@
-# Sudoers rules for Client St0r mobile app building.
+# Sudoers rules for Clientst0r mobile app building.
 # Installed by deploy/setup_mobile_build.sh (and install.sh) to:
 #   /etc/sudoers.d/clientst0r-mobile-build
 #

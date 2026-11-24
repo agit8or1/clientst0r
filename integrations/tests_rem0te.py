@@ -487,7 +487,7 @@ class ConnectionFormAndPageTests(TestCase):
         self.assertIn('requestKeys', html)
         self.assertIn(pairing.organization_id(conn), html)
         self.assertNotIn('PRIVATE KEY', html)
-        self.assertNotIn('Secret ClientSt0r signs with', html.split('data-rem0te-pairing')[1].split('</details>')[0])
+        self.assertNotIn('Secret Clientst0r signs with', html.split('data-rem0te-pairing')[1].split('</details>')[0])
 
     def test_connection_page_lists_alert_kinds_rem0te_does_not_send(self):
         rt.setup_identity()

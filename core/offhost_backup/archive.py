@@ -249,7 +249,7 @@ def check_extracted(plain_tar_path, work: Path):
         checks.append(('manifest', False, f'manifest.json missing or unreadable: {e.__class__.__name__}'))
         return False, checks, {}
     if manifest.get('kind') != 'clientst0r-offhost-backup':
-        checks.append(('manifest', False, 'not a Client St0r off-host backup manifest'))
+        checks.append(('manifest', False, 'not a Clientst0r off-host backup manifest'))
         return False, checks, manifest
     checks.append(('manifest', True, f"v{manifest.get('app_version')}, {manifest.get('created_at')}"))
 

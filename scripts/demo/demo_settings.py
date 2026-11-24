@@ -1,7 +1,7 @@
 """Settings for the isolated demo instance used to produce documentation media.
 
 This module exists so screenshots and the walkthrough video can be captured
-against a real, running ClientSt0r without touching anything real:
+against a real, running Clientst0r without touching anything real:
 
 * the database is a throwaway SQLite file under ``DEMO_DIR``;
 * media and static roots live under ``DEMO_DIR`` too, so ``collectstatic``

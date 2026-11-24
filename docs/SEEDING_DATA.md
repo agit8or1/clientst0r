@@ -1,6 +1,6 @@
 # Seeding Data for New Installations
 
-Client St0r includes comprehensive seed data to help you get started immediately:
+Clientst0r includes comprehensive seed data to help you get started immediately:
 
 - **Equipment Catalog**: 3,000+ models across Dell, HP, Lenovo, Cisco, and other major vendors
 - **Knowledge Base Articles**: 1,000+ professional IT documentation articles across 20+ categories
@@ -42,7 +42,7 @@ the note about running it on SQLite.
 python manage.py fetch_kb_from_github
 ```
 
-This fetches curated KB articles from the Client St0r GitHub repository.
+This fetches curated KB articles from the Clientst0r GitHub repository.
 
 #### KB Articles Locally Generated
 ```bash

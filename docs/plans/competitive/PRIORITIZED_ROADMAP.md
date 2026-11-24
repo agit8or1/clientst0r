@@ -7,9 +7,9 @@ meant to ship as one or more ordinary releases (version bump, CHANGELOG, ROADMAP
 
 Ground rules carried from the program brief and existing roadmap phases:
 
-- ClientSt0r does not build endpoint RMM functionality. Endpoint execution, approval of endpoint actions and
-  agent work stay in Rem0te. ClientSt0r proposes, displays and records.
-- AI work is **OPTIONAL AI**, gated by `psa_ai_enabled` and the customer AI policy. ClientSt0r owns provider
+- Clientst0r does not build endpoint RMM functionality. Endpoint execution, approval of endpoint actions and
+  agent work stay in Rem0te. Clientst0r proposes, displays and records.
+- AI work is **OPTIONAL AI**, gated by `psa_ai_enabled` and the customer AI policy. Clientst0r owns provider
   keys; Rem0te supplies redacted evidence; AI never authorizes endpoint execution; a technician asking for a
   fix is not approval.
 - Billing never uses unverified endpoint counts: counts are snapshotted with source and freshness, reconciled,
@@ -31,7 +31,7 @@ Size key: **S** ≤ 1 week, **M** 1–3 weeks, **L** 3–6 weeks of focused work
 | R-03 | Map new Rem0te refusal codes and alert kinds | 1 | 63.1 (extends) | y | S | R-02 |
 | R-04 | Integration honesty and coordination record | 1, 9 | 63.10, 84 (extends) | y (read) | S | R-03 |
 | R-05 | Workflow automation safety | 4 | proposed Phase 91 | n | M | R-01 |
-| R-06 | Answer Rem0te's revision 4–6 proposals; ClientSt0r capabilities document (P12) | 1 | 63 (extends), 79 (relates) | y | S–M | R-02 |
+| R-06 | Answer Rem0te's revision 4–6 proposals; Clientst0r capabilities document (P12) | 1 | 63 (extends), 79 (relates) | y | S–M | R-02 |
 | R-07 | Remediation status on the ticket | 2 | 52, 63.4 (extends) | n | M | R-02 (s12 passing) |
 | R-08 | Revision-3 consumers behind capability flags | 1 | 56.5, 56.6, 57.6, 63.4 (extends) | y | L | R-06; Rem0te rev 3 |
 | R-09 | Recurring charges and data-fed agreements | 5 | 70.4 (extends) | n | M | R-05 |
@@ -75,14 +75,14 @@ Size key: **S** ≤ 1 week, **M** 1–3 weeks, **L** 3–6 weeks of focused work
   (second-admin enablement, removing the `run.py:355` bypass), s19 (offline and expiry), s20 (replay), s21
   (AI suggestion → proposal); add a non-blocking leg against Rem0te `main`. Fixtures need a technician with the
   Rem0te action capability and a test signer or Rem0te's simulator.
-- **Dependencies.** None in ClientSt0r. Needs Rem0te to confirm how a test signer / agent simulator is
+- **Dependencies.** None in Clientst0r. Needs Rem0te to confirm how a test signer / agent simulator is
   configured in fixtures (request RQ-03).
 - **Roadmap.** Extends 63.10 and 56.8.
 - **Rem0te coordination.** Yes.
 - **Tests.** `INTEGRATION_TEST_MATRIX.md` rows 1–3, 5–8, 11–17, 19, 21–26.
 - **Acceptance.** Blocking CI job green at the new pin with s12 asserting: L2 proposal → `awaiting_approval`
   → approval by a distinct Rem0te signer → terminal status polled → staff-only ticket note → `alert.resolved`
-  → support-workflow outcome confirmed. ClientSt0r exposes no approve route (asserted). Job summary records
+  → support-workflow outcome confirmed. Clientst0r exposes no approve route (asserted). Job summary records
   Rem0te version, contract revision and run id.
 - **Size.** M.
 
@@ -101,12 +101,12 @@ Size key: **S** ≤ 1 week, **M** 1–3 weeks, **L** 3–6 weeks of focused work
 - **Tests.** Unit per code using recorded bodies; s13, s14; template test for the notice.
 - **Acceptance.** Matrix rows 20, 27, 29 passing; row 28 shows the notice and fail-closed refusal.
 - **Size.** S.
-- **User decision.** Whether to support `windows.update.install@1` from ClientSt0r.
+- **User decision.** Whether to support `windows.update.install@1` from Clientst0r.
 
 ### R-04 — Integration honesty and coordination record
 
 - **Goal.** No page or document claims more than what has passed.
-- **Scope.** Update the ClientSt0r sections of `INTEGRATION_COORDINATION.md` (header still says revision 1 /
+- **Scope.** Update the Clientst0r sections of `INTEGRATION_COORDINATION.md` (header still says revision 1 /
   3.17.660); fix FEATURES.md:617 ("released versions pair Rem0te over HMAC"); label the 15 security-vendor
   choices without adapters as "not supported yet" and stop the Defender stub's `test_connection` from
   reporting success (gaps 6.02, 9.01). Post the Rem0te-side requests below through the coordination file.
@@ -135,13 +135,13 @@ Size key: **S** ≤ 1 week, **M** 1–3 weeks, **L** 3–6 weeks of focused work
 - **Acceptance.** Gap rows 4.01–4.05 closed; every rule firing visible on the rule page with its actions.
 - **Size.** M.
 
-### R-06 — Answer Rem0te's revision 4–6 proposals; ClientSt0r capabilities document (P12)
+### R-06 — Answer Rem0te's revision 4–6 proposals; Clientst0r capabilities document (P12)
 
 - **Goal.** Unblock gated Rem0te features with explicit decisions instead of silence.
-- **Scope.** Written answers for CS-9/10/11: P11 `device_timeline_v1` (OPTIONAL AI), P12 ClientSt0r signed
+- **Scope.** Written answers for CS-9/10/11: P11 `device_timeline_v1` (OPTIONAL AI), P12 Clientst0r signed
   capabilities document with `contract_revision` and `features` (also settles R2 and SR-21), P13
   `AGENT_SILENT`, P14/P15 support requests, P16 `ticket.create_request` (requires idempotency and a
-  duplicate rule against alert tickets). Build P12 on the ClientSt0r side once agreed.
+  duplicate rule against alert tickets). Build P12 on the Clientst0r side once agreed.
 - **Dependencies.** R-02.
 - **Roadmap.** Extends Phase 63; relates to Phase 79 (Connect) — decide whether P12 lives in
   `ticket-rmm-v1` or Connect.
@@ -169,7 +169,7 @@ Size key: **S** ≤ 1 week, **M** 1–3 weeks, **L** 3–6 weeks of focused work
 
 ### R-08 — Revision-3 consumers behind capability flags
 
-- **Goal.** ClientSt0r ready for diagnostics, fixes, remote launch, handoff and device summary the day Rem0te
+- **Goal.** Clientst0r ready for diagnostics, fixes, remote launch, handoff and device summary the day Rem0te
   ships revision 3.
 - **Scope.** Rem0te branches in `rmm_actions` for P2 diagnostics, P4 `/fixes`, P6 remote launch and P7
   handoff using the Ed25519 client (not `processor._request`); P3/P5 event handling; P9 `Idempotency-Key`
@@ -181,7 +181,7 @@ Size key: **S** ≤ 1 week, **M** 1–3 weeks, **L** 3–6 weeks of focused work
 - **Tests.** Unit against Rem0te's revision-3 examples once published; matrix rows 10, 31, 32 cross-peer.
 - **Acceptance.** Features stay invisible at revision 2; matrix rows 10, 31, 32 pass cross-peer at a
   revision-3 pin.
-- **Size.** L (ClientSt0r side), schedule driven by Rem0te.
+- **Size.** L (Clientst0r side), schedule driven by Rem0te.
 
 ### R-09 — Recurring charges and data-fed agreements
 
@@ -367,16 +367,16 @@ written from this plan.
 
 | ID | Request | Needed by |
 |---|---|---|
-| RQ-01 | Re-measure ClientSt0r: update `scripts/clientst0r-interop/drive.py` / `interop-clientst0r.mjs` to drive `integrations.rem0te` (Ed25519) at ClientSt0r ≥ 3.17.664; mark G1–G4 resolved in §2, §4C, §6 and §8 | R-04 |
-| RQ-02 | Run Rem0te's `e2e-ticket-workflow` against real ClientSt0r instead of the reference peer; confirm whether it runs in Rem0te CI | R-02 |
-| RQ-03 | Document how fixtures configure a test approval signer and the agent simulator, so ClientSt0r's E2E can drive approval and results | R-02 |
+| RQ-01 | Re-measure Clientst0r: update `scripts/clientst0r-interop/drive.py` / `interop-clientst0r.mjs` to drive `integrations.rem0te` (Ed25519) at Clientst0r ≥ 3.17.664; mark G1–G4 resolved in §2, §4C, §6 and §8 | R-04 |
+| RQ-02 | Run Rem0te's `e2e-ticket-workflow` against real Clientst0r instead of the reference peer; confirm whether it runs in Rem0te CI | R-02 |
+| RQ-03 | Document how fixtures configure a test approval signer and the agent simulator, so Clientst0r's E2E can drive approval and results | R-02 |
 | RQ-04 | Ship revision 3 (P1–P10) with schemas, examples and e2e | R-08 |
 | RQ-05 | A contract revision adding DRIVE_FREE, UPTIME_LONG, UPDATES_MISSING, UPDATE_FAILED, WARRANTY_EXPIRING, AGENT_SILENT, gated on the peer's declared revision; optional R12 metrics and 0.66 classification/explanation fields | R-03 follow-up |
 | RQ-06 | R11: retry `GATEWAY_UNREACHABLE` until job expiry or a configurable window | Matrix row 18 |
 | RQ-07 | R7: signed proposal-status events (approved, dispatched, succeeded, failed, with verification evidence) | R-07, R-08 |
 | RQ-08 | R8: parameter schemas for integration-proposable actions in capabilities; consider exposing safe maintenance actions (reboot when pending, disk cleanup) with `integration: true` | R-03, R-08 |
 | RQ-09 | Return `DIRECT_MODE_PORTAL_ONLY` in the `{error:{code,message}}` envelope and list it in `errors.ts` and the contract docs | R-03 |
-| RQ-10 | Suppress or expose automatic PSA tickets (0.55) and P16 for businesses mapped to a ClientSt0r peer (double-ticket safety) | Matrix row 9 |
+| RQ-10 | Suppress or expose automatic PSA tickets (0.55) and P16 for businesses mapped to a Clientst0r peer (double-ticket safety) | Matrix row 9 |
 | RQ-11 | A signed endpoint-count or P10 summary with `observed_at` suitable as a billing snapshot source | R-10 |
 | RQ-12 | False-positive interop: delegated `POST /alerts/{id}/false-positive` (report only, never creates or approves a rule) and rule-applied info on `alert.updated` | Gap 1.09 |
 | RQ-13 | R2/R3/R4: declared-revision mechanism (ties to P12), a documented technician-mapping probe, drop the pause reason from 423/403 bodies | R-06, SR-28, SR-31 |
@@ -388,7 +388,7 @@ written from this plan.
 1. **Phase numbering.** Approve proposed Phases 91 (workflow automation safety), 92 (verified usage billing,
    or fold into Phase 70), 93 (business-hours SLA calendars), 94 (evidence integrity and routine backups, or
    fold into 51/59) and 95 (PSA migration importers) before they are added to `docs/ROADMAP.md` as `[planned]`.
-2. **`windows.update.install@1`.** Offer it from ClientSt0r (with fixed parameters and Rem0te approval) or
+2. **`windows.update.install@1`.** Offer it from Clientst0r (with fixed parameters and Rem0te approval) or
    exclude it with a documented reason (R-03).
 3. **Rem0te proposals P11–P16.** Accept, decline or defer each (R-06), and whether the P12 capabilities
    document belongs to `ticket-rmm-v1` or Agit8or Connect (Phase 79).
@@ -399,5 +399,5 @@ written from this plan.
 6. **Audit shipping target.** Which external append-only target to support first (R-16).
 7. **Private-address opt-in for PBS.** Who may allow a backup connection to a private address (R-01, SR-02):
    superusers only, or a dedicated MSP-staff permission.
-8. **Rem0te test signer in CI.** Whether ClientSt0r's CI may run Rem0te's simulator with a test-only signer
+8. **Rem0te test signer in CI.** Whether Clientst0r's CI may run Rem0te's simulator with a test-only signer
    key committed to fixtures (R-02).

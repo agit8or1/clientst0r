@@ -1,6 +1,6 @@
 {
   "name": "inference",
-  "description": "rem0te → ClientSt0r: one model run for a job. ClientSt0r holds the provider key and calls the model; rem0te never does. The response is signed over the request nonce and the body hash.",
+  "description": "rem0te → Clientst0r: one model run for a job. Clientst0r holds the provider key and calls the model; rem0te never does. The response is signed over the request nonce and the body hash.",
   "direction": "rem0te_to_clientst0r",
   "request": {
     "method": "POST",

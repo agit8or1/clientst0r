@@ -1,6 +1,6 @@
 {
   "name": "alert-ticket-link",
-  "description": "ClientSt0r → rem0te: link the ticket it opened. Idempotent for the same ticket; another ticket is 409.",
+  "description": "Clientst0r → rem0te: link the ticket it opened. Idempotent for the same ticket; another ticket is 409.",
   "direction": "clientst0r_to_rem0te",
   "request": {
     "method": "POST",

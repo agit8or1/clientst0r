@@ -6,7 +6,7 @@ checks (the signed capabilities check, the organization/business binding
 Rem0te reports, inbound signature results and the reconciliation job's
 outcome), never from configuration alone:
 
-  connected        Rem0te answered the last check, ClientSt0r is paired for
+  connected        Rem0te answered the last check, Clientst0r is paired for
                    this organization and nothing is failing.
   degraded         paired, but something works only partly: a containment
                    pause in Rem0te, an alert gap or failing ticket link, a
@@ -69,9 +69,9 @@ DEGRADED_CODES = {'RATE_LIMITED'}
 # Issue areas and the state an open issue there implies.
 AREAS = {
     'inbound_auth': AUTH,        # a request signed with Rem0te's key id that did not verify
-    'events': DEGRADED,          # a verified event ClientSt0r could not apply / understand
+    'events': DEGRADED,          # a verified event Clientst0r could not apply / understand
     'alerts_poll': DEGRADED,     # GET /alerts/events failed
-    'alerts_gap': DEGRADED,      # events Rem0te sequenced that ClientSt0r still lacks
+    'alerts_gap': DEGRADED,      # events Rem0te sequenced that Clientst0r still lacks
     'ticket_link': DEGRADED,     # POST /alerts/{id}/ticket keeps failing
     'jobs': DEGRADED,            # analysis jobs refused or retrying
     'actions': DEGRADED,         # action proposals refused or unreadable
@@ -211,19 +211,19 @@ def _check_state(code: str) -> str:
 
 ACTIONS = {
     'NOT_CONFIGURED_LOCAL': 'Complete the missing settings listed above, then press Test connection.',
-    'NOT_CONFIGURED': "On the Rem0te server, add ClientSt0r's peers-file entry and restart the Rem0te API and worker.",
-    'KEY_UNKNOWN': "Copy ClientSt0r's current peers-file entry into Rem0te's INTEGRATION_PEERS_FILE and restart Rem0te.",
-    'SIGNATURE_REJECTED': "Compare Rem0te's audience and ClientSt0r's request key fingerprint with the peers file.",
+    'NOT_CONFIGURED': "On the Rem0te server, add Clientst0r's peers-file entry and restart the Rem0te API and worker.",
+    'KEY_UNKNOWN': "Copy Clientst0r's current peers-file entry into Rem0te's INTEGRATION_PEERS_FILE and restart Rem0te.",
+    'SIGNATURE_REJECTED': "Compare Rem0te's audience and Clientst0r's request key fingerprint with the peers file.",
     'SIGNING_KEY_MISMATCH': "Paste Rem0te's current public signing key (compare fingerprints) into this connection.",
     'CLOCK_SKEW': 'Fix the clock (NTP) on whichever server is wrong; requests fail beyond ±120 s.',
-    'HEADERS_REJECTED': 'Update ClientSt0r; if it persists, report it with the Rem0te version.',
-    'REPLAYED': 'Press Test connection again. If it repeats, two ClientSt0r instances share one identity.',
-    'CLIENT_CERT': 'Remove clientCertSha256 from the peers entry, or terminate mTLS in front of ClientSt0r.',
+    'HEADERS_REJECTED': 'Update Clientst0r; if it persists, report it with the Rem0te version.',
+    'REPLAYED': 'Press Test connection again. If it repeats, two Clientst0r instances share one identity.',
+    'CLIENT_CERT': 'Remove clientCertSha256 from the peers entry, or terminate mTLS in front of Clientst0r.',
     'UNREACHABLE': 'Check the Rem0te address, DNS, the firewall and that the Rem0te API is running.',
     'BLOCKED': 'Use an allowed address, or mark the connection on-premises if Rem0te runs on your LAN.',
-    'HTTP_ERROR': "Check the Rem0te API's logs; ClientSt0r retries on its own.",
-    'RATE_LIMITED': 'Nothing to do: ClientSt0r backs off and retries.',
-    'CONTRACT_MISMATCH': 'Update Rem0te or ClientSt0r so both speak ticket-rmm-v1 (see the versions above).',
+    'HTTP_ERROR': "Check the Rem0te API's logs; Clientst0r retries on its own.",
+    'RATE_LIMITED': 'Nothing to do: Clientst0r backs off and retries.',
+    'CONTRACT_MISMATCH': 'Update Rem0te or Clientst0r so both speak ticket-rmm-v1 (see the versions above).',
     'VERSION_INCOMPATIBLE': 'Update Rem0te.',
     'PEER_MISMATCH': "Make the peer id and audiences here match the peers file's entry.",
     'BUSINESS_MISMATCH': 'In Rem0te, map this organization to the business its inventory API key belongs to — '
@@ -263,7 +263,7 @@ def evaluate(connection, health_row=None) -> Dict:
         reasons.append(_reason(CONFIG, s['incomplete'], 'Edit the connection.', 'NOT_CONFIGURED_LOCAL'))
     missing = identity.configured(ident)
     if missing:
-        reasons.append(_reason(CONFIG, missing, "Settings → RMM → Rem0te: ClientSt0r's identity.",
+        reasons.append(_reason(CONFIG, missing, "Settings → RMM → Rem0te: Clientst0r's identity.",
                                'NOT_CONFIGURED_LOCAL'))
     if not reasons:
         if not doc:
@@ -309,7 +309,7 @@ def _degradations(connection, doc) -> List[dict]:
                            'Update Rem0te to 0.29 or later for alert tickets.', 'CAPABILITY'))
     skew = doc.get('clock_skew_s')
     if isinstance(skew, int) and abs(skew) > 60:
-        out.append(_reason(DEGRADED, f"Rem0te's clock is {skew:+d} s from ClientSt0r's (requests fail beyond ±120 s).",
+        out.append(_reason(DEGRADED, f"Rem0te's clock is {skew:+d} s from Clientst0r's (requests fail beyond ±120 s).",
                            'Fix NTP on whichever server drifts.', 'CLOCK_DRIFT'))
     when = parse_datetime(str(doc.get('fetched_at') or '').replace('Z', '+00:00'))
     if when is not None and timezone.is_aware(when) and timezone.now() - when > CHECK_STALE_AFTER:

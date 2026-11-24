@@ -1,6 +1,6 @@
 # 💡 Feature Requests & Voting
 
-Client St0r uses a community-driven approach to feature development. This guide explains how to suggest features, vote on ideas, and track what's being worked on.
+Clientst0r uses a community-driven approach to feature development. This guide explains how to suggest features, vote on ideas, and track what's being worked on.
 
 ---
 
@@ -32,7 +32,7 @@ Client St0r uses a community-driven approach to feature development. This guide 
 
 ## The Process
 
-Client St0r uses a **two-stage system** for feature development:
+Clientst0r uses a **two-stage system** for feature development:
 
 ### Stage 1: Ideas & Discussion 💬
 
@@ -56,14 +56,14 @@ Client St0r uses a **two-stage system** for feature development:
 
 **Use this if:**
 - You're exploring an idea and want feedback
-- You're not sure if it fits Client St0r's scope
+- You're not sure if it fits Clientst0r's scope
 - You want to gauge community interest first
 
 **Steps:**
 1. Go to [Discussions → Ideas](https://github.com/agit8or1/clientst0r/discussions/new?category=ideas)
 2. Use the "Idea" template
 3. Fill in:
-   - **The Idea:** What should Client St0r do?
+   - **The Idea:** What should Clientst0r do?
    - **Problem:** What pain point does this solve?
    - **Benefit:** Who would use this?
 4. Submit and share with the community!
@@ -88,7 +88,7 @@ Client St0r uses a **two-stage system** for feature development:
    - **Problem Statement:** The pain point you're solving
    - **Proposed Solution:** How it should work
    - **Priority:** Impact on your workflow
-   - **Feature Area:** Which part of Client St0r (Assets, Vault, etc.)
+   - **Feature Area:** Which part of Clientst0r (Assets, Vault, etc.)
    - **Use Case:** Real-world scenario
 3. Submit for triage
 
@@ -222,7 +222,7 @@ You can speed things up by:
 ### Q: My idea was closed as "Won't Do"—why?
 
 **A:** Common reasons:
-- **Out of scope:** Doesn't align with Client St0r's core purpose (IT documentation platform)
+- **Out of scope:** Doesn't align with Clientst0r's core purpose (IT documentation platform)
 - **Security risk:** Would introduce vulnerabilities
 - **Maintenance burden:** Would create long-term technical debt
 - **Better alternatives:** Existing features or integrations solve the problem
@@ -314,4 +314,4 @@ Maintainers may also create periodic "What should we build next?" polls.
 
 ---
 
-**Thank you for helping shape the future of Client St0r!** 🚀
+**Thank you for helping shape the future of Clientst0r!** 🚀

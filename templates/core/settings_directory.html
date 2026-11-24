@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Directory Services - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+{% block title %}Directory Services - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Clientst0r" }}{% endblock %}
 
 {% block content %}
 
@@ -154,7 +154,7 @@
                             <label for="ldap_require_group" class="form-label">Require Group (Optional)</label>
                             <input type="text" class="form-control" id="ldap_require_group" name="ldap_require_group"
                                    value="{{ settings.ldap_require_group }}"
-                                   placeholder="CN=Client St0r Users,OU=Groups,DC=example,DC=com">
+                                   placeholder="CN=Clientst0r Users,OU=Groups,DC=example,DC=com">
                             <div class="form-text">Only members of this group (full DN) may sign in.</div>
                         </div>
 
@@ -164,8 +164,8 @@
                                    value="{{ settings.ldap_staff_group }}"
                                    placeholder="CN=MSP Techs,OU=Groups,DC=example,DC=com">
                             <div class="form-text">When set, members sign in as MSP staff and everyone else as organization users
-                                (checked on every sign-in). When blank, the user type is managed in Client St0r.
-                                Organization memberships and roles are assigned in Client St0r, or by
+                                (checked on every sign-in). When blank, the user type is managed in Clientst0r.
+                                Organization memberships and roles are assigned in Clientst0r, or by
                                 <a href="{% url 'accounts:ldap_group_mappings' %}">group mappings</a>.</div>
                         </div>
 
@@ -212,7 +212,7 @@
                             <ul class="small">
                                 <li>Go to <a href="https://portal.azure.com" target="_blank" rel="noopener">Azure Portal</a> → Azure Active Directory → App registrations</li>
                                 <li>Click <strong>New registration</strong></li>
-                                <li>Name: <code>Client St0r</code></li>
+                                <li>Name: <code>Clientst0r</code></li>
                                 <li>Supported account types: <strong>Accounts in this organizational directory only</strong></li>
                                 <li>Redirect URI: Web → <code>{{ request.scheme }}://{{ request.get_host }}/accounts/auth/azure/callback/</code></li>
                                 <li>Click <strong>Register</strong></li>
@@ -228,7 +228,7 @@
                             <ul class="small">
                                 <li>Go to <strong>Certificates & secrets</strong> → <strong>Client secrets</strong></li>
                                 <li>Click <strong>New client secret</strong></li>
-                                <li>Description: <code>Client St0r OAuth</code></li>
+                                <li>Description: <code>Clientst0r OAuth</code></li>
                                 <li>Expiration: <strong>24 months</strong> (recommended)</li>
                                 <li><strong>⚠️ IMPORTANT:</strong> Copy the <strong>Value</strong> immediately (you won't be able to see it again!)</li>
                             </ul>
@@ -250,7 +250,7 @@
                             </ul>
 
                             <div class="alert alert-warning mt-2 mb-0">
-                                <i class="fas fa-exclamation-triangle"></i> <strong>Note:</strong> A Microsoft sign-in counts as 2FA only when Microsoft confirms MFA (or the server sets AZURE_SSO_TRUSTED_AS_2FA); otherwise the user's ClientSt0r authenticator code is asked for. A "Sign in with Microsoft" button will appear on the login page once configured.
+                                <i class="fas fa-exclamation-triangle"></i> <strong>Note:</strong> A Microsoft sign-in counts as 2FA only when Microsoft confirms MFA (or the server sets AZURE_SSO_TRUSTED_AS_2FA); otherwise the user's Clientst0r authenticator code is asked for. A "Sign in with Microsoft" button will appear on the login page once configured.
                             </div>
                         </div>
 
@@ -307,7 +307,7 @@
                             <label class="form-check-label" for="azure_ad_sync_groups">
                                 Sync Azure AD groups to roles
                             </label>
-                            <div class="form-text">Map Azure AD groups to Client St0r roles</div>
+                            <div class="form-text">Map Azure AD groups to Clientst0r roles</div>
                         </div>
                     </div>
 

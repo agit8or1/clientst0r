@@ -1,5 +1,5 @@
 """
-ClientSt0r ↔ RMM Phase 4: the ticket's RMM side panel with several affected
+Clientst0r ↔ RMM Phase 4: the ticket's RMM side panel with several affected
 devices, health, history, result notes, remote-launch status and
 verify-then-close. Uses the test processor from tests_rmm (this file plays
 the RMM).

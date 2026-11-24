@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.771] - 2026-11-24
+
+### Changed
+- **One product name: Clientst0r.** Page titles, the footer, e-mails, settings, help text, translations and every
+  guide now spell it "Clientst0r" (they mixed "Client St0r", "ClientSt0r" and "Clientst0r"). An install still
+  using the shipped site name or e-mail sender name ("Client St0r") takes the new spelling on update; a name you
+  chose in Settings → General is kept.
+- Unchanged on purpose: the user-agent strings Clientst0r sends to other services (some receivers filter on
+  them), code identifiers such as the LDAP authentication backend's path (stored in signed-in sessions), the logo
+  artwork and earlier release notes.
+- Database migrations: help-text and default changes in core, imports, integrations, oidc_sso, processes and
+  tax, plus the site-name update. No table changes.
+
 ## [3.17.770] - 2026-11-24
 
 ### Fixed

@@ -1,12 +1,12 @@
 """
-Version information for Client St0r
+Version information for Clientst0r
 """
 
-VERSION = '3.17.770'
+VERSION = '3.17.771'
 VERSION_INFO = {
     'major': 3,
     'minor': 17,
-    'patch': 770,
+    'patch': 771,
     'status': 'stable',  # alpha, beta, rc, stable
 }
 

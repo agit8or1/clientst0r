@@ -1,5 +1,5 @@
 """
-ASGI config for Client St0r
+ASGI config for Clientst0r
 """
 import os
 from django.core.asgi import get_asgi_application

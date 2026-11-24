@@ -12,5 +12,5 @@
     "rem0te_sha": "1bff01a4a3b52fd745e001352e0c417909199aeb",
     "kept_in": "rev1/ (the revision-1 schemas that revision 2 changed, and the revision-1 fixtures it removed)"
   },
-  "note": "Vendored verbatim from Rem0te (the contract owner). Do not edit these files by hand: copy a new revision and update this pin. rev1/ is ClientSt0r's copy of the revision-1 files, kept so a Rem0te 0.26-0.29 peer is still validated against what it sends. proposed/ is Rem0te's non-normative proposals for later revisions; nothing here validates against it."
+  "note": "Vendored verbatim from Rem0te (the contract owner). Do not edit these files by hand: copy a new revision and update this pin. rev1/ is Clientst0r's copy of the revision-1 files, kept so a Rem0te 0.26-0.29 peer is still validated against what it sends. proposed/ is Rem0te's non-normative proposals for later revisions; nothing here validates against it."
 }

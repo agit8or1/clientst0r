@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Screenshot Generator v2 for Client St0r.
+Screenshot Generator v2 for Clientst0r.
 
 Captures full-page documentation screenshots of the running app via headless
 Chromium + Selenium. Differences from v1:

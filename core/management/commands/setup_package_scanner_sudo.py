@@ -19,7 +19,7 @@ class Command(BaseCommand):
         username = os.getenv('USER', 'administrator')
 
         # Create sudoers file content
-        sudoers_content = f"""# Client St0r - OS Package Scanner
+        sudoers_content = f"""# Clientst0r - OS Package Scanner
 # Allow web user to update apt cache for security scanning
 {username} ALL=(ALL) NOPASSWD: /usr/bin/apt-get update
 {username} ALL=(ALL) NOPASSWD: /usr/bin/apt-get upgrade -y

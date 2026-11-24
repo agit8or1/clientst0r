@@ -2,7 +2,7 @@
 
 Everything in this directory exists to produce the screenshots in
 [`docs/screenshots.md`](../../docs/screenshots.md) and the walkthrough video,
-against a **real running ClientSt0r** that contains only invented data.
+against a **real running Clientst0r** that contains only invented data.
 
 Nothing here is imported by the application at runtime. No app, no settings
 module and no management command references it; it only runs when you invoke it.

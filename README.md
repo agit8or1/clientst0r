@@ -2,7 +2,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/github/clientst0r-wordmark-dark.svg">
-  <img src="docs/images/github/clientst0r-wordmark.svg" alt="ClientSt0r" width="420">
+  <img src="docs/images/github/clientst0r-wordmark.svg" alt="Clientst0r" width="420">
 </picture>
 
 **Your clients. Your infrastructure. Your data. One platform.**
@@ -17,11 +17,11 @@ Self-hosted, open-source IT documentation, password vault, service desk and asse
 
 ---
 
-[![The ClientSt0r dashboard in the Professional Dark theme with a client selected: the ten-section sidebar, the top bar with Go to (Ctrl K), Favorites, Recent and the client switcher, quick actions, a KPI row of open, at-risk, overdue and unassigned tickets, pending approvals, work due today and RMM alerts, then the ticket queue, SLA overview, technician workload, upcoming tasks and system status](docs/images/github/client-dashboard-dark.png)](docs/screenshots.md)
+[![The Clientst0r dashboard in the Professional Dark theme with a client selected: the ten-section sidebar, the top bar with Go to (Ctrl K), Favorites, Recent and the client switcher, quick actions, a KPI row of open, at-risk, overdue and unassigned tickets, pending approvals, work due today and RMM alerts, then the ticket queue, SLA overview, technician workload, upcoming tasks and system status](docs/images/github/client-dashboard-dark.png)](docs/screenshots.md)
 
 <sub>Dashboard in the Professional Dark theme (the default). Click for the full screenshot gallery.</sub>
 
-## Why ClientSt0r?
+## Why Clientst0r?
 
 - **Self-hosted.** It runs on your server, as a Docker Compose stack or a native install. There is no hosted tier and no usage telemetry; outbound calls are the GitHub update check and the integrations you configure.
 - **One place for the daily work.** Documentation, the credential vault, tickets, contracts, assets, racks and network ports live in one application and link to each other. A ticket shows the client's contract, the asset it concerns, the runbook and the credentials the job needs.
@@ -138,7 +138,7 @@ Since the last documentation refresh (v3.17.683), releases through **v3.17.761**
 
 - **Navigation.** Ten sidebar sections (Dashboard, My Work, Service Desk, Clients, Assets & Network, Business, Knowledge & Vault, Security & Monitoring, Reports, and Administration at the foot) that collapse to an icon rail with flyouts. **Ctrl+K** opens Go to; the sidebar has a **Jump to** filter; any page can be starred into **Favorites**, and **Recent** lists what you opened last.
 - **AI (OPTIONAL AI).** Off by default, gated by `psa_ai_enabled` and a per-customer AI policy. Ticket AI uses model profiles for Anthropic, OpenAI or a local Ollama model; documentation AI also supports Moonshot and MiniMax. Secrets are redacted from the evidence sent, and vault data, attachments and internal notes are never sent. Ticket *Analyze* and *Compare models* run through a paired RMM; reply drafts, triage and suggested actions do not need one.
-- **Rem0te.** Rem0te is a separate RMM application, not part of this repository. ClientSt0r pairs with it over a signed contract (ticket-rmm-v1 revision 2: Ed25519 signatures, replay protection, the Rem0te tenant pinned by immutable IDs). Tested with both real applications in CI: pairing, Rem0te alerts becoming ClientSt0r tickets with a link back, optional AI analysis of Rem0te-supplied evidence, containment, revoked access and tenant isolation. Read-only diagnostics, remediation proposals and results flowing back to the ticket are **in development**: the contract routes are agreed but not yet built on the Rem0te side. Approval of any endpoint action always happens in Rem0te, never in ClientSt0r or by AI.
+- **Rem0te.** Rem0te is a separate RMM application, not part of this repository. Clientst0r pairs with it over a signed contract (ticket-rmm-v1 revision 2: Ed25519 signatures, replay protection, the Rem0te tenant pinned by immutable IDs). Tested with both real applications in CI: pairing, Rem0te alerts becoming Clientst0r tickets with a link back, optional AI analysis of Rem0te-supplied evidence, containment, revoked access and tenant isolation. Read-only diagnostics, remediation proposals and results flowing back to the ticket are **in development**: the contract routes are agreed but not yet built on the Rem0te side. Approval of any endpoint action always happens in Rem0te, never in Clientst0r or by AI.
 - **Technician security.** L1/L2/L3 technician access per customer with expiry and a "why can this technician" page, optional Superuser Approval by a second administrator, and vault visibility that shows a customer's entries only where a membership or global role grants it.
 - **Wallboards.** Configurable boards under Reports → Wallboards, and a public token-protected scheduler wallboard.
 - **Security alerts and events.** Generic JSON vendor webhooks and SIEM webhook endpoints (CEF, JSON, Syslog format over HTTPS), incidents, and a shared **Events** list that copies security, RMM, Rem0te, backup and website-monitor alerts into one place with ingestion health and retention per source and per customer.
@@ -195,7 +195,7 @@ No dates. Status comes from the [roadmap](docs/ROADMAP.md); ideas and votes go t
 
 ## How it compares
 
-ClientSt0r covers ground that is often split across several tool categories: IT documentation, PSA/ticketing, password management, asset and network documentation, basic monitoring, and billing. It is not a full RMM (device management runs in a paired RMM such as Rem0te), not a SIEM (it receives alerts, it does not collect logs), and not an accounting package (it pushes invoices to one). **[COMPARISON.md](COMPARISON.md)** goes category by category: what is native, what comes through integrations, what is planned, and where a dedicated tool fits better.
+Clientst0r covers ground that is often split across several tool categories: IT documentation, PSA/ticketing, password management, asset and network documentation, basic monitoring, and billing. It is not a full RMM (device management runs in a paired RMM such as Rem0te), not a SIEM (it receives alerts, it does not collect logs), and not an accounting package (it pushes invoices to one). **[COMPARISON.md](COMPARISON.md)** goes category by category: what is native, what comes through integrations, what is planned, and where a dedicated tool fits better.
 
 ## Quick start
 
@@ -271,7 +271,7 @@ flowchart LR
         P[Customer portal]
         M[Mobile app / PWA]
     end
-    B & P & M --> APP["ClientSt0r<br/>Django app on Gunicorn"]
+    B & P & M --> APP["Clientst0r<br/>Django app on Gunicorn"]
     APP --> DB[("MariaDB / MySQL<br/>or SQLite")]
     S["Built-in scheduler<br/>(systemd timer or<br/>scheduler container)"] --> DB
     APP -- outbound APIs --> I["PSA, RMM, accounting,<br/>network controllers, M365"]
@@ -289,7 +289,7 @@ One server per MSP; there is no clustered deployment. Redis is optional (cache o
 - **AI is optional** (`psa_ai_enabled` off by default).
 - **Some integrations are not verified against live services:** payments (Stripe, GoCardless), sales tax (Avalara, TaxJar), OIDC with real identity providers, office editors (ONLYOFFICE, Collabora, Microsoft 365 documents). Warranty lookups (Dell, HPE, Lenovo) are stubs; enter warranty dates by hand. Security vendor names in the connection list are labels: alerts arrive only through the generic JSON webhook or a SIEM webhook endpoint.
 
-## How ClientSt0r protects client data
+## How Clientst0r protects client data
 
 Full walkthrough with evidence and known gaps: [docs/CLIENT_DATA_PROTECTION.md](docs/CLIENT_DATA_PROTECTION.md). Administrators can check each protection per customer under **Settings → Security → Security Features**.
 
@@ -299,7 +299,7 @@ Full walkthrough with evidence and known gaps: [docs/CLIENT_DATA_PROTECTION.md](
 - **Encryption:** vault passwords, TOTP seeds and stored integration credentials use AES-256-GCM with per-purpose keys; tokens are stored as HMAC-SHA256 hashes. Ticket text and attachments are not encrypted by the app.
 - **Staff have broader access than customers, by design.** The vault is stricter: a technician sees a customer's entries only where a membership or global role grants "view vault". Ticket AI and RMM tools need an L1/L2/L3 assignment at each customer.
 - **Ticket AI (OPTIONAL AI)** is off until a superuser enables it and sets each customer's AI policy. Nothing AI produces reaches a customer until a technician presses Send.
-- **A paired RMM does the device work.** Pairing is a protected change a second administrator approves and is pinned to one RMM tenant. Any endpoint action is approved in the RMM, never in ClientSt0r or by AI. Rem0te is the only known implementation of the pairing contract.
+- **A paired RMM does the device work.** Pairing is a protected change a second administrator approves and is pinned to one RMM tenant. Any endpoint action is approved in the RMM, never in Clientst0r or by AI. Rem0te is the only known implementation of the pairing contract.
 
 Known limitations (audit log deletable by superusers, with each deletion recorded; Azure AD sign-in skips local TOTP; mobile tokens last until revoked; CSP report-only by default): [docs/CLIENT_DATA_PROTECTION.md](docs/CLIENT_DATA_PROTECTION.md#limitations).
 
@@ -355,13 +355,13 @@ MIT — see [LICENSE](LICENSE). Every first-party feature works on a self-hosted
 
 ## MSP Reboot
 
-ClientSt0r is built by the people behind **[MSP Reboot](https://mspreboot.com)**, an MSP consulting practice working with owners on pricing, operations, margins and service delivery. **Optional managed hosting and commercial support** are offered separately for teams that would rather not run it themselves. None of that is required to use ClientSt0r; paying for hosting or support buys time and infrastructure, not access to features.
+Clientst0r is built by the people behind **[MSP Reboot](https://mspreboot.com)**, an MSP consulting practice working with owners on pricing, operations, margins and service delivery. **Optional managed hosting and commercial support** are offered separately for teams that would rather not run it themselves. None of that is required to use Clientst0r; paying for hosting or support buys time and infrastructure, not access to features.
 
 ---
 
 <div align="center">
 
-If ClientSt0r saves you time, a ⭐ helps other MSPs find it.
+If Clientst0r saves you time, a ⭐ helps other MSPs find it.
 
 <sub>Built by a small team and one German Shepherd. Luna supervises.</sub>
 

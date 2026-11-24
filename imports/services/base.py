@@ -376,7 +376,7 @@ class BaseImportService:
         return 0  # Optional
 
     def create_canonical(self, canon, organization):
-        """Create the ClientSt0r record for a canonical record
+        """Create the Clientst0r record for a canonical record
         (imports.migration.normalize) - the field mapping shared with the
         one-customer rehearsal. Links are not resolved here."""
         from imports.migration.targets import SPECS, _field

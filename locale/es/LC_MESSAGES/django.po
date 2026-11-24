@@ -1,8 +1,8 @@
-# Spanish (es) translations for Client St0r
+# Spanish (es) translations for Clientst0r
 # Copyright (C) 2026
 msgid ""
 msgstr ""
-"Project-Id-Version: Client St0r\n"
+"Project-Id-Version: Clientst0r\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-02-26 00:00+0000\n"
 "PO-Revision-Date: 2026-02-26 00:00+0000\n"
@@ -332,8 +332,8 @@ msgstr "Reportar un problema en GitHub"
 msgid "Support this open-source project"
 msgstr "Apoyar este proyecto de código abierto"
 
-msgid "Install Client St0r as an app"
-msgstr "Instalar Client St0r como aplicación"
+msgid "Install Clientst0r as an app"
+msgstr "Instalar Clientst0r como aplicación"
 
 msgid "Sign out of your account"
 msgstr "Cerrar sesión de tu cuenta"

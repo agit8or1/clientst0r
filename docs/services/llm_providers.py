@@ -1,5 +1,5 @@
 """
-Multi-LLM Provider Support for Client St0r
+Multi-LLM Provider Support for Clientst0r
 Supports Anthropic Claude, Moonshot AI (Kimi), MiniMax, and OpenAI
 """
 

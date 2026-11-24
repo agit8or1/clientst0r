@@ -1,5 +1,5 @@
 """
-Custom GraphQL Types for Client St0r
+Custom GraphQL Types for Clientst0r
 """
 
 import graphene

@@ -1,4 +1,4 @@
-# ClientSt0r documentation
+# Clientst0r documentation
 
 Start at the [README](../README.md) for positioning, screenshots and install steps.
 
@@ -18,7 +18,7 @@ Start at the [README](../README.md) for positioning, screenshots and install ste
 * [Feature list](../FEATURES.md)
 * [Screenshots](screenshots.md)
 * [Billing, prepaid hours and contracts](BILLING.md) — Time & Charges, Ready for Billing, consolidated invoices, Settings → Billing, contract e-signature
-* [Backing up and restoring Client St0r](BACKUP_AND_RESTORE.md) — off-host encrypted backups and restore verification
+* [Backing up and restoring Clientst0r](BACKUP_AND_RESTORE.md) — off-host encrypted backups and restore verification
 * [Connected Applications](CONNECTED_APPLICATIONS.md) — Agit8or Connect and Quick Connect (early release)
 * [Hardware catalog and visual inventory](HARDWARE_INVENTORY.md) — device artwork, ports, cables, racks, diagrams, labels
 * [FAQ](faq.md)
@@ -45,7 +45,7 @@ Start at the [README](../README.md) for positioning, screenshots and install ste
 
 ## Background reading
 
-* [What is ClientSt0r?](what-is-clientst0r.md)
+* [What is Clientst0r?](what-is-clientst0r.md)
 * [MSP documentation overview](msp-documentation.md)
 * [Comparison notes](../COMPARISON.md)
 * [Importing from IT Glue](importing-from-it-glue.md)

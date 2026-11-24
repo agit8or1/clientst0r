@@ -243,7 +243,7 @@ current, "none" or "no".
                 {% if s.awaiting_confirmation_kbs %}<dt class="col-sm-4">Awaiting confirmation</dt><dd class="col-sm-8">{{ s.awaiting_confirmation_kbs|join:", " }}</dd>{% endif %}
                 <dt class="col-sm-4">Deploy from Rem0te</dt><dd class="col-sm-8">{% if s.deploy_available is True %}Available in Rem0te (approvals happen there){% elif s.deploy_available is False %}Not available{% else %}Unknown{% endif %}</dd>
             </dl>
-            <p class="small text-muted mb-0">{{ p.source }}, received {{ s.received_at|date:"Y-m-d H:i" }}. ClientSt0r shows it; deploying and approving updates happen in Rem0te.</p>
+            <p class="small text-muted mb-0">{{ p.source }}, received {{ s.received_at|date:"Y-m-d H:i" }}. Clientst0r shows it; deploying and approving updates happen in Rem0te.</p>
             {% endwith %}
             {% else %}
             <dl class="row small mb-2">
@@ -294,7 +294,7 @@ current, "none" or "no".
                 {{ l.when|date:"Y-m-d H:i" }} · {{ l.user.username|default:"—" }} · {{ l.mode }} —
                 {% if l.ok %}Launch link issued; session not confirmed by the RMM{% else %}Launch refused or failed{% endif %}
             </div>
-            {% empty %}<p class="small text-muted mb-0">No remote launches from ClientSt0r.</p>{% endfor %}
+            {% empty %}<p class="small text-muted mb-0">No remote launches from Clientst0r.</p>{% endfor %}
         </div>
 
         {# Related: tickets, docs, runbooks, credentials #}

@@ -1,4 +1,4 @@
-# ClientSt0r screenshots — archive
+# Clientst0r screenshots — archive
 
 > **This is the archive.** The current visual tour lives at
 > [`docs/screenshots.md`](../screenshots.md), captured against the current interface
@@ -379,5 +379,5 @@ card and a polling-friendly JSON feed at `/core/roadmap.json`.
 ![Accounting connections for QuickBooks Online, Xero and others](integrations-accounting.png)
 
 ---
-**ClientSt0r** — self-hosted IT documentation and service desk for MSPs
+**Clientst0r** — self-hosted IT documentation and service desk for MSPs
 https://github.com/agit8or1/clientst0r

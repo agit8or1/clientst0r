@@ -1,6 +1,6 @@
-# Fail2Ban Setup for Client St0r
+# Fail2Ban Setup for Clientst0r
 
-This guide explains how to set up Fail2Ban to protect your Client St0r installation from brute-force attacks.
+This guide explains how to set up Fail2Ban to protect your Clientst0r installation from brute-force attacks.
 
 ## What is Fail2Ban?
 
@@ -10,7 +10,7 @@ Fail2Ban monitors log files for suspicious activity (like repeated failed login 
 
 ### Option 1: Automatic Setup (via Web Interface - Recommended)
 
-1. Log into Client St0r as an admin
+1. Log into Clientst0r as an admin
 2. Go to **Settings → Security → Fail2Ban**
 3. Click **"Auto-Install Fail2Ban"**
 4. The system will automatically:
@@ -168,9 +168,9 @@ Ensure fail2ban can read log files:
 sudo chmod 644 /var/log/itdocs/*.log
 ```
 
-## Integration with Client St0r
+## Integration with Clientst0r
 
-Client St0r's built-in Fail2Ban management (Settings → Security) provides:
+Clientst0r's built-in Fail2Ban management (Settings → Security) provides:
 - Real-time ban statistics
 - One-click IP unbanning
 - Ban history and analytics

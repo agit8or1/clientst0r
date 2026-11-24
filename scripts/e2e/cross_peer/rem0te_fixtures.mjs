@@ -54,7 +54,7 @@ async function setup({ peerId, sfx, orgs, techs, endpoints }) {
     // Disk below 30% free is critical for this business; tickets offered from WARNING.
     await prisma.monitorRule.create({ data: { scopeKey: `b:${c.id}`, customerId: c.id, key: 'disk-free', kind: 'DISK_FREE', name: 'System disk (e2e)', severity: 'CRITICAL', params: { minFreePercent: 30 }, createdById: 'cross-peer-e2e' } });
     await prisma.monitorNotifyPolicy.create({ data: { scopeKey: `b:${c.id}`, customerId: c.id, levels: [], ticketing: { enabled: true, minSeverity: 'WARNING' }, updatedById: 'cross-peer-e2e' } });
-    // A read-only inventory key, the one ClientSt0r's device sync uses. Rem0te
+    // A read-only inventory key, the one Clientst0r's device sync uses. Rem0te
     // honours a key only while its creator is an active owner of the business.
     const owner = await prisma.user.create({ data: { email: `cp-owner-${o.ext}-${sfx}@test.invalid`, passwordHash: 'x', firstName: 'CP', lastName: `owner ${o.ext}`, status: 'ACTIVE' } });
     await prisma.membership.create({ data: { userId: owner.id, tenantId: tenant.id, customerId: c.id, roleId: roleOwner.id } });

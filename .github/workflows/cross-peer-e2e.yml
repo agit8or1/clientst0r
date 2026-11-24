@@ -1,6 +1,6 @@
 name: cross-peer-e2e
 
-# ClientSt0r against a real Rem0te over the ticket-rmm-v1 contract (Ed25519):
+# Clientst0r against a real Rem0te over the ticket-rmm-v1 contract (Ed25519):
 # pairing, ticket analysis, staff-only results, alert → exactly one ticket
 # linked back, restart/retry exactly-once, same computer name in two
 # organizations, revoked access, an unavailable peer, L1 limits and
@@ -9,13 +9,13 @@ name: cross-peer-e2e
 # Rem0te's approval signer by a distinct approver (test-only signer, key,
 # roster and synthetic passkeys in the run's work directory) → Rem0te's own
 # agent decision code runs it against a simulated Windows → result note →
-# alert.resolved; (s13) direct mode refuses ClientSt0r proposals.
+# alert.resolved; (s13) direct mode refuses Clientst0r proposals.
 # scripts/e2e/cross_peer/run.py does the work;
 # this job only provides Postgres, Redis, the pinned Rem0te build and the
-# Python dependencies. All data is synthetic; ClientSt0r runs on a throwaway
+# Python dependencies. All data is synthetic; Clientst0r runs on a throwaway
 # SQLite file.
 #
-# Rem0te is checked out at the revision ClientSt0r's vendored contract is
+# Rem0te is checked out at the revision Clientst0r's vendored contract is
 # pinned to (integrations/rem0te/contract/PIN.json). Bumping the pin bumps
 # what this job tests. If the Rem0te repository is private, add a read-only
 # token as the REM0TE_READ_TOKEN secret.
@@ -126,7 +126,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: ClientSt0r dependencies
+      - name: Clientst0r dependencies
         run: |
           python -m venv venv
           venv/bin/pip install --quiet -r requirements.txt

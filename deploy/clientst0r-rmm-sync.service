@@ -1,5 +1,5 @@
 [Unit]
-Description=Client St0r RMM Sync
+Description=Clientst0r RMM Sync
 After=network.target
 
 [Service]

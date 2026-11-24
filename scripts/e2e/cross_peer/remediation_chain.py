@@ -1,21 +1,21 @@
 """
 s12 / s13 of the cross-peer run: the remediation chain between the real
-ClientSt0r and the real Rem0te, with approval ONLY inside Rem0te.
+Clientst0r and the real Rem0te, with approval ONLY inside Rem0te.
 
-  s12  Rem0te SERVICE_STOPPED alert (Print Spooler) → ClientSt0r ticket (alert
+  s12  Rem0te SERVICE_STOPPED alert (Print Spooler) → Clientst0r ticket (alert
        policy) → support workflow → the L2 technician proposes the catalog
        action windows.service.start@1 → Rem0te: awaiting_approval → the same
        proposal again is the same job; a changed body is 409 → the proposing
        technician cannot approve (on the signer's roster or not), asking for the
-       fix on the ticket is not approval, ClientSt0r has no approve route →
+       fix on the ticket is not approval, Clientst0r has no approve route →
        a distinct approver approves on Rem0te's approval signer with a passkey →
        the next heartbeat delivers the signed envelope → Rem0te's own agent
        decision code (rem0te-action-sim) verifies and runs it against a
-       simulated Windows → the result is reported on a heartbeat → ClientSt0r
+       simulated Windows → the result is reported on a heartbeat → Clientst0r
        polls it and writes a staff-only note → the monitor sees the Spooler
        running → alert.resolved → the workflow run is verified by monitoring.
-  s13  The same business in the signer's direct mode: a ClientSt0r proposal is
-       refused (DIRECT_MODE_PORTAL_ONLY) and ClientSt0r records the refusal.
+  s13  The same business in the signer's direct mode: a Clientst0r proposal is
+       refused (DIRECT_MODE_PORTAL_ONLY) and Clientst0r records the refusal.
 
 The approval signer, its key, its roster, the approvers' passkeys and the
 signed update repository are test-only and live in the run's work directory
@@ -80,7 +80,7 @@ class RemediationChain:
 
     def ensure_signer(self):
         """Release repo + signer key (offline), signer process, Rem0te restarted
-        pointed at both, pairing re-checked so ClientSt0r sees the catalog."""
+        pointed at both, pairing re-checked so Clientst0r sees the catalog."""
         if self.signer:
             return self.signer
         rb, sim = os.environ.get('RELEASE_BIN', ''), os.environ.get('ACTION_SIM', '')
@@ -171,7 +171,7 @@ class RemediationChain:
         rel = self.ensure_signer()
         conn, ext = self.conns[self.oa], self.oa
         check(ACTION in {a['key'] for a in pairing.proposable_actions(conn)},
-              'with a signer configured, Rem0te advertises windows.service.start@1 and ClientSt0r offers it',
+              'with a signer configured, Rem0te advertises windows.service.start@1 and Clientst0r offers it',
               pairing.last_check(conn).get('features'))
 
         # Rem0te side (scratch only): the technician may request actions; a
@@ -212,7 +212,7 @@ class RemediationChain:
         from psa_ai.services import rmm_actions
         wait_for = H['wait_for']
 
-        # 1. Rem0te alert → ClientSt0r ticket.
+        # 1. Rem0te alert → Clientst0r ticket.
         st, body = self.monitor_report(ext, 'Stopped')
         check(st in (200, 201), 'the agent reports the Print Spooler stopped', f'{st} {body}')
         link = wait_for(lambda: AlertTicketLink.objects.filter(connection=conn, category='service',
@@ -255,7 +255,7 @@ class RemediationChain:
             return
         job_id = req.remote_id
         check(req.approvals_required == 1 and req.approval_url == f'{SIGNER_ORIGIN}/approve/{job_id}',
-              'one approval (standard workstation), on the signer\'s own origin — ClientSt0r only links to it',
+              'one approval (standard workstation), on the signer\'s own origin — Clientst0r only links to it',
               (req.approvals_required, req.approval_url))
         sent = req.payload['rem0te_proposal']
         check(sent['action'] == {'id': 'windows.service.start', 'version': 1} and sent['params'] == {'service': 'Spooler'}
@@ -279,7 +279,7 @@ class RemediationChain:
         rem0te_actions.send(req)
         req.refresh_from_db()
         check(req.remote_id == job_id and req.remote_status == 'awaiting_approval',
-              'ClientSt0r\'s own re-send (after a restart) lands on the same proposal', (req.remote_id, req.status))
+              'Clientst0r\'s own re-send (after a restart) lands on the same proposal', (req.remote_id, req.status))
         changed = post(dict(sent, reason=sent['reason'] + ' (edited)'))
         check(changed.status == 409, 'the same idempotency key with a changed body → 409',
               (changed.status, changed.code))
@@ -288,9 +288,9 @@ class RemediationChain:
             refused = None
         except rmm_actions.ActionRefused as e:
             refused = e.status
-        check(refused == 409, 'ClientSt0r refuses the same request key for a different proposal (409)', refused)
+        check(refused == 409, 'Clientst0r refuses the same request key for a different proposal (409)', refused)
 
-        # 4. Nobody in ClientSt0r approves; the requester cannot approve in Rem0te.
+        # 4. Nobody in Clientst0r approves; the requester cannot approve in Rem0te.
         before = RMMRequest.objects.get(pk=req.pk).status
         codes = [c.post(u).status_code for u in (f'/psa/rmm/{t.ticket_number}/approve/',
                                                  f'/psa/rmm/{t.ticket_number}/fix/approve/',
@@ -306,14 +306,14 @@ class RemediationChain:
                 else:
                     names.append(prefix + str(p.pattern))
         walk(get_resolver().url_patterns)
-        # ClientSt0r's own permission approvals (settings/security/rmm-permissions/approvals, and their
-        # admin) gate whether ClientSt0r may *send* something; they never approve a Rem0te plan.
+        # Clientst0r's own permission approvals (settings/security/rmm-permissions/approvals, and their
+        # admin) gate whether Clientst0r may *send* something; they never approve a Rem0te plan.
         rmm_approve = [n for n in names if 'approv' in n and ('rmm' in n or 'rem0te' in n or 'workflows' in n)
                        and not n.startswith('admin/') and 'rmm-permissions/' not in n]
         run.refresh_from_db()
         check(all(x == 404 for x in codes) and not rmm_approve and run.status == 'awaiting_approval'
               and RMMRequest.objects.get(pk=req.pk).status == before,
-              'ClientSt0r exposes no approve route for RMM/Rem0te proposals (and a workflow "approve" op does nothing)',
+              'Clientst0r exposes no approve route for RMM/Rem0te proposals (and a workflow "approve" op does nothing)',
               (codes, rmm_approve, run.status))
         st_no, _ = H['http_json']('POST', f'{self.r_url}/api/v1/actions/{job_id}/approve', {})
         check(st_no == 404, 'Rem0te\'s portal has no approve route either', st_no)
@@ -342,7 +342,7 @@ class RemediationChain:
         with urllib.request.urlopen(f'{self.signer_public}/approve/{job_id}', timeout=15) as resp:
             st_p, page = resp.status, resp.read().decode(errors='replace')
         check(st_p == 200 and 'FRONTDESK-01' in page and ticket_ext_id(t) in page,
-              'the approval page shows the computer and ClientSt0r\'s ticket', st_p)
+              'the approval page shows the computer and Clientst0r\'s ticket', st_p)
         a = self.approve(job_id, 'approver')
         check(a['status'] == 200 and (a.get('body') or {}).get('status') == 'SIGNED',
               'a distinct approver approves with a passkey on the signer → SIGNED', a)
@@ -352,7 +352,7 @@ class RemediationChain:
         job = self.node('actionJob', {'id': job_id})
         check(req.status == 'approved' and run.status == 'approved' and job['approvers'] == [approver_id]
               and tech_r not in job['approvers'],
-              'ClientSt0r polls: approved — by the approver, not the technician or ClientSt0r',
+              'Clientst0r polls: approved — by the approver, not the technician or Clientst0r',
               (req.status, run.status, job))
 
         # 7. The agent runs it (Rem0te's real decision code, simulated Windows) and reports.
@@ -375,7 +375,7 @@ class RemediationChain:
         req.refresh_from_db()
         check(req.status == 'succeeded' and req.remote_outcome == 'succeeded'
               and (req.observed or {}).get('before') == 'stopped',
-              'ClientSt0r polls the terminal state: succeeded, with what the agent observed',
+              'Clientst0r polls the terminal state: succeeded, with what the agent observed',
               (req.status, req.remote_outcome, req.observed))
         check(run.status == 'verifying', 'the workflow waits for monitoring to confirm (a job success is not the fix)',
               run.status)
@@ -406,7 +406,7 @@ class RemediationChain:
         wait_for(resolved, 60, 2)
         row = Rem0teAlertTicket.objects.filter(connection=conn, alert_id=link.external_id).first()
         check(link.state == 'resolved' and row and row.state == 'resolved',
-              'Rem0te pushed alert.resolved; ClientSt0r recorded the recovery', (link.state, row and row.state))
+              'Rem0te pushed alert.resolved; Clientst0r recorded the recovery', (link.state, row and row.state))
         t.refresh_from_db()
         check(run.status == 'verified' and 'Confirmed by monitoring' in run.outcome_note
               and ((t.custom_fields or {}).get('support_workflows') or {}).get('service-stopped', {}).get('status')
@@ -416,7 +416,7 @@ class RemediationChain:
 
     # -- s13 -------------------------------------------------------------------
     def s13_direct_mode(self):
-        H['section']('s13', 'Direct mode on the signer: ClientSt0r proposals are refused (DIRECT_MODE_PORTAL_ONLY)')
+        H['section']('s13', 'Direct mode on the signer: Clientst0r proposals are refused (DIRECT_MODE_PORTAL_ONLY)')
         self._guard('s13', self._s13)
 
     def _s13(self):
@@ -437,8 +437,8 @@ class RemediationChain:
                                                         'action': ACTION, 'description': 'Spooler stopped'})
             req = RMMRequest.objects.filter(ticket=t).order_by('-created_at').first()
             check(req is not None and req.status == 'rejected' and req.remote_status == 'DIRECT_MODE_PORTAL_ONLY'
-                  and not req.remote_id, 'Rem0te refuses the ClientSt0r proposal (403 DIRECT_MODE_PORTAL_ONLY); '
-                  'ClientSt0r records it rejected, nothing was signed', req and (req.status, req.remote_status, req.error))
+                  and not req.remote_id, 'Rem0te refuses the Clientst0r proposal (403 DIRECT_MODE_PORTAL_ONLY); '
+                  'Clientst0r records it rejected, nothing was signed', req and (req.status, req.remote_status, req.error))
             check(req is not None and not self.no_secrets(req.error), 'the reason has no secrets', req and req.error)
         finally:
             self.signer_cli('policy', 'set', '--business', self.fx['businesses'][ext], '--approval', 'signed')

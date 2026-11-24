@@ -12,7 +12,7 @@ Returns:
       'mode': 'manual' | 'avalara' | 'taxjar' | 'flat' | 'none',
       'authoritative': 'clientst0r' | 'provider' | 'accounting',
       'send_tax': bool,          # False: let the accounting system tax it
-      'total_tax': Decimal|None, # the amount ClientSt0r billed
+      'total_tax': Decimal|None, # the amount Clientst0r billed
       'calculation_id': int|None,
       'stale': bool,             # lines changed since the calculation
       'lines': {line_pk: {

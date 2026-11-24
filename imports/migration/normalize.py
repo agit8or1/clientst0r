@@ -1,6 +1,6 @@
 """Source record -> canonical record.
 
-A canonical record says which kind of ClientSt0r record a source record
+A canonical record says which kind of Clientst0r record a source record
 becomes, with which field values, which secrets and which links to other
 *source* records. It is pure: the same staged record (and the same type
 overrides) always gives the same canonical record, which is what lets apply

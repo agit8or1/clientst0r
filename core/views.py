@@ -788,7 +788,7 @@ def root_helper_install(request):
         return redirect('core:system_updates')
     password = request.POST.get('sudo_password', '')
     if not password:
-        messages.error(request, 'Enter the sudo password for the server account that runs Client St0r.')
+        messages.error(request, 'Enter the sudo password for the server account that runs Clientst0r.')
         return redirect('core:system_updates')
 
     ok, output = root_helper.bootstrap_with_password(password)
@@ -1758,7 +1758,7 @@ def download_mobile_app(request, app_type):
                 open(apk_path, 'rb'),
                 content_type='application/vnd.android.package-archive'
             )
-            response['Content-Disposition'] = 'attachment; filename="Client St0r.apk"'
+            response['Content-Disposition'] = 'attachment; filename="Clientst0r.apk"'
 
             # Log download
             AuditLog.objects.create(
@@ -1840,7 +1840,7 @@ def download_mobile_app(request, app_type):
                     <!DOCTYPE html>
                     <html>
                     <head>
-                        <title>Building Android App - Client St0r</title>
+                        <title>Building Android App - Clientst0r</title>
                         <meta charset="UTF-8">
                         <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                         <meta http-equiv="Pragma" content="no-cache">
@@ -1974,7 +1974,7 @@ def download_mobile_app(request, app_type):
                     <!DOCTYPE html>
                     <html>
                     <head>
-                        <title>Android App Build Complete - Client St0r</title>
+                        <title>Android App Build Complete - Clientst0r</title>
                         <meta charset="UTF-8">
                         <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                         <meta http-equiv="Pragma" content="no-cache">
@@ -2050,7 +2050,7 @@ def download_mobile_app(request, app_type):
                         <!DOCTYPE html>
                         <html>
                         <head>
-                            <title>Android Build Failed - Client St0r</title>
+                            <title>Android Build Failed - Clientst0r</title>
                             <meta charset="UTF-8">
                             <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                             <link href="{static(BOOTSTRAP_CSS)}" rel="stylesheet">
@@ -2137,7 +2137,7 @@ def download_mobile_app(request, app_type):
             <!DOCTYPE html>
             <html>
             <head>
-                <title>Building Android App - Client St0r</title>
+                <title>Building Android App - Clientst0r</title>
                 <meta charset="UTF-8">
                 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                 <meta http-equiv="Pragma" content="no-cache">
@@ -2242,7 +2242,7 @@ def download_mobile_app(request, app_type):
                 open(ipa_path, 'rb'),
                 content_type='application/octet-stream'
             )
-            response['Content-Disposition'] = 'attachment; filename="Client St0r.ipa"'
+            response['Content-Disposition'] = 'attachment; filename="Clientst0r.ipa"'
 
             # Log download
             AuditLog.objects.create(
@@ -2290,7 +2290,7 @@ def download_mobile_app(request, app_type):
                     <!DOCTYPE html>
                     <html>
                     <head>
-                        <title>Building iOS App - Client St0r</title>
+                        <title>Building iOS App - Clientst0r</title>
                         <meta charset="UTF-8">
                         <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                         <meta http-equiv="Pragma" content="no-cache">
@@ -2359,7 +2359,7 @@ def download_mobile_app(request, app_type):
                     <!DOCTYPE html>
                     <html>
                     <head>
-                        <title>iOS App Build Complete - Client St0r</title>
+                        <title>iOS App Build Complete - Clientst0r</title>
                         <meta charset="UTF-8">
                         <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                         <meta http-equiv="Pragma" content="no-cache">
@@ -2411,7 +2411,7 @@ def download_mobile_app(request, app_type):
                     <!DOCTYPE html>
                     <html>
                     <head>
-                        <title>iOS App - Client St0r</title>
+                        <title>iOS App - Clientst0r</title>
                         <meta charset="UTF-8">
                         <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                         <meta http-equiv="Pragma" content="no-cache">
@@ -2455,7 +2455,7 @@ def download_mobile_app(request, app_type):
             <!DOCTYPE html>
             <html>
             <head>
-                <title>iOS App - Client St0r</title>
+                <title>iOS App - Clientst0r</title>
                 <meta charset="UTF-8">
                 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                 <meta http-equiv="Pragma" content="no-cache">
@@ -2482,7 +2482,7 @@ def download_mobile_app(request, app_type):
                         <h1>iOS App Not Available</h1>
                         <p class="lead">iOS app builds are not currently supported.</p>
                         <p class="text-muted">Building iOS apps requires a macOS system with Xcode installed. This Linux server cannot build iOS apps.</p>
-                        <p class="text-muted">Consider using the Android app or accessing Client St0r through your web browser instead.</p>
+                        <p class="text-muted">Consider using the Android app or accessing Clientst0r through your web browser instead.</p>
                         <div class="mt-4">
                             <a href="#" onclick="history.back(); return false;" class="btn-secondary">Go Back</a>
                         </div>
@@ -2503,7 +2503,7 @@ def download_mobile_app(request, app_type):
             <!DOCTYPE html>
             <html>
             <head>
-                <title>Building iOS App - Client St0r</title>
+                <title>Building iOS App - Clientst0r</title>
                 <meta charset="UTF-8">
                 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                 <meta http-equiv="Pragma" content="no-cache">

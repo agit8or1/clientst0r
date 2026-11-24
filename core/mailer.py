@@ -56,7 +56,7 @@ def default_from_email(settings):
 
 
 def brand_name(settings):
-    return settings.custom_company_name or settings.site_name or 'Client St0r'
+    return settings.custom_company_name or settings.site_name or 'Clientst0r'
 
 
 def site_url(settings):

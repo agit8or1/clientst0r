@@ -135,7 +135,7 @@ def _notify(change, event, recovery_email=None):
             f'Grants beyond the current state: {", ".join(change.widening) or "nothing"}\n\n'
             'If you did not expect this, sign in and review Settings → Security → Technician Access.')
     try:
-        send_mail(f'[ClientSt0r] Protected change {event}', body, None, sorted(recipients), fail_silently=True)
+        send_mail(f'[Clientst0r] Protected change {event}', body, None, sorted(recipients), fail_silently=True)
     except Exception:  # mail is best effort; the audit log is the record
         logger.exception('protected change notification failed')
     return sorted(recipients)

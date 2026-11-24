@@ -1,6 +1,6 @@
 {
   "name": "job-submit.replayed",
-  "description": "ClientSt0r → rem0te: the same idempotency key and body again (here after a restart). 200 with idempotent-replayed: true and the same job — never a second job.",
+  "description": "Clientst0r → rem0te: the same idempotency key and body again (here after a restart). 200 with idempotent-replayed: true and the same job — never a second job.",
   "direction": "clientst0r_to_rem0te",
   "request": {
     "method": "POST",

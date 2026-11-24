@@ -1,4 +1,4 @@
-# Client St0r — production Dockerfile
+# Clientst0r — production Dockerfile
 #
 # Multi-stage Python 3.12 build. Stage 1 compiles wheels with a full
 # toolchain into a venv. Stage 2 copies the venv into a slim runtime

@@ -44,13 +44,13 @@ Corrections to GAP_ANALYSIS Area 1 from this read:
   Clientst0r's `KNOWN_ACTIONS` (`cs:integrations/rem0te/pairing.py:67`) still has only `windows.service.start@1`, so it is
   silently filtered out (`pairing.py:245`).
 - **1.27 still stale on the Rem0te side:** `r:docs/readiness.md:114`, `r:docs/contracts/ticket-rmm-v1/README.md`
-  (Milestone status) and `CLIENTST0R.md` still say "does not interoperate with real ClientSt0r (HMAC vs Ed25519)".
+  (Milestone status) and `CLIENTST0R.md` still say "does not interoperate with real Clientst0r (HMAC vs Ed25519)".
 
 ## 2. Existing Rem0te roadmap and plan documents
 
 | Path | Covers | State |
 |---|---|---|
-| **`r:docs/readiness.md`** (0.68.1, "audited at v0.68.0") | Evidence-graded capability matrix per agent type; production-fleet evidence (4 Windows PCs, signed agent); remote-access limits; **"Roadmap, in dependency order"** Phases 1–12: real-endpoint validation, Managed Secure Access, agent reliability, patching/software/scripting evidence, monitoring (Defender/AV, firewall, BitLocker, SMART, battery, baselines, flapping), AI install detector, ClientSt0r interop, hardening/scale/UX | **Canonical.** It states it supersedes the three below where they disagree |
+| **`r:docs/readiness.md`** (0.68.1, "audited at v0.68.0") | Evidence-graded capability matrix per agent type; production-fleet evidence (4 Windows PCs, signed agent); remote-access limits; **"Roadmap, in dependency order"** Phases 1–12: real-endpoint validation, Managed Secure Access, agent reliability, patching/software/scripting evidence, monitoring (Defender/AV, firewall, BitLocker, SMART, battery, baselines, flapping), AI install detector, Clientst0r interop, hardening/scale/UX | **Canonical.** It states it supersedes the three below where they disagree |
 | `r:docs/implementation-status.md` | "Expanded RMM programme" tracker (directive 2026-11-16): phase 0 audit of 0.54, plan rows (health telemetry 1a–1d, backup monitoring 5, digest 7, customer health dashboard 6, scheduling 2a, alert-triggered automation 2b, template library 2c, PowerShell 7 + POSIX Go agent 2d, file manager 3, UI 8), owner decisions (POSIX Design A, run-as, file manager Design B) | **The feature-expansion roadmap**, but a 0.54 snapshot (readiness.md L160 says so). Owner decisions there are still the latest recorded |
 | `r:docs/rmm-gap-analysis.md` | Gap inventory against the RMM overhaul brief, written at 0.30.1/0.31 | Stale (two-action catalog etc., per readiness.md L153) |
 | `r:docs/managed-secure-access.md` | Remote-session audit, design, build order §4, compatibility testing §5 | Current; steps 1–5 built, 3–5 behind `MSA_GRANTS` |
@@ -147,7 +147,7 @@ Status key: **Complete** = code + tests (state Rem0te's evidence level); **Parti
 | Approved policy | Partial — signer-approved automation policies exist, but time-triggered only | `r:apps/api/src/actions/automation-policy.ts` |
 | Action | Complete (12-action catalog) | `catalog.ts` |
 | Verification | Partial — patches "confirmed by a later scan"; alert auto-resolves at next check; no explicit post-action verification step | capabilities.md §"Patch status" |
-| PSA update | Partial — alert → PSA ticket (webhook/email/ClientSt0r rev 2), `alert.resolved` events; proposal results only by poll (R7 unbuilt); no fix events (P5 unbuilt) | `r:apps/api/src/monitoring/alert-tickets.service.ts`, `alert-events.service.ts`, `r:apps/api/src/psa/` |
+| PSA update | Partial — alert → PSA ticket (webhook/email/Clientst0r rev 2), `alert.resolved` events; proposal results only by poll (R7 unbuilt); no fix events (P5 unbuilt) | `r:apps/api/src/monitoring/alert-tickets.service.ts`, `alert-events.service.ts`, `r:apps/api/src/psa/` |
 | AI in the chain | Never executes or approves (stated invariant) | contract README "Responsibilities that do not move" |
 
 ### P6 — Remote session security (RustDesk-based: yes)
@@ -207,14 +207,14 @@ Status key: **Complete** = code + tests (state Rem0te's evidence level); **Parti
 | Handoff note | Missing — P7 agreed, unbuilt | coordination §5 P7 |
 | Device health summary | Missing — P10 agreed, unbuilt | coordination §5 P10 |
 | AI diagnostics | Complete for ticket analysis jobs via Clientst0r's gateway (reference peer + Clientst0r cross-peer s2); device timeline P11 proposed, unagreed | `r:apps/api/src/integration/analysis.ts`, `timeline.*.ts`; `e2e-ticket-workflow.mjs`, `e2e-ai-timeline.mjs` |
-| Rem0te's own PSA connectors (email-to-ticket, webhook, ClientSt0r P16 gated) and own AI provider key (0.48, §41) | Exists — note for platform separation: Rem0te now also holds an optional AI provider key and creates tickets in other PSAs | `r:apps/api/src/psa/`, `r:apps/api/src/ai/`; `r:CLAUDE.md` L476 |
+| Rem0te's own PSA connectors (email-to-ticket, webhook, Clientst0r P16 gated) and own AI provider key (0.48, §41) | Exists — note for platform separation: Rem0te now also holds an optional AI provider key and creates tickets in other PSAs | `r:apps/api/src/psa/`, `r:apps/api/src/ai/`; `r:CLAUDE.md` L476 |
 
 ## 4. Security model to preserve
 
 | Element | What it is | Evidence |
 |---|---|---|
 | **Signed agent and update chain** | `rem0te-agent.exe` updates only from a signed repository (root in `trustroot/root.json`, written only into build copies); releases signed by a `rem0te-release` user on a 0700 key directory or an offline machine; downgrades refused; reproducible builds; agent verifies its own update chain | `r:docs/update-signing.md`, `r:deploy/release/`, `r:tools/windows-installer/trustroot/`, invariant §56 |
-| **Approval signer, separate trust** | Separate install with its own origin; loads no Nest/Prisma/portal module; the portal never imports it or holds its key; **no approve route in the portal or the integration**; approvals are passkey quorums on the signer's own page; requester/author cannot approve; direct mode is a signer-side CLI decision, and refuses ClientSt0r proposals (`DIRECT_MODE_PORTAL_ONLY`) | `r:apps/api/src/approval-signer/`, `r:CLAUDE.md` §14 L280-; `r:docs/approved-actions.md` |
+| **Approval signer, separate trust** | Separate install with its own origin; loads no Nest/Prisma/portal module; the portal never imports it or holds its key; **no approve route in the portal or the integration**; approvals are passkey quorums on the signer's own page; requester/author cannot approve; direct mode is a signer-side CLI decision, and refuses Clientst0r proposals (`DIRECT_MODE_PORTAL_ONLY`) | `r:apps/api/src/approval-signer/`, `r:CLAUDE.md` §14 L280-; `r:docs/approved-actions.md` |
 | **Endpoint verification** | Agent verifies the signer's signature against `approval/keys.json`, the device binding (RustDesk ID + device-secret hash), the closed catalog and closed params, `notBefore/notAfter` (≤ 24 h), signed pause (containment), signed revocations (monotonic `seq`); journals before executing; signs its results with a per-device key (TOFU) | approved-actions.md; `r:tools/windows-installer/internal/action`, `internal/devsig`; invariants §14, §15, §52 |
 | **Closed catalog** | 12 actions, exact ordered list checked by `check-security-invariants.mjs`; adding one is an agent release; "credential extraction, removing backups, disabling defenses, granting admin rights and wiping disks … never will be" | `r:apps/api/src/actions/catalog.ts`; approved-actions.md L27-31 |
 | **MSA grant key** | A separate Ed25519 key (sealed under `ENCRYPTION_KEY`, purpose `rem0te-msa-grant-key-v1`); public keys reach agents **only through the signed release**; flag off unless `MSA_GRANTS === 'on'` exactly, not a console setting | 0.71/0.72 changelog; `r:apps/api/src/msa/msa-grants-flag.ts`, `grant-key-commands.ts` |

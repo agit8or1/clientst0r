@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Generate the 1024×500 Play Console feature graphic for Client St0r Mobile.
+Generate the 1024×500 Play Console feature graphic for Clientst0r Mobile.
 
 Composition:
   - Dark navy backdrop matching the app's #0b1220
-  - Brand text on the left ("Client St0r" + tagline)
+  - Brand text on the left ("Clientst0r" + tagline)
   - Mini dashboard mockup (cropped from the captured phone screenshot)
     on the right inside a phone-frame outline
 """
@@ -65,7 +65,7 @@ def main() -> int:
     tag_font = load_font(22, bold=False)
     pill_font = load_font(16, bold=True)
 
-    draw.text((48, 110), 'Client St0r', font=title_font, fill=HEADING)
+    draw.text((48, 110), 'Clientst0r', font=title_font, fill=HEADING)
     draw.text((48, 192), 'Self-hosted IT management', font=tag_font, fill=MUTED)
     draw.text((48, 222), 'for MSPs and IT teams', font=tag_font, fill=MUTED)
 

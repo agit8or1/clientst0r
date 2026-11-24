@@ -1,8 +1,8 @@
 """
-Signed requests from ClientSt0r to Rem0te (contract ticket-rmm-v1).
+Signed requests from Clientst0r to Rem0te (contract ticket-rmm-v1).
 
 Every request carries the four rem0te-* signature headers over
-rem0te-http-req-v1 with Rem0te's audience, signed by ClientSt0r's request
+rem0te-http-req-v1 with Rem0te's audience, signed by Clientst0r's request
 key; delegated routes add a fresh, single-use EdDSA delegation token minted
 with the separate delegation key. Redirects are never followed (a 3xx could
 carry a signed body elsewhere), proxies from the environment are ignored,
@@ -38,7 +38,7 @@ _PRINTABLE = re.compile(r'[^\x20-\x7e]')
 
 
 class NotSent(Exception):
-    """The request was not sent: ClientSt0r's own configuration is incomplete."""
+    """The request was not sent: Clientst0r's own configuration is incomplete."""
 
     def __init__(self, code, message):
         super().__init__(message)
@@ -50,7 +50,7 @@ class Result:
     ok: bool
     status: int = 0
     data: Any = None
-    code: str = ''              # Rem0te's error code, or a transport code ClientSt0r assigns
+    code: str = ''              # Rem0te's error code, or a transport code Clientst0r assigns
     message: str = ''           # safe to show: no secrets, no request content
     transport: str = ''         # '' | 'unreachable' | 'timeout' | 'blocked' | 'too_large' | 'invalid'
     clock_skew_s: Optional[int] = None
@@ -118,7 +118,7 @@ def request(connection, method, path, body=None, query=None, delegation=None) ->
             if len(content) > MAX_RESPONSE:
                 r.close()
                 return Result(False, r.status_code, code='TOO_LARGE_RESPONSE', transport='too_large',
-                              message='Rem0te answered with more data than ClientSt0r accepts.')
+                              message='Rem0te answered with more data than Clientst0r accepts.')
     except BlockedDestinationError:
         return Result(False, code='BLOCKED', transport='blocked',
                       message=f'{parts.hostname} is not an allowed destination for this connection '
@@ -144,7 +144,7 @@ def request(connection, method, path, body=None, query=None, delegation=None) ->
     hdrs = {k.lower(): v for k, v in r.headers.items() if k.lower() in ('idempotent-replayed', 'content-type')}
     if 300 <= r.status_code < 400:
         return Result(False, r.status_code, code='REDIRECT', transport='invalid', clock_skew_s=skew, headers=hdrs,
-                      message=f'Rem0te answered with a redirect (HTTP {r.status_code}); ClientSt0r does not follow '
+                      message=f'Rem0te answered with a redirect (HTTP {r.status_code}); Clientst0r does not follow '
                               'redirects. Check the integration address.')
     data = None
     if content:

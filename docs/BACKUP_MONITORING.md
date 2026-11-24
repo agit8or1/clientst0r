@@ -44,7 +44,7 @@ Both are staff-only. Owners and Organization Administrators get both; Service Ma
 ## Proxmox Backup Server
 
 1. In PBS create an API token (Configuration > Access Control > API Token) for a user with at least `Datastore.Audit` on the datastores and `Sys.Audit` for the task list.
-2. In ClientSt0r: **Backup Monitoring > Connections > New connection**, provider *Proxmox Backup Server*, the `https://host:8007` URL, and the token as `user@realm!tokenname:secret`. The token is stored encrypted and never shown again.
+2. In Clientst0r: **Backup Monitoring > Connections > New connection**, provider *Proxmox Backup Server*, the `https://host:8007` URL, and the token as `user@realm!tokenname:secret`. The token is stored encrypted and never shown again.
 3. Use **Test**, then **Poll now**.
 
 Each PBS backup group (for example `vm/100`) becomes a job and a protected system; each backup task becomes a run; datastores become repositories with capacity. PBS does not hold the backup schedule (the client does), so the schedule shows that. Retention comes from the PBS prune jobs when the token may read them.

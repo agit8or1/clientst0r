@@ -1,4 +1,4 @@
-"""An invoice voided in ClientSt0r voids its committed provider transaction
+"""An invoice voided in Clientst0r voids its committed provider transaction
 (Avalara void / TaxJar order delete) so the provider stops reporting it.
 A failure is kept on the calculation (void_error) and shown on the invoice."""
 import logging

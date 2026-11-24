@@ -49,7 +49,7 @@ class ExpiryNotificationBase(TestCase):
         self.settings.smtp_port = 587
         self.settings.smtp_username = 'mailer@acme.test'
         self.settings.smtp_from_email = 'mailer@acme.test'
-        self.settings.smtp_from_name = 'Client St0r'
+        self.settings.smtp_from_name = 'Clientst0r'
         self.settings.site_url = 'https://example.test'
         self.settings.save()
 

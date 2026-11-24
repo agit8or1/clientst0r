@@ -1,5 +1,5 @@
 [Unit]
-Description=Client St0r OS Package Scanner - Daily Schedule
+Description=Clientst0r OS Package Scanner - Daily Schedule
 Requires=package-scanner.service
 
 [Timer]

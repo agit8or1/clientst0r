@@ -1,5 +1,5 @@
 #!/bin/bash
-# Client St0r Auto-Update Script
+# Clientst0r Auto-Update Script
 # Thin wrapper: downloads and executes update_instructions.sh from GitHub
 
 # Get project directory (where this script lives)
@@ -21,7 +21,7 @@ if [ "$EUID" -eq 0 ]; then
 fi
 
 log "=========================================="
-log "Client St0r Auto-Update Script"
+log "Clientst0r Auto-Update Script"
 log "=========================================="
 log "Project directory: $PROJECT_DIR"
 

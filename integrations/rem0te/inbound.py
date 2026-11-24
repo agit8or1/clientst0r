@@ -1,9 +1,9 @@
 """
-Requests Rem0te signs to ClientSt0r: POST /api/integration/v1/inference and
+Requests Rem0te signs to Clientst0r: POST /api/integration/v1/inference and
 POST /api/integration/v1/events.
 
 Rem0te signs with its own Ed25519 key (`rem0te-key-id: rem0te/{kid}`) over
-rem0te-http-req-v1 with ClientSt0r's audience (Rem0teIdentity.audience —
+rem0te-http-req-v1 with Clientst0r's audience (Rem0teIdentity.audience —
 the peers file's peerAudience). A request is accepted only when:
 
   * all four headers are present and well-formed;
@@ -67,7 +67,7 @@ def authenticate(request) -> Tuple[List, str, str]:
         raise InboundRefused('timestamp outside the allowed window')
     ident = identity.get(create=False)
     if ident is None or not ident.audience:
-        raise InboundRefused('ClientSt0r has no Rem0te identity configured', 404, 'NOT_CONFIGURED')
+        raise InboundRefused('Clientst0r has no Rem0te identity configured', 404, 'NOT_CONFIGURED')
     message = protocol.request_signing_string(ident.audience, request.method, request.get_full_path(), ts, nonce,
                                               protocol.sha256_hex(body))
     verified, known = [], []
@@ -82,11 +82,11 @@ def authenticate(request) -> Tuple[List, str, str]:
     if not verified:
         # Unauthenticated: nothing is stored for an unknown key id (anyone can
         # send one). A known key id whose signature fails is shown on those
-        # connections — Rem0te's audience for ClientSt0r or its key changed.
+        # connections — Rem0te's audience for Clientst0r or its key changed.
         for conn in known[:20]:
             health.note(conn, 'inbound_auth', f'Rem0te\'s request signed with key "{kid}" did not verify '
                                               f'({request.method} {request.path}).', code='INBOUND_SIGNATURE',
-                        action="Check ClientSt0r's audience (peerAudience in the peers file) and Rem0te's "
+                        action="Check Clientst0r's audience (peerAudience in the peers file) and Rem0te's "
                                'signing key on this connection.')
         raise InboundRefused('signature invalid' if known else f'unknown key id "{kid}"')
     for conn in verified:
@@ -110,7 +110,7 @@ def connection_for(verified, organization_id):
 
 def response_headers(nonce: str, body: bytes) -> dict:
     """The inference response signature: rem0te-http-resp-v1 over the
-    request's nonce and the exact response bytes, with ClientSt0r's request
+    request's nonce and the exact response bytes, with Clientst0r's request
     key (Rem0te looks it up as `{peer id}/{kid}` among requestKeys)."""
     ident = identity.get(create=False)
     return {protocol.H_KEY_ID: identity.request_key_id(ident),

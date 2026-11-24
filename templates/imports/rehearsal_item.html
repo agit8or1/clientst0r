@@ -22,7 +22,7 @@
                 <div class="card-body table-responsive">
                     <form method="post">{% csrf_token %}
                     <table class="table table-sm">
-                        <thead><tr><th>Field</th><th>Proposed (from source)</th><th>Current ClientSt0r value{% if target %} (#{{ target.pk }}){% endif %}</th><th>Override</th></tr></thead>
+                        <thead><tr><th>Field</th><th>Proposed (from source)</th><th>Current Clientst0r value{% if target %} (#{{ target.pk }}){% endif %}</th><th>Override</th></tr></thead>
                         <tbody>
                         {% for row in rows %}
                         <tr {% if row.changed %}class="table-warning"{% endif %}>

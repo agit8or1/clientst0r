@@ -1635,7 +1635,7 @@ Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 5
 <summary>Details, completed work and acceptance criteria</summary>
 
 **OPTIONAL AI** — gated by `psa_ai_enabled`, the customer's PSA switch, a customer
-AI policy, an enabled model profile and technician access (Phase 57). ClientSt0r
+AI policy, an enabled model profile and technician access (Phase 57). Clientst0r
 owns the ticket UI, AI settings, provider credentials, the inference gateway and
 customer replies; a paired RMM (any that implements ticket-rmm-v1; rem0te is the
 reference implementation) processes jobs and, in later milestones,
@@ -1665,19 +1665,19 @@ work. Contract: `docs/contracts/ticket-rmm-v1/`.
 - **56.4 Signed integration channel** — mutual HMAC signing, DB-backed nonces,
   delegated short-lived identity, idempotent jobs (409 on a changed payload),
   sequenced and de-duplicated events, polling recovery, outage leaves manual
-  work untouched. *(shipped v3.17.646 — ClientSt0r side; the recovery poll runs
+  work untouched. *(shipped v3.17.646 — Clientst0r side; the recovery poll runs
   every minute from the in-app scheduler since v3.17.648)* Pairing works with
   any RMM provider, the remote tenant is pinned from the RMM's signed
   capabilities answer, and the connection page shows pairing status with a
   Check pairing button. *(shipped v3.17.658)*
 - **56.5 Private RMM handoffs, read-only diagnostics and remote launch** —
   targets only from verified same-business associations; "Sent" only on a
-  confirmed receipt. *(partial — ClientSt0r side shipped v3.17.658: Send to
+  confirmed receipt. *(partial — Clientst0r side shipped v3.17.658: Send to
   RMM, advertised read-only diagnostics with staff-only results, remote
   view/control launch; works with AI off; tested against a fixture processor —
   the RMM side is still to be built in rem0te)*
 - **56.7 Rem0te pairing over Ed25519** — Rem0te's own revision of the contract:
-  Ed25519 request, response and event signatures, ClientSt0r request and
+  Ed25519 request, response and event signatures, Clientst0r request and
   delegation keys (encrypted at rest, shown with the peers-file entry on the
   connection page), technician delegation tokens bound to the request body,
   the contract pinned to a Rem0te revision with incompatible peers refused,
@@ -1691,8 +1691,8 @@ work. Contract: `docs/contracts/ticket-rmm-v1/`.
   end-to-end run against a real Rem0te (`scripts/e2e/cross_peer/`, CI
   workflow `cross-peer-e2e`). *(shipped v3.17.664; refusal reasons for Rem0te 0.31–0.68 codes, direct mode
   shown as unavailable, and the list of Rem0te alert kinds not sent shipped v3.17.721)*
-- **56.6 Fix review** — only when the RMM advertises signed actions; ClientSt0r
-  refers, the RMM approves and runs. *(partial — ClientSt0r referral and signed
+- **56.6 Fix review** — only when the RMM advertises signed actions; Clientst0r
+  refers, the RMM approves and runs. *(partial — Clientst0r referral and signed
   status shipped v3.17.658; approval and execution happen in Rem0te, proven end to end by the cross-peer
   remediation-chain run against Rem0te 0.68.0 in v3.17.721)*
 - **56.9 Ticket AI and automation history** — one staff-only, chronological
@@ -1707,7 +1707,7 @@ work. Contract: `docs/contracts/ticket-rmm-v1/`.
   AI entries need AI output access and show no AI text while AI is off;
   per-customer retention with a scheduled purge. *(shipped v3.17.664)*
 
-**Sizing:** **L** — 56.1–56.4 shipped; ClientSt0r side of 56.5–56.6 shipped
+**Sizing:** **L** — 56.1–56.4 shipped; Clientst0r side of 56.5–56.6 shipped
 v3.17.658; the RMM side waits on rem0te.
 
 </details>
@@ -2440,9 +2440,12 @@ Hiding a link stays presentation only; every page keeps its own server-side chec
   text, info / warning / success text, outline buttons, badges, solid alerts, tinted table rows, in-page pill
   menus and user-coloured tags clear WCAG AA in both themes; the customer portal's ticket conversation reads in
   dark mode. `scripts/contrast_check.py` measures every page of the screenshot manifests in both themes.
-- **67.29 One product name: Clientst0r** *(planned)* — the guides, page titles, footer, e-mails and settings
-  use "Clientst0r"; protocol identifiers other systems depend on (HTTP headers, user agents, Agit8or Connect
-  fields, translation keys) are listed and changed only with a compatibility path.
+- **67.29 One product name: Clientst0r** *(shipped v3.17.771)* — the guides, page titles, footer, e-mails,
+  settings, translations and help text say "Clientst0r"; an install still on the shipped site name or e-mail
+  sender name takes the new spelling, a name the administrator chose is kept. Kept as they were: outgoing
+  user-agent strings (receivers may filter on them), code identifiers such as the LDAP backend's class path
+  (stored in signed-in sessions), the logo artwork and the release history. Screenshots in the guides and the
+  gallery are retaken as Phase 112 reaches each area.
 
 **Sizing:** **L** — navigation and settings, dashboard, visual system, then
 validation across roles and viewports.
@@ -3557,8 +3560,8 @@ all of it works without AI.
 <details markdown="1">
 <summary>Details, completed work and acceptance criteria</summary>
 
-Priority P2. Connects ClientSt0r to a PBX the MSP already runs; media and routing stay on the PBX and calls
-never transit ClientSt0r. First target: Asterisk 22 LTS and FreePBX 17 through the Asterisk Manager Interface,
+Priority P2. Connects Clientst0r to a PBX the MSP already runs; media and routing stay on the PBX and calls
+never transit Clientst0r. First target: Asterisk 22 LTS and FreePBX 17 through the Asterisk Manager Interface,
 via a small bridge on the PBX host. No platform is listed as supported until its integration is verified. Spec:
 [docs/plans/phases-96-100/99-pbx-integration.md](plans/phases-96-100/99-pbx-integration.md).
 
@@ -3611,8 +3614,8 @@ Asterisk 22.
 <summary>Details, completed work and acceptance criteria</summary>
 
 Priority P4, exploratory. An optional, separate PBX appliance built on an existing open-source engine (no new
-SIP or media stack), isolated from the ClientSt0r application and database so voice keeps working when
-ClientSt0r is offline. **Not to be built until Phase 99 is proven with real users and the go/no-go criteria
+SIP or media stack), isolated from the Clientst0r application and database so voice keeps working when
+Clientst0r is offline. **Not to be built until Phase 99 is proven with real users and the go/no-go criteria
 are met.** Spec:
 [docs/plans/phases-96-100/100-simple-pbx-appliance.md](plans/phases-96-100/100-simple-pbx-appliance.md).
 
@@ -3624,7 +3627,7 @@ are met.** Spec:
   measured capacity.
 - **100.3 Implementation plan** *(planned — only on a go decision)* — minimum feature set: trunks, DID routing,
   extensions, ring groups, sales and support queues, basic IVR, voicemail, business hours and holidays,
-  transfers, call history, softphones, ClientSt0r popups through the Phase 99 bridge, health monitoring, backup,
+  transfers, call history, softphones, Clientst0r popups through the Phase 99 bridge, health monitoring, backup,
   restore and updates.
 
 Dependencies: Phase 99 shipped and proven; Phases 59, 93, 94. Acceptance for this phase: a recorded go/no-go

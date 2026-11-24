@@ -102,7 +102,7 @@ def _build_email_body(task, task_url, alert_type):
         '(You will need to log in if not already signed in.)',
         '',
         '---',
-        'Client St0r — Automated Scheduling Alert',
+        'Clientst0r — Automated Scheduling Alert',
     ]
     return '\n'.join(lines)
 

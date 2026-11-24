@@ -1,4 +1,4 @@
-// Client St0r Service Worker
+// Clientst0r Service Worker
 // Provides offline support and caching for PWA
 
 const CACHE_NAME = 'clientst0r-v3';
@@ -127,7 +127,7 @@ self.addEventListener('push', (event) => {
     console.log('[Service Worker] Push received');
     const data = event.data ? event.data.json() : {};
 
-    const title = data.title || 'Client St0r Notification';
+    const title = data.title || 'Clientst0r Notification';
     const options = {
         body: data.body || 'You have a new notification',
         icon: '/static/images/pwa-icon-192.png',

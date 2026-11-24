@@ -1,6 +1,6 @@
 """
 ticket-rmm-v1 for any RMM (v3.17.658): provider-neutral pairing, and the
-Phase 56.5 / 56.6 ClientSt0r side — handoffs, read-only diagnostics, remote
+Phase 56.5 / 56.6 Clientst0r side — handoffs, read-only diagnostics, remote
 launch and fix referrals — against the test processor (this file playing
 the RMM, as tests_assist.py does for analysis).
 """
@@ -649,7 +649,7 @@ class FixReferralTests(RMMActionBase):
         self.assertEqual(self.calls[-1][3]['fix']['source'], {'type': 'technician'})
         status_before, comments_before = self.ticket.status_id, TicketComment.objects.count()
         body = {'request_id': str(req.id), 'event_id': 'f1', 'type': 'fix.approved', 'sequence': 1}
-        # Forged (wrong secret, or ClientSt0r's own outbound secret), unsigned, other pairing.
+        # Forged (wrong secret, or Clientst0r's own outbound secret), unsigned, other pairing.
         self.assertEqual(self.signed('kid-alpha', EVENTS, body, secret='w' * 40).status_code, 401)
         self.assertEqual(self.signed('kid-alpha', EVENTS, body, secret=OUT_SECRET + 'kid-alpha').status_code, 401)
         self.assertEqual(Client().post(EVENTS, json.dumps(body), content_type='application/json').status_code, 401)

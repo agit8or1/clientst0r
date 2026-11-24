@@ -1817,7 +1817,7 @@ def _send_mention_email(ticket, comment, actor, recipient):
     except Exception:
         return
     site_url = (s.site_url or '').rstrip('/')
-    brand = s.custom_company_name or s.site_name or 'Client St0r'
+    brand = s.custom_company_name or s.site_name or 'Clientst0r'
     subject = f'[{brand}] {ticket.ticket_number}: you were mentioned'
     body = (
         f'{actor.username} mentioned you in {ticket.ticket_number} '
@@ -2369,7 +2369,7 @@ def _notify_watchers(ticket, comment, actor):
         if settings.smtp_from_email else settings.smtp_username
     )
     site_url = (settings.site_url or '').rstrip('/')
-    brand = settings.custom_company_name or settings.site_name or 'Client St0r'
+    brand = settings.custom_company_name or settings.site_name or 'Clientst0r'
     detail_url = f'{site_url}/psa/t/{ticket.ticket_number}/'
     flag = ' [INTERNAL NOTE]' if comment.is_internal else ''
     subject = f'[{brand}] {ticket.ticket_number}: {ticket.subject}{flag}'
@@ -4267,9 +4267,9 @@ def email_graph_test_send(request, pk):
     provider = M365Provider(conn.tenant_id, creds.get('client_id', ''),
                             creds.get('client_secret', ''))
     message = {
-        'subject': '[TEST] ClientSt0r Microsoft Graph outbound test',
+        'subject': '[TEST] Clientst0r Microsoft Graph outbound test',
         'body': {'contentType': 'HTML', 'content': sanitize_html(
-            '<p>This is a <strong>test message</strong> sent by ClientSt0r to verify '
+            '<p>This is a <strong>test message</strong> sent by Clientst0r to verify '
             'Microsoft Graph outbound (Mail.Send) for this mailbox. No action is required.</p>')},
         'toRecipients': [{'emailAddress': {'address': valid[0]}}],
     }

@@ -1,10 +1,10 @@
 # Mobile App Setup Guide
 
-Complete guide for setting up and deploying the Client St0r mobile apps for iOS and Android.
+Complete guide for setting up and deploying the Clientst0r mobile apps for iOS and Android.
 
 ## Overview
 
-Client St0r includes a native React Native mobile application that provides full access to your IT documentation platform on iOS and Android devices.
+Clientst0r includes a native React Native mobile application that provides full access to your IT documentation platform on iOS and Android devices.
 
 **Key Features:**
 - Native performance on iOS and Android
@@ -18,7 +18,7 @@ Client St0r includes a native React Native mobile application that provides full
 
 ### Backend Requirements
 
-1. **Client St0r v2.66.0+** installed and running
+1. **Clientst0r v2.66.0+** installed and running
 2. **GraphQL API enabled** - Required for mobile app
 3. **HTTPS enabled** - Recommended for production (mobile apps require secure connections)
 
@@ -37,7 +37,7 @@ To develop or build the mobile app, you need:
 
 ### 1. Install GraphQL Dependencies
 
-The mobile app requires the GraphQL API to be enabled on your Client St0r backend.
+The mobile app requires the GraphQL API to be enabled on your Clientst0r backend.
 
 ```bash
 cd ~/clientst0r
@@ -110,7 +110,7 @@ Edit `mobile-app/app.json` and update the API URLs:
 
 The mobile app needs branded icons. You can:
 
-**Option A: Use existing Client St0r logo**
+**Option A: Use existing Clientst0r logo**
 ```bash
 cd mobile-app/assets
 # Copy and resize your logo to create:
@@ -331,7 +331,7 @@ sudo systemctl restart clientst0r-gunicorn.service
 
 ### Updating the App
 
-When Client St0r backend is updated:
+When Clientst0r backend is updated:
 
 1. Check for API changes in release notes
 2. Update mobile app to match new API
@@ -384,4 +384,4 @@ Planned features for future releases:
 
 ## License
 
-MIT License - Same as Client St0r parent project
+MIT License - Same as Clientst0r parent project

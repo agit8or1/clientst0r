@@ -1,9 +1,9 @@
-# Backing up and restoring Client St0r
+# Backing up and restoring Clientst0r
 
-This page is about backing up **Client St0r itself**: its database and uploaded files. Watching
+This page is about backing up **Clientst0r itself**: its database and uploaded files. Watching
 your customers' backups is a different feature, described in [BACKUP_MONITORING.md](BACKUP_MONITORING.md).
 
-Client St0r makes three kinds of backup:
+Clientst0r makes three kinds of backup:
 
 | Kind | Where it goes | When it runs | Keys inside? |
 |------|---------------|--------------|--------------|
@@ -158,7 +158,7 @@ appears on the page, in the audit log and in the run history.
 
 You need: an archive, the backup key, the escrowed `.env` values, and a host to restore onto.
 
-1. **Install the same version** of Client St0r on the new host (`bash install.sh`, or Docker), using the
+1. **Install the same version** of Clientst0r on the new host (`bash install.sh`, or Docker), using the
    app version from the archive's manifest. Do not open the web UI yet.
 2. **Put the escrowed keys back.** Edit `.env` so APP_MASTER_KEY (and APP_MASTER_KEY_PREVIOUS if
    you had one), SECRET_KEY and API_KEY_SECRET are your escrowed values. Keep the database settings

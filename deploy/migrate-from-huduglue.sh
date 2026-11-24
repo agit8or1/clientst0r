@@ -1,5 +1,5 @@
 #!/bin/bash
-# Migrate a running Client St0r install to the canonical `clientst0r-*`
+# Migrate a running Clientst0r install to the canonical `clientst0r-*`
 # systemd unit names.
 #
 # WHAT THIS DOES:
@@ -30,7 +30,7 @@ DEPLOY="$PROJECT_DIR/deploy"
 SYSTEMD_DIR="/etc/systemd/system"
 
 echo "═══════════════════════════════════════════════════════════"
-echo " Client St0r — legacy → clientst0r systemd unit migration"
+echo " Clientst0r — legacy → clientst0r systemd unit migration"
 echo "═══════════════════════════════════════════════════════════"
 echo "Project:  $PROJECT_DIR"
 echo ""

@@ -1,5 +1,5 @@
 [Unit]
-Description=Client St0r OS Package Security Scanner
+Description=Clientst0r OS Package Security Scanner
 After=network.target
 
 [Service]

@@ -10,9 +10,9 @@ and the go/no-go criteria in §13 are met.** The shared compatibility and safety
 ## 1. Goals and business value
 
 - Give MSPs without a phone system, or small customers of an MSP, an optional, simple PBX that works with
-  ClientSt0r out of the box: the MSP supplies SIP trunks, DIDs, extensions, SIP phones and softphones.
-- Keep it entirely separate from ClientSt0r: its own VM or container, its own database, voice keeps working when
-  ClientSt0r is offline.
+  Clientst0r out of the box: the MSP supplies SIP trunks, DIDs, extensions, SIP phones and softphones.
+- Keep it entirely separate from Clientst0r: its own VM or container, its own database, voice keeps working when
+  Clientst0r is offline.
 - Never write a new SIP or media stack; package a proven open-source engine.
 - Avoid the risk of owning telephony (patching, fraud, emergency calling) unless the demand justifies it.
 
@@ -39,7 +39,7 @@ From the PBX research notes (unverified items stay unverified):
 
 | Need | Reuse |
 |---|---|
-| ClientSt0r integration | Phase 99 bridge and signed event contract, unchanged; the appliance ships the bridge preinstalled |
+| Clientst0r integration | Phase 99 bridge and signed event contract, unchanged; the appliance ships the bridge preinstalled |
 | Health monitoring | Phase 99 health fields and the Phase 82 `pbx` event source |
 | Business hours | Phase 93 calendars (exported to the appliance as read-only configuration, optional) |
 | Packaging experience | Phase 42 Docker image and `docker-entrypoint.sh` patterns; Phase 59 verified updates and signed releases |
@@ -49,7 +49,7 @@ From the PBX research notes (unverified items stay unverified):
 
 SIP trunks; DID routing; extensions and users; ring groups; sales and support queues; a basic IVR; voicemail;
 business hours and holidays; forwarding and transfers; call history; softphone and SIP phone provisioning;
-WebRTC where practical; basic reporting; ClientSt0r popups and ticket integration through the Phase 99 bridge;
+WebRTC where practical; basic reporting; Clientst0r popups and ticket integration through the Phase 99 bridge;
 health monitoring; backup, restore and update.
 
 Explicitly out of scope: full PBX administration parity, a custom SIP stack, call center analytics, billing of
@@ -60,11 +60,11 @@ calls, fax.
 - A separate appliance image (VM image and container image) containing: Asterisk 22 LTS with PJSIP (recommended
   engine, §6), a minimal configuration service with its own small web UI for the minimum feature set, the Phase 99
   bridge, a firewall and intrusion-prevention layer, and an update agent.
-- Configuration is generated from the appliance's own database into engine configuration files; ClientSt0r never
-  writes PBX configuration directly. A later option is for ClientSt0r to **link** to the appliance UI with
+- Configuration is generated from the appliance's own database into engine configuration files; Clientst0r never
+  writes PBX configuration directly. A later option is for Clientst0r to **link** to the appliance UI with
   single sign-on, not to embed PBX administration.
 - Isolation: no shared database, no shared secrets except the bridge token and HMAC secret; the appliance runs and
-  routes calls with ClientSt0r unreachable.
+  routes calls with Clientst0r unreachable.
 
 ## 6. Engine evaluation: Asterisk versus FreeSWITCH
 
@@ -81,14 +81,14 @@ FreeSWITCH only if measured concurrency needs or licensing require it.
 
 ## 7. UI and workflows
 
-- In ClientSt0r: nothing new beyond Phase 99 (the appliance appears as a Phone System connection of platform
-  "ClientSt0r PBX appliance"). Possibly a link to the appliance UI.
+- In Clientst0r: nothing new beyond Phase 99 (the appliance appears as a Phone System connection of platform
+  "Clientst0r PBX appliance"). Possibly a link to the appliance UI.
 - In the appliance: a small UI for the minimum feature set, setup wizard for trunk, DIDs, extensions and the
   emergency-calling configuration (§9).
 
 ## 8. Proposed data model changes
 
-None in ClientSt0r beyond Phase 99 (a `platform` choice). The appliance has its own schema, out of this
+None in Clientst0r beyond Phase 99 (a `platform` choice). The appliance has its own schema, out of this
 repository's migrations.
 
 ## 9. Security and compliance requirements (if built)
@@ -109,17 +109,17 @@ repository's migrations.
 
 ## 10. Backward compatibility
 
-No effect on ClientSt0r installs; the appliance is a separate optional product. Phase 99 works identically with
+No effect on Clientst0r installs; the appliance is a separate optional product. Phase 99 works identically with
 or without it.
 
 ## 11. Migration strategy
 
-Not applicable to ClientSt0r. For the appliance: versioned schema with forward migrations and backups before every
+Not applicable to Clientst0r. For the appliance: versioned schema with forward migrations and backups before every
 update.
 
 ## 12. Feature flags and module defaults
 
-None in ClientSt0r. The appliance is never installed by `install.sh` or the ClientSt0r Docker compose file by
+None in Clientst0r. The appliance is never installed by `install.sh` or the Clientst0r Docker compose file by
 default; at most an optional, separate compose profile.
 
 ## 13. Go / no-go criteria

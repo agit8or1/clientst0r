@@ -16,7 +16,7 @@ logger = logging.getLogger('vault')
 class BitwardenImporter:
     """Import passwords from Bitwarden JSON export."""
 
-    # Map Bitwarden types to Client St0r types
+    # Map Bitwarden types to Clientst0r types
     TYPE_MAPPING = {
         1: 'website',      # Login
         2: 'other',        # Secure Note
@@ -41,7 +41,7 @@ class BitwardenImporter:
         self.organization = organization
         self.user = user
         self.folder_prefix = folder_prefix
-        self.folder_map = {}  # Bitwarden folder ID -> Client St0r PasswordFolder
+        self.folder_map = {}  # Bitwarden folder ID -> Clientst0r PasswordFolder
         self.stats = {
             'folders_created': 0,
             'passwords_created': 0,
@@ -404,7 +404,7 @@ class BitwardenImporter:
             password_obj.custom_fields[field_name] = field_value
 
     def _get_folder(self, folder_id):
-        """Get Client St0r folder from Bitwarden folder ID."""
+        """Get Clientst0r folder from Bitwarden folder ID."""
         if not folder_id:
             return None
         return self.folder_map.get(folder_id)

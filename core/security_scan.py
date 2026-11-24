@@ -1,5 +1,5 @@
 """
-Security scanning utilities for Client St0r.
+Security scanning utilities for Clientst0r.
 
 Provides vulnerability scanning using pip-audit and dependency checking.
 """

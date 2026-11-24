@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Client St0r Installation Setup Script
+Clientst0r Installation Setup Script
 Creates default organization and initial data
 """
 import os
@@ -32,7 +32,7 @@ def _ask(prompt, default=''):
 def setup_organization():
     """Create default organization with user input."""
     print("\n" + "="*60)
-    print("  Client St0r - Initial Setup")
+    print("  Clientst0r - Initial Setup")
     print("="*60 + "\n")
 
     # Check if organizations already exist

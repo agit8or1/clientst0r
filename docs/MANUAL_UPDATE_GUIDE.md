@@ -1,4 +1,4 @@
-# How to Manually Update Client St0r from the CLI
+# How to Manually Update Clientst0r from the CLI
 
 The normal way to update a native install is the web UI: **Settings → System → System Updates**
 (`/core/settings/updates/`), *Check for Updates*, then *Apply*. Use this guide when that

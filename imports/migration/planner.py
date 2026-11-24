@@ -108,7 +108,7 @@ def _compare(plan, item, spec, target, mapping, proposed, secrets):
     item.before = {n: (SECRET_PLACEHOLDER if n in SECRET_COLUMNS else current(target, n)) for n in src_changed}
     if local:
         item.category, item.default_action = 'conflict', 'skip'
-        item.reason = ('changed in the source and edited in ClientSt0r since the import: '
+        item.reason = ('changed in the source and edited in Clientst0r since the import: '
                        + ', '.join(local))
     else:
         item.category, item.default_action = 'update', 'update'

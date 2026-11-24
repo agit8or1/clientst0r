@@ -18,7 +18,7 @@ itself), or GRANTABLE (the tier doesn't hold it; an approved allow override
 for this customer can). `approval` is the second-person approval level the
 action then needs; `workstation_only` limits it to standard workstations.
 
-Rem0te mapping (REM0TE): the ticket-rmm-v1 delegation scope ClientSt0r uses
+Rem0te mapping (REM0TE): the ticket-rmm-v1 delegation scope Clientst0r uses
 for the action, '' for actions Rem0te serves without a delegation (synced
 devices, inbound alerts), or None: Rem0te's contract has no route for it,
 so on a Rem0te-managed device the answer is no. Scopes are Rem0te's own
@@ -105,7 +105,7 @@ ACTIONS = {
 
 # Never available. Nothing — tier, override, superuser — switches these on.
 LOCKED = {
-    'shell.unrestricted': 'Unrestricted shell or free-form scripts are never available from ClientSt0r.',
+    'shell.unrestricted': 'Unrestricted shell or free-form scripts are never available from Clientst0r.',
     'tenant.all_access': 'No role grants device access at every customer; access is per customer.',
     'approval.self': 'Nobody approves their own request.',
     'endpoint.approve': 'Only the paired RMM approves endpoint work, on its own approval page.',

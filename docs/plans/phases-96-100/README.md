@@ -135,7 +135,7 @@ Recommendations are given in each spec. These need the maintainer's call before 
 13. **99 — browser delivery.** Short polling (recommended MVP) or server-sent events served by a separate
     async worker later.
 14. **99 — recordings.** Link to recordings kept on the PBX only (recommended), or ever store them in
-    ClientSt0r.
+    Clientst0r.
 15. **99 — bridge distribution.** A small package in this repository with its own systemd unit and container
     image (recommended), or a separate repository.
 16. **100 — go/no-go owner** and the demand threshold that counts as "customers ask for it".

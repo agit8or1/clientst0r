@@ -1,6 +1,6 @@
-# Contributing to Client St0r
+# Contributing to Clientst0r
 
-First off, thank you for considering contributing to Client St0r! 🐕
+First off, thank you for considering contributing to Clientst0r! 🐕
 
 This document provides guidelines for contributing to the project. Luna the GSD has helped review these guidelines to ensure they're clear and effective.
 
@@ -364,6 +364,6 @@ By contributing, you agree that your contributions will be licensed under the MI
 
 ---
 
-**Thank you for contributing to Client St0r! 🐕**
+**Thank you for contributing to Clientst0r! 🐕**
 
 *Reviewed by Luna the German Shepherd*

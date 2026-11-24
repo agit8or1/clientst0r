@@ -3,7 +3,7 @@ Ticket AI Assist end to end, against a test processor.
 
 The "test processor" is this file playing rem0te: it receives the job
 submission (processor._request is patched and records every call), then
-calls ClientSt0r's signed /api/integration/v1/inference and /events routes
+calls Clientst0r's signed /api/integration/v1/inference and /events routes
 exactly as rem0te would. Model providers are patched at
 gateway.call_provider, except in the network-boundary tests, which go
 through the real guarded session and stop at the connect-time check.

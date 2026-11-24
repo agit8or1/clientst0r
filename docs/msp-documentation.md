@@ -1,8 +1,8 @@
-# MSP Documentation with ClientSt0r
+# MSP Documentation with Clientst0r
 
-Effective MSP operations rely on accurate, accessible documentation. ClientSt0r provides a structured platform for organizing client and infrastructure knowledge. See [FEATURES.md](../FEATURES.md) for each capability's status and limitations.
+Effective MSP operations rely on accurate, accessible documentation. Clientst0r provides a structured platform for organizing client and infrastructure knowledge. See [FEATURES.md](../FEATURES.md) for each capability's status and limitations.
 
-## What ClientSt0r Helps Document
+## What Clientst0r Helps Document
 
 ### Clients & Organizations
 - Multi-organization support: every record belongs to a client organization, and customer users see only their own

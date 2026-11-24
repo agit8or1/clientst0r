@@ -92,7 +92,7 @@ class AnalysisJobTests(Rem0teBase):
         self.assertEqual(schema.errors('inference-response', out), [])
         self.assertEqual((out['status'], out['request_id'], out['job_id']), ('ok', body['request_id'], body['job_id']))
         self.assertEqual(json.loads(again.content)['output'], out['output'])
-        # The response is signed over the request nonce with ClientSt0r's request key.
+        # The response is signed over the request nonce with Clientst0r's request key.
         self.assertEqual(r.headers[protocol.H_KEY_ID], identity.request_key_id(self.ident))
         pub = protocol.load_public_key(protocol.public_pem(self.ident.request_private_key))
         nonce = [v for k, v in r.wsgi_request.META.items() if k == 'HTTP_REM0TE_NONCE'][0]
@@ -323,7 +323,7 @@ class ActionProposalTests(Rem0teBase):
         again, repeat = self.propose(self.tech)
         self.assertTrue(repeat)
         self.assertEqual(len(self.fake.proposals), 1)
-        # ClientSt0r only reflects Rem0te's status.
+        # Clientst0r only reflects Rem0te's status.
         p = next(iter(self.fake.proposals.values()))
         p.update(status='succeeded', outcome='succeeded', observed={'before': 'stopped', 'after10s': 'running'})
         actions.refresh(req, force=True)

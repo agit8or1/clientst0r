@@ -9,7 +9,7 @@
 #
 # The key is a credential. Keep the env file root-owned and mode 600.
 [Unit]
-Description=Client St0r network discovery collector
+Description=Clientst0r network discovery collector
 After=network-online.target
 Wants=network-online.target
 

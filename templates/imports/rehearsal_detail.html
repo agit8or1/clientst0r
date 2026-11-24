@@ -141,10 +141,10 @@
 
     {% if report %}
     <div class="card mb-3">
-        <div class="card-header"><h5 class="mb-0">Reconciliation (source vs ClientSt0r)</h5></div>
+        <div class="card-header"><h5 class="mb-0">Reconciliation (source vs Clientst0r)</h5></div>
         <div class="card-body table-responsive">
             <table class="table table-sm">
-                <thead><tr><th>Type</th><th class="text-end">Source records</th><th class="text-end">Applied</th><th class="text-end">Skipped</th><th class="text-end">Failed</th><th class="text-end">Unavailable</th><th class="text-end">Reconciled in ClientSt0r</th><th class="text-end">Not reconciled</th><th class="text-end">Customer total</th></tr></thead>
+                <thead><tr><th>Type</th><th class="text-end">Source records</th><th class="text-end">Applied</th><th class="text-end">Skipped</th><th class="text-end">Failed</th><th class="text-end">Unavailable</th><th class="text-end">Reconciled in Clientst0r</th><th class="text-end">Not reconciled</th><th class="text-end">Customer total</th></tr></thead>
                 <tbody>
                 {% for row in report.summary %}
                 <tr><td>{{ row.kind }}</td><td class="text-end">{{ row.source_records }}</td><td class="text-end">{{ row.applied }}</td><td class="text-end">{{ row.skipped }}</td><td class="text-end">{{ row.failed }}</td><td class="text-end">{{ row.unavailable }}</td><td class="text-end">{{ row.reconciled_in_clientst0r }}</td><td class="text-end">{{ row.not_reconciled }}</td><td class="text-end">{{ row.customer_total }}</td></tr>

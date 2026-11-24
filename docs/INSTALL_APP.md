@@ -1,6 +1,6 @@
-# Installing ClientSt0r on Your Phone or Desktop
+# Installing Clientst0r on Your Phone or Desktop
 
-ClientSt0r is a **Progressive Web App (PWA)** — you can add it to your home screen on any phone or computer and it works like a native app. No app store, no APK, no download required.
+Clientst0r is a **Progressive Web App (PWA)** — you can add it to your home screen on any phone or computer and it works like a native app. No app store, no APK, no download required.
 
 ## Where to Find the Install Page
 
@@ -17,12 +17,12 @@ The install page is shareable — it works without logging in, so you can send t
 1. Open `https://YOUR-SERVER` in **Chrome**
 2. Tap the **⋮** (three-dot) menu in the top-right corner
 3. Tap **Add to Home screen** *(may say "Install app")*
-4. Tap **Add** — the ClientSt0r icon appears on your home screen
+4. Tap **Add** — the Clientst0r icon appears on your home screen
 
 > **Tip:** Chrome may also show an **Install** banner at the bottom of the screen automatically when you first visit. Tap it for one-tap install.
 
 ### PWA Shortcuts (Android)
-After installing, **long-press** the ClientSt0r icon on your home screen to see shortcuts:
+After installing, **long-press** the Clientst0r icon on your home screen to see shortcuts:
 - **Scan Receipt** — opens the vehicle receipt scanner
 - **Vehicles** — opens the fleet management page
 
@@ -36,7 +36,7 @@ After installing, **long-press** the ClientSt0r icon on your home screen to see 
 2. Tap the **Share** button (square with an arrow pointing up) at the bottom of the screen
 3. Scroll down and tap **Add to Home Screen**
 4. Optionally rename it, then tap **Add**
-5. The ClientSt0r icon appears on your home screen
+5. The Clientst0r icon appears on your home screen
 
 ---
 
@@ -45,7 +45,7 @@ After installing, **long-press** the ClientSt0r icon on your home screen to see 
 1. Open `https://YOUR-SERVER` in Chrome or Edge
 2. Look for the **install icon** (⊕ or download arrow) in the address bar on the right
 3. Click it and select **Install**
-4. ClientSt0r opens as a standalone window and is added to your taskbar / Start menu / Applications folder
+4. Clientst0r opens as a standalone window and is added to your taskbar / Start menu / Applications folder
 
 ---
 

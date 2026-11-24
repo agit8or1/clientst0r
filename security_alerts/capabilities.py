@@ -1,7 +1,7 @@
-"""What ClientSt0r can really do for each security vendor.
+"""What Clientst0r can really do for each security vendor.
 
 Every vendor connection receives alerts through its signed webhook, posted in
-ClientSt0r's alert format (``external_id``, ``title``, ``severity``,
+Clientst0r's alert format (``external_id``, ``title``, ``severity``,
 ``description``, ``asset_hint``). Polling the vendor's own API needs an adapter
 that is actually implemented; an adapter that is only a reference stub
 (``supports_polling = False``) does not count. Pages, the connection test, the
@@ -26,5 +26,5 @@ def polls_api(provider):
 
 
 def not_implemented_message(label):
-    return (f'ClientSt0r has no API integration for {label} yet, so there is nothing to test or poll. '
+    return (f'Clientst0r has no API integration for {label} yet, so there is nothing to test or poll. '
             f'Alerts arrive only through this connection\'s webhook, as JSON with {WEBHOOK_FIELDS}.')

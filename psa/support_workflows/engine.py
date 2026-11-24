@@ -3,7 +3,7 @@ remediation → outcome confirmed by monitoring.
 
 Guarantees:
 
-  * Evidence is read-only: ClientSt0r's own records (the alert, the synced
+  * Evidence is read-only: Clientst0r's own records (the alert, the synced
     device), and — when the technician holds "read-only diagnostics" for the
     customer — Rem0te's current alert state (GET /alerts/{id}, a
     service-level read that changes nothing) and the RMM's own read-only
@@ -11,7 +11,7 @@ Guarantees:
     was observed and whether that is fresh.
   * Causes are rules over those facts (builtins.py), not AI.
   * A remediation is offered only when it is a Rem0te catalog action that
-    ClientSt0r knows (pairing.KNOWN_ACTIONS) AND the paired Rem0te currently
+    Clientst0r knows (pairing.KNOWN_ACTIONS) AND the paired Rem0te currently
     advertises it AND the ticket reaches the computer through a verified,
     same-customer link AND the technician may refer fixes there. It is sent
     through psa_ai.services.rmm_actions.refer_fix — the existing fix
@@ -97,7 +97,7 @@ def _cond_errors(cond, where) -> List[str]:
 
 def validate_definition(d) -> List[str]:
     """Plain-language problems with a definition; empty = usable. A
-    remediation may name only an action ClientSt0r knows from Rem0te's
+    remediation may name only an action Clientst0r knows from Rem0te's
     catalog — never a command, script or URL."""
     from integrations.rem0te.pairing import KNOWN_ACTIONS
     if not isinstance(d, dict):
@@ -252,7 +252,7 @@ def _rem0te_alert_now(link):
         return None, f'Not read: {e.message}'
     if not r.ok or not isinstance(r.data, dict):
         return None, f'Rem0te did not return the alert ({r.code or r.status}).'
-    # Same revision rule as alert events: any revision ClientSt0r implements.
+    # Same revision rule as alert events: any revision Clientst0r implements.
     peer_rev = pairing.last_check(conn).get('contract_revision') or 1
     errs, _unknown, _rev = schema.errors_from_peer('alert', r.data, peer_rev)
     if errs or r.data.get('alert_id') != link.external_id:
@@ -426,7 +426,7 @@ def remediations(d, facts, user, ticket, device):
         row = {'action': key, 'label': known['label'] if known else key, 'risk': known.get('risk', 'high')
                if known else 'high', 'impact': r.get('impact') or '', 'offered': False, 'why_not': ''}
         if known is None:
-            row['why_not'] = 'ClientSt0r does not know this action.'
+            row['why_not'] = 'Clientst0r does not know this action.'
         elif target is None:
             row['why_not'] = 'The ticket does not reach this computer through a paired Rem0te of this customer.'
         elif target.connection.provider_type != 'rem0te':
@@ -710,7 +710,7 @@ def _on_status(run, req, now):
         run.outcome_note = f'{label}. {why}'.strip()[:2000]
         _log(run, run.outcome_note)
         _note(t, f'Support workflow "{run.workflow_name}": {label.lower()}'
-                 f'{" — " + why if why else ""}. Nothing was changed by ClientSt0r; the ticket stays open.')
+                 f'{" — " + why if why else ""}. Nothing was changed by Clientst0r; the ticket stays open.')
     else:
         _log(run, label)
 

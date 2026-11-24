@@ -62,7 +62,7 @@ def _announce(user, settings_obj):
         recipients.add(settings_obj.recovery_email)
     if not recipients:
         return
-    send_mail('[ClientSt0r] Superuser granted outside approval',
+    send_mail('[Clientst0r] Superuser granted outside approval',
               f'{user.get_username()} was made a superuser without a second administrator\'s approval — '
               'for example with manage.py createsuperuser on the host. If you did not expect this, review '
               'the account and the audit log now.',

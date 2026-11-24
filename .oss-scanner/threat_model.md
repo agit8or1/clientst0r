@@ -1,4 +1,4 @@
-# Client St0r — threat model
+# Clientst0r — threat model
 
 Guidance for automated security review (Anthropic OSS Scanner). Read this
 before starting; it describes what the project is, where untrusted input
@@ -6,7 +6,7 @@ enters, what we care about most, and how we rate severity.
 
 ## What this project is
 
-Client St0r is a self-hosted, multi-tenant IT documentation platform and
+Clientst0r is a self-hosted, multi-tenant IT documentation platform and
 service desk for managed service providers (MSPs). One deployment holds data
 for many **client organizations**: asset inventory, runbooks, network configs,
 tickets, invoices — and an **encrypted credential vault** containing the

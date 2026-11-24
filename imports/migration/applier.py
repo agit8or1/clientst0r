@@ -199,7 +199,7 @@ def _apply_item(plan, item, user):
             if name in SECRET_COLUMNS:
                 continue
             if current(obj, name) != item.before.get(name):
-                raise ApplyError(f'"{name}" was changed in ClientSt0r after review; not overwritten')
+                raise ApplyError(f'"{name}" was changed in Clientst0r after review; not overwritten')
         for name in item.changed_fields:
             if name in SECRET_COLUMNS:
                 if name in secrets:

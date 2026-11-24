@@ -462,7 +462,7 @@ def pairing_fingerprint(connection) -> str:
     s = settings(connection)
     if connection.provider_type == 'rem0te':
         # Rem0te pairs with Ed25519: what is approved is Rem0te's audience and
-        # the public keys ClientSt0r will trust for it.
+        # the public keys Clientst0r will trust for it.
         raw = json.dumps([connection.provider_type, s['site'], s.get('rem0te_audience', ''),
                           sorted((k.get('kid', ''), k.get('public_key_pem', '').strip())
                                  for k in s.get('signing_keys', []))])

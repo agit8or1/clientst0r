@@ -600,7 +600,7 @@ class RMMConnectionForm(OwnerFieldMixin, KeepStoredSecretsMixin, forms.ModelForm
         label='Integration key ID', required=False, max_length=64,
         widget=forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}))
     ticket_rmm_outbound_secret = forms.CharField(
-        label='Secret ClientSt0r signs with', required=False,
+        label='Secret Clientst0r signs with', required=False,
         widget=forms.PasswordInput(attrs={'class': 'form-control', 'autocomplete': 'new-password'}))
     ticket_rmm_inbound_secret = forms.CharField(
         label='Secret the RMM signs with', required=False,
@@ -612,7 +612,7 @@ class RMMConnectionForm(OwnerFieldMixin, KeepStoredSecretsMixin, forms.ModelForm
     # Rem0te only: its Ed25519 protocol replaces the key ID and shared secrets.
     rem0te_audience = forms.CharField(
         label="Rem0te's audience", required=False, max_length=256,
-        help_text="The peers file's peers[].audience — what ClientSt0r signs its requests to Rem0te for "
+        help_text="The peers file's peers[].audience — what Clientst0r signs its requests to Rem0te for "
                   '(Rem0te shows it in its capabilities).',
         widget=forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off',
                                       'placeholder': 'rem0te:example'}))

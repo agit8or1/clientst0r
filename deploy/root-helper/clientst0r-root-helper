@@ -1,6 +1,6 @@
 #!/usr/bin/python3 -I
 """
-Client St0r root helper (v3.17.597).
+Clientst0r root helper (v3.17.597).
 
 The ONLY thing the app user may run as root without a password:
 
@@ -1081,7 +1081,7 @@ def own_sudoers_rule(conf):
 def render_auto_update_unit(conf):
     d, u = conf['APP_DIR'], conf['APP_USER']
     return f"""[Unit]
-Description=Client St0r Auto-Update Service
+Description=Clientst0r Auto-Update Service
 After=network.target
 
 [Service]

@@ -1,6 +1,6 @@
 # Sales tax
 
-ClientSt0r works out the sales tax on quotes and invoices. It can use the
+Clientst0r works out the sales tax on quotes and invoices. It can use the
 rate typed on each document, its own table of jurisdiction rates, or an
 external tax provider (Avalara AvaTax or TaxJar). This page covers which system
 calculates, reports and records each tax amount, how to avoid two systems
@@ -22,8 +22,8 @@ postal code and country on the client record).
 | Mode | Who calculates | Notes |
 |---|---|---|
 | **No sales tax** (`none`) | nobody | Draft quotes and invoices carry zero tax. The page says **"Tax not configured"**, so the zero is never silent. Documents already sent are not changed. |
-| **Flat rate** (`flat`) | ClientSt0r | The rate typed on each document, or the General settings default rate for new ones. Only lines marked taxable are taxed. With a 0% rate the document shows "Tax not configured". If no Tax settings exist, this is the mode in use. |
-| **Manual jurisdiction rates** (`manual`) | ClientSt0r | Uses the rate table and the customer's billing address. The single most specific matching rate wins (exact zip, then zip prefix, city, county, state, country). Rates do not stack, so each one is a combined rate. |
+| **Flat rate** (`flat`) | Clientst0r | The rate typed on each document, or the General settings default rate for new ones. Only lines marked taxable are taxed. With a 0% rate the document shows "Tax not configured". If no Tax settings exist, this is the mode in use. |
+| **Manual jurisdiction rates** (`manual`) | Clientst0r | Uses the rate table and the customer's billing address. The single most specific matching rate wins (exact zip, then zip prefix, city, county, state, country). Rates do not stack, so each one is a combined rate. |
 | **Avalara AvaTax** (`avalara`) | Avalara | REST v2 `transactions/create`. A preview is a `SalesOrder`, which Avalara does not record. A sent invoice is a committed `SalesInvoice`, and a credit memo is a `ReturnInvoice`. |
 | **TaxJar** (`taxjar`) | TaxJar | `POST /v2/taxes`. A sent invoice is also reported with `POST /v2/transactions/orders`, and a credit memo with `POST /v2/transactions/refunds`. |
 
@@ -31,30 +31,30 @@ postal code and country on the client record).
 
 | Amount | Calculated by | Reported to the tax authority by | Recorded by |
 |---|---|---|---|
-| Quote tax (any mode) | ClientSt0r, or the provider as an uncommitted preview | nobody (a quote is not a sale) | ClientSt0r (`TaxCalculation`, quote totals) |
-| Invoice tax, flat / manual | ClientSt0r | you, from your own filings | ClientSt0r. The accounting system records what it is sent. |
-| Invoice tax, Avalara / TaxJar | the provider | the provider, once the invoice is committed (sent) | ClientSt0r keeps the provider's figure. The accounting system records what it is sent. |
+| Quote tax (any mode) | Clientst0r, or the provider as an uncommitted preview | nobody (a quote is not a sale) | Clientst0r (`TaxCalculation`, quote totals) |
+| Invoice tax, flat / manual | Clientst0r | you, from your own filings | Clientst0r. The accounting system records what it is sent. |
+| Invoice tax, Avalara / TaxJar | the provider | the provider, once the invoice is committed (sent) | Clientst0r keeps the provider's figure. The accounting system records what it is sent. |
 | Credit memo tax | same as the invoice | the provider (Avalara return / TaxJar refund) | same as the invoice |
 | Voided invoice | none | the provider transaction is voided (Avalara) or deleted (TaxJar) | the void and any void error are kept on the calculation |
 
 The **Authoritative system** setting records which of these applies to you.
 The accounting push reads it from `tax_mapping_for_push()` (see below).
 
-- *ClientSt0r calculates*: the accounting system records the amount it is sent.
-- *Provider calculates and reports*: ClientSt0r and the accounting system both record the provider's amount.
-- *Accounting system calculates*: ClientSt0r's amount is an estimate, and the push does not send tax.
+- *Clientst0r calculates*: the accounting system records the amount it is sent.
+- *Provider calculates and reports*: Clientst0r and the accounting system both record the provider's amount.
+- *Accounting system calculates*: Clientst0r's amount is an estimate, and the push does not send tax.
 
 ## Avoiding conflicts with QuickBooks Online / Xero automated tax
 
 QuickBooks Online Automated Sales Tax (AST) and Xero's tax rates can calculate
 tax on their own when an invoice reaches them. If Avalara, TaxJar or manual
-rates are already calculating tax in ClientSt0r, two systems may arrive at
+rates are already calculating tax in Clientst0r, two systems may arrive at
 different amounts. The customer would then be billed one figure while the books
 record another, and `provider_tax_amount` drift appears on the invoice.
 
-- When ClientSt0r or an external provider calculates tax, we recommend
+- When Clientst0r or an external provider calculates tax, we recommend
   disabling AST in QuickBooks Online (or using Xero tax rates that only record
-  the amount they are sent). The accounting system then records ClientSt0r's
+  the amount they are sent). The accounting system then records Clientst0r's
   figure and does not calculate its own.
 - If you prefer the accounting system to calculate, set the mode to `flat` or
   `none` and set **Authoritative system** to *Accounting system calculates*.

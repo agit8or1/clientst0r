@@ -1,6 +1,6 @@
 {
   "name": "error.paused-business",
-  "description": "ClientSt0r → rem0te: a job for a business under a containment pause. 423 CONTAINED; nothing is queued.",
+  "description": "Clientst0r → rem0te: a job for a business under a containment pause. 423 CONTAINED; nothing is queued.",
   "direction": "clientst0r_to_rem0te",
   "request": {
     "method": "POST",
@@ -53,7 +53,7 @@
     "body": {
       "error": {
         "code": "CONTAINED",
-        "message": "This business is suspended: ClientSt0r jobs are stopped. Reason: TW: suspected compromise, under review"
+        "message": "This business is suspended: Clientst0r jobs are stopped. Reason: TW: suspected compromise, under review"
       }
     }
   },

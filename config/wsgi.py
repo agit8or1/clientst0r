@@ -1,5 +1,5 @@
 """
-WSGI config for Client St0r
+WSGI config for Clientst0r
 """
 import gc
 import os

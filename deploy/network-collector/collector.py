@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Client St0r site collector — reference implementation (Phase 33, v3.17.558).
+Clientst0r site collector — reference implementation (Phase 33, v3.17.558).
 
 Runs on a small box inside a client's network, asks the server what to scan,
 sweeps, and posts the results back. It polls; nothing ever connects *into* the
@@ -179,7 +179,7 @@ def main():
     parser.add_argument('--timeout-ms', type=int, default=300)
     args = parser.parse_args()
 
-    print('Client St0r site collector — scan only networks you are '
+    print('Clientst0r site collector — scan only networks you are '
           'authorised to scan.')
 
     if args.once:

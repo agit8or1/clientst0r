@@ -9,7 +9,7 @@ Authentication: Bearer API key (rk_...), scope computers:read.
 
 A Rem0te API key belongs to exactly one business and sees nothing outside
 it, so a Rem0te connection is always single-customer: one key, one business,
-one ClientSt0r organization. The business behind the key is recorded on the
+one Clientst0r organization. The business behind the key is recorded on the
 first sync, and a later sync refuses to run if the key now answers for a
 different business, rather than filing that business's computers here.
 """

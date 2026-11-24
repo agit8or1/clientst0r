@@ -229,7 +229,7 @@ def evaluate(password, user, request):
     }
 
 
-ONLINE_ONLY_MESSAGE = 'Connect to ClientSt0r to reveal this password.'
+ONLINE_ONLY_MESSAGE = 'Connect to Clientst0r to reveal this password.'
 
 
 def online_only_ids(passwords, user):

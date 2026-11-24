@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Network Scanner for Client St0r
+Network Scanner for Clientst0r
 Scans network ranges and generates importable asset data.
 
 Usage:
@@ -207,8 +207,8 @@ class NetworkScanner:
         self.log(f"Results saved to {output_path}")
         print(f"\n✓ Scan results saved to: {output_path}")
         print(f"  Devices found: {len(self.results)}")
-        print(f"\nTo import into Client St0r:")
-        print(f"  1. Log into Client St0r")
+        print(f"\nTo import into Clientst0r:")
+        print(f"  1. Log into Clientst0r")
         print(f"  2. Go to Assets → Import Network Scan")
         print(f"  3. Upload: {output_path.absolute()}")
 
@@ -216,7 +216,7 @@ class NetworkScanner:
 def parse_arguments():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description='Network Scanner for Client St0r',
+        description='Network Scanner for Clientst0r',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -320,7 +320,7 @@ def main():
 
     # Run scan
     print("=" * 70)
-    print("Client St0r Network Scanner")
+    print("Clientst0r Network Scanner")
     print("=" * 70)
     print(f"Targets: {targets}")
     print(f"Ports:   {ports}")

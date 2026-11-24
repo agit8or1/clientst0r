@@ -1,6 +1,6 @@
 #!/bin/bash
 #################################################
-# Client St0r Update Script
+# Clientst0r Update Script
 # Safely updates the application from GitHub
 #################################################
 
@@ -14,7 +14,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}Client St0r Update Script${NC}"
+echo -e "${BLUE}Clientst0r Update Script${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo ""
 
@@ -347,7 +347,7 @@ echo ""
 # Show current version if available
 if [ -f "config/version.py" ]; then
     info "Current version:"
-    python -c "from config.version import get_version; print(f'  Client St0r v{get_version()}')" 2>/dev/null || true
+    python -c "from config.version import get_version; print(f'  Clientst0r v{get_version()}')" 2>/dev/null || true
 fi
 
 echo ""

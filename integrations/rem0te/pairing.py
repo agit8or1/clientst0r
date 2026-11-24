@@ -2,7 +2,7 @@
 A Rem0te connection's ticket-rmm-v1 pairing, Ed25519 only.
 
 Where it lives (the connection's field_mappings; nothing here is secret —
-Rem0te's keys are public, ClientSt0r's private keys are in Rem0teIdentity):
+Rem0te's keys are public, Clientst0r's private keys are in Rem0teIdentity):
 
   ticket_rmm_enabled        approved (protected change) and switched on
   ticket_rmm_url            Rem0te's site; blank = the connection's address
@@ -26,12 +26,12 @@ exactly why it failed, without secrets. Revisions (contract_revision in
      side-effect-free GET /alerts/events probe (403 = not mapped). Nothing
      says which business the organization is bound to.
   2  Rem0te 0.30. `organizations` names every organization of this peer with
-     its business id, name and containment pauses. ClientSt0r keeps only
+     its business id, name and containment pauses. Clientst0r keeps only
      this connection's own entry (the others are other customers'), checks
      its business id against the business the connection's inventory API
      key belongs to (a mismatch stops the pairing: BUSINESS_MISMATCH), and
      shows the pauses. Alerts may carry `patch_summary`.
-  >2 accepted with a warning: fields ClientSt0r does not know are tolerated
+  >2 accepted with a warning: fields Clientst0r does not know are tolerated
      in what Rem0te sends (logged by path, never by value) and never used.
 
 Compatibility is pinned to the revision in contract/PIN.json; rev1/ keeps
@@ -62,7 +62,7 @@ ALERTS_VERSION = (0, 29, 0)   # alert events
 IMPLEMENTED_REVISION = schema.IMPLEMENTED_REVISION
 _VERSION_RE = re.compile(r'^(\d+)\.(\d+)\.(\d+)')
 
-# Catalog actions ClientSt0r knows how to propose (Rem0te's catalog decides
+# Catalog actions Clientst0r knows how to propose (Rem0te's catalog decides
 # everything else). params must equal Rem0te's catalog entry.
 KNOWN_ACTIONS = {
     'windows.service.start@1': {'id': 'windows.service.start', 'version': 1, 'params': {'service': 'Spooler'},
@@ -70,7 +70,7 @@ KNOWN_ACTIONS = {
 }
 
 # Alert kinds contract revision 2 carries (alert.schema.json). Rem0te monitors
-# more kinds than that; these never reach ClientSt0r over this contract, so the
+# more kinds than that; these never reach Clientst0r over this contract, so the
 # connection page says so instead of implying full coverage.
 CONTRACT_ALERT_KINDS = ('OFFLINE', 'DISK_FREE', 'CPU_HIGH', 'MEMORY_HIGH', 'SERVICE_STOPPED', 'EVENT_MATCH',
                         'REBOOT_PENDING', 'SITE_OUTAGE')
@@ -190,7 +190,7 @@ def settings(connection) -> Dict[str, Any]:
     keys = signing_keys(connection)
     problems = []
     if m.get(NEEDS_REPAIR):
-        problems.append('This pairing was made with shared secrets (HMAC) before ClientSt0r spoke Rem0te\'s '
+        problems.append('This pairing was made with shared secrets (HMAC) before Clientst0r spoke Rem0te\'s '
                         'Ed25519 protocol. It must be paired again with Ed25519.')
     if not audience:
         problems.append("Rem0te's audience is not set.")
@@ -224,7 +224,7 @@ def is_processor(connection) -> bool:
 
 
 def advertised(connection) -> set:
-    """ClientSt0r capability names this Rem0te supports, from its last
+    """Clientst0r capability names this Rem0te supports, from its last
     compatible check. Rem0te's contract has no handoff, diagnostics or
     remote-launch routes, so those are never advertised for it."""
     if not is_processor(connection):
@@ -250,7 +250,7 @@ def offered_profiles(connection) -> List[str]:
 
 
 def profile_slug(profile) -> str:
-    """The model profile name Rem0te knows a ClientSt0r AI profile by. Stable
+    """The model profile name Rem0te knows a Clientst0r AI profile by. Stable
     across renames; Rem0te never learns the model or the key behind it."""
     return f'cs-profile-{profile.pk}'
 
@@ -263,11 +263,11 @@ def version_tuple(v) -> Tuple[int, int, int] | None:
 # --- Check pairing -------------------------------------------------------------
 
 FAILURE_TEXT = {
-    'NOT_CONFIGURED_LOCAL': 'ClientSt0r\'s side is incomplete: {detail}',
+    'NOT_CONFIGURED_LOCAL': 'Clientst0r\'s side is incomplete: {detail}',
     'UNREACHABLE': '{detail}',
     'BLOCKED': '{detail}',
     'NOT_CONFIGURED': 'Rem0te says the integration is not configured on that server (404 NOT_CONFIGURED): '
-                      'INTEGRATION_PEERS_FILE is not set, or it lists no enabled peers. Add ClientSt0r\'s entry '
+                      'INTEGRATION_PEERS_FILE is not set, or it lists no enabled peers. Add Clientst0r\'s entry '
                       'below to the peers file and restart the Rem0te API and worker.',
     'KEY_UNKNOWN': 'Rem0te does not know the key id "{key_id}" (401 Unknown key). The peers file must list peer '
                    '"{peer_id}" with request key "{kid}" — copy the entry below and restart Rem0te.',
@@ -275,13 +275,13 @@ FAILURE_TEXT = {
                   'clock (NTP) on whichever side is wrong.',
     'SIGNATURE_REJECTED': 'Rem0te rejected the request signature (401). Either Rem0te\'s audience here '
                           '("{audience}") is not the peers file\'s peers[].audience for "{peer_id}", or the '
-                          'request public key in the peers file is not ClientSt0r\'s (fingerprint {fp}).',
+                          'request public key in the peers file is not Clientst0r\'s (fingerprint {fp}).',
     'HEADERS_REJECTED': 'Rem0te refused the signature headers as malformed (401).',
     'REPLAYED': 'Rem0te refused the request as a replay (401 REPLAYED). Try again; if it repeats, two '
-                'ClientSt0r instances may be sharing one identity.',
+                'Clientst0r instances may be sharing one identity.',
     'CLIENT_CERT': 'Rem0te requires a pinned client certificate for this peer (mTLS), and none was presented.',
     'RATE_LIMITED': 'Rem0te is rate limiting this peer (429). Try again shortly.',
-    'CONTRACT_MISMATCH': 'Rem0te does not speak the contract revision ClientSt0r was tested against: {detail}',
+    'CONTRACT_MISMATCH': 'Rem0te does not speak the contract revision Clientst0r was tested against: {detail}',
     'VERSION_INCOMPATIBLE': '{detail}',
     'PEER_MISMATCH': '{detail}',
     'SIGNING_KEY_MISMATCH': '{detail}',
@@ -319,7 +319,7 @@ def _bind_business(connection, organizations, doc, pins, warnings) -> str:
         doc['business_binding'] = {
             'status': 'mismatch', 'pinned': pinned, 'reported': business_id,
             'detail': f'Rem0te binds organization "{own_id}" to business {business_id}, but this connection belongs '
-                      f'to business {pinned} (its inventory API key). ClientSt0r stopped the pairing so one '
+                      f'to business {pinned} (its inventory API key). Clientst0r stopped the pairing so one '
                       "customer's alerts and computers are never filed under another."}
         return doc['business_binding']['detail']
     if not pinned:
@@ -365,7 +365,7 @@ def _classify(r: client.Result, ctx: dict) -> Tuple[str, str]:
 def _text(code, ctx, detail='') -> str:
     skew = ctx.get('skew')
     return FAILURE_TEXT[code].format(
-        detail=detail, skew=(f' Rem0te\'s clock is {skew:+d} s from ClientSt0r\'s.' if isinstance(skew, int) else ''),
+        detail=detail, skew=(f' Rem0te\'s clock is {skew:+d} s from Clientst0r\'s.' if isinstance(skew, int) else ''),
         **{k: v for k, v in ctx.items() if k != 'skew'})
 
 
@@ -379,7 +379,7 @@ def validate_capabilities(doc, connection, ident, meta=None) -> Tuple[str, str, 
         return 'INVALID_RESPONSE', 'The capabilities response is not a JSON object.', warnings
     if doc.get('contract') != protocol.CONTRACT:
         return 'CONTRACT_MISMATCH', f'it reports contract "{client.safe_text(doc.get("contract"), 40)}", ' \
-                                    f'ClientSt0r speaks "{protocol.CONTRACT}".', warnings
+                                    f'Clientst0r speaks "{protocol.CONTRACT}".', warnings
     raw_rev = doc.get('contract_revision', 1)
     if not isinstance(raw_rev, int) or isinstance(raw_rev, bool) or raw_rev < 1:
         return 'CONTRACT_MISMATCH', 'its contract_revision is not a positive integer.', warnings
@@ -392,27 +392,27 @@ def validate_capabilities(doc, connection, ident, meta=None) -> Tuple[str, str, 
         return 'CONTRACT_MISMATCH', (f'it reports revision {raw_rev} but sends a revision-{validated} document.'), \
             warnings
     if raw_rev > IMPLEMENTED_REVISION:
-        logger.warning('Rem0te speaks ticket-rmm-v1 revision %s (ClientSt0r implements %s); tolerated unknown '
+        logger.warning('Rem0te speaks ticket-rmm-v1 revision %s (Clientst0r implements %s); tolerated unknown '
                     'capabilities fields: %s', raw_rev, IMPLEMENTED_REVISION, ', '.join(unknown) or 'none')
-        warnings.append(f'Rem0te speaks contract revision {raw_rev}; this ClientSt0r implements revision '
+        warnings.append(f'Rem0te speaks contract revision {raw_rev}; this Clientst0r implements revision '
                         f'{IMPLEMENTED_REVISION} and uses nothing newer'
                         + (f' (ignored: {", ".join(unknown[:6])})' if unknown else '') + '.')
     version = version_tuple(doc.get('rem0te_version'))
     tested = version_tuple(pin()['rem0te_version'])
     if version is None:
         warnings.append(f'Rem0te reports its version as "{client.safe_text(doc.get("rem0te_version"), 40)}"; '
-                        f'ClientSt0r was tested against {pin()["rem0te_version"]}.')
+                        f'Clientst0r was tested against {pin()["rem0te_version"]}.')
     elif version < MIN_VERSION:
         return 'VERSION_INCOMPATIBLE', (f'Rem0te {doc["rem0te_version"]} is older than the oldest revision this '
-                                        f'ClientSt0r supports ({".".join(map(str, MIN_VERSION))}). Update Rem0te.'), \
+                                        f'Clientst0r supports ({".".join(map(str, MIN_VERSION))}). Update Rem0te.'), \
             warnings
     elif version[:2] != tested[:2]:
-        warnings.append(f'Rem0te {doc["rem0te_version"]} is a different release from the one this ClientSt0r was '
+        warnings.append(f'Rem0te {doc["rem0te_version"]} is a different release from the one this Clientst0r was '
                         f'tested against ({pin()["rem0te_version"]}, {pin()["rem0te_sha"][:12]}). The contract '
                         'check passed; run the cross-peer tests before relying on new behaviour.')
     if doc.get('peer_id') != ident.peer_id:
         return 'PEER_MISMATCH', (f'Rem0te accepted the request as peer "{client.safe_text(doc.get("peer_id"), 64)}", '
-                                 f'but ClientSt0r is "{ident.peer_id}".'), warnings
+                                 f'but Clientst0r is "{ident.peer_id}".'), warnings
     s = settings(connection)
     if doc.get('audience') != s['rem0te_audience']:
         return 'PEER_MISMATCH', (f'Rem0te calls itself "{client.safe_text(doc.get("audience"), 100)}", but this '
@@ -515,7 +515,7 @@ def check(connection) -> dict:
                features=cap['features'], model_profiles=cap['model_profiles'], limits=cap['limits'],
                signing_keys=[{'kid': k['kid'], 'fingerprint': _fp(k['public_key_pem'])} for k in cap['signing_keys']])
     if isinstance(r.clock_skew_s, int) and abs(r.clock_skew_s) > 60:
-        warnings.append(f'Rem0te\'s clock is {r.clock_skew_s:+d} s from ClientSt0r\'s; requests fail beyond ±120 s.')
+        warnings.append(f'Rem0te\'s clock is {r.clock_skew_s:+d} s from Clientst0r\'s; requests fail beyond ±120 s.')
     if isinstance(cap.get('organizations'), list):
         # Revision 2: the binding, stated by Rem0te. Only this organization's
         # own entry is kept: the others are other customers' businesses.
@@ -551,7 +551,7 @@ def check(connection) -> dict:
     profiles = usable_profile_slugs(connection)
     missing_profiles = [p for p in profiles if p not in cap['model_profiles']]
     if missing_profiles:
-        warnings.append('Rem0te does not offer these ClientSt0r model profiles to this peer: '
+        warnings.append('Rem0te does not offer these Clientst0r model profiles to this peer: '
                         + ', '.join(missing_profiles) + '. Add them to modelProfiles in the peers file.')
     return done()
 
@@ -579,8 +579,8 @@ def status(connection) -> Dict[str, Any]:
             kind='business_mapping', status=ProtectedChange.PENDING))
     if s['needs_repair']:
         state, label = 'error', 'Needs re-pairing (Ed25519)'
-        detail = ('This Rem0te pairing used shared secrets (HMAC). Rem0te authenticates ClientSt0r only with '
-                  'Ed25519 signatures, so ClientSt0r has stopped all traffic to and from it. Follow the steps '
+        detail = ('This Rem0te pairing used shared secrets (HMAC). Rem0te authenticates Clientst0r only with '
+                  'Ed25519 signatures, so Clientst0r has stopped all traffic to and from it. Follow the steps '
                   'below, then press Check pairing.')
     elif not s['requested'] and not pending:
         state, label, detail = 'off', 'Not paired', 'Ticket integration pairing is off for this connection.'
@@ -613,15 +613,15 @@ def status(connection) -> Dict[str, Any]:
         'kinds_not_sent': REM0TE_KINDS_NOT_SENT,
         'pin': pin(),
         'steps': [
-            "Generate ClientSt0r's Rem0te keys (below) and set ClientSt0r's audience and the address Rem0te "
-            'reaches ClientSt0r at.',
+            "Generate Clientst0r's Rem0te keys (below) and set Clientst0r's audience and the address Rem0te "
+            'reaches Clientst0r at.',
             'On the Rem0te server (root), add the peers-file entry shown below to INTEGRATION_PEERS_FILE — '
             'public keys, audiences and the two URLs — and restart the Rem0te API and integration worker.',
             "Enter Rem0te's audience and Rem0te's public signing key (and its key id) on this connection; save. "
             'A second administrator approves the pairing.',
             f'In Rem0te (Platform Admin, step-up), map organization "{organization_id(connection)}" to its '
-            'business, and each technician ("tech-<ClientSt0r user id>") to their Rem0te user; grant them '
-            '"Ticket analysis (ClientSt0r)" there.',
+            'business, and each technician ("tech-<Clientst0r user id>") to their Rem0te user; grant them '
+            '"Ticket analysis (Clientst0r)" there.',
             'Press Check pairing.',
         ],
     }

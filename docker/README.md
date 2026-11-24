@@ -1,6 +1,6 @@
-# Client St0r Docker Deployment
+# Clientst0r Docker Deployment
 
-This directory contains Docker deployment configurations for Client St0r.
+This directory contains Docker deployment configurations for Clientst0r.
 
 ## Quick Start
 
@@ -71,7 +71,7 @@ docker-compose ps
 
 - **db**: MariaDB 10.11 database
 - **redis**: Redis cache for sessions and caching
-- **web**: Client St0r Django application (Gunicorn)
+- **web**: Clientst0r Django application (Gunicorn)
 - **nginx**: Reverse proxy and static file server
 
 ### Optional Services (Profiles)
@@ -294,7 +294,7 @@ Schedule with cron:
 
 ## Updates
 
-### Updating Client St0r
+### Updating Clientst0r
 
 ```bash
 # Pull latest changes

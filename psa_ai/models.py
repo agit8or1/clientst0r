@@ -171,7 +171,7 @@ class AIUsageBucket(models.Model):
 # ===========================================================================
 # Ticket AI Assist (v3.17.646): profiles, policy, analysis jobs, budgets.
 #
-# Who holds what: ClientSt0r keeps every provider credential here, sealed,
+# Who holds what: Clientst0r keeps every provider credential here, sealed,
 # and calls providers only from its own inference gateway
 # (services/gateway.py). rem0te processes the job and asks the gateway for
 # each model run; it never receives a key. See docs/contracts/ticket-rmm-v1/.
@@ -499,7 +499,7 @@ class IntegrationNonce(models.Model):
 # RMM handoffs, read-only diagnostics and fix referrals (v3.17.658,
 # Phase 56.5 / 56.6). Not AI features: they work with AI switched off.
 #
-# ClientSt0r records what a technician asked the paired RMM for and shows
+# Clientst0r records what a technician asked the paired RMM for and shows
 # the RMM's signed status updates. It never runs anything on a device, never
 # marks a fix approved itself, and no status from the RMM can close the
 # ticket or send a customer reply (services/rmm_actions.py).
@@ -624,7 +624,7 @@ class Rem0teAlertEvent(models.Model):
     received_via = models.CharField(max_length=8, default='push')
     received_at = models.DateTimeField(auto_now_add=True)
     # False: authentic (signature verified) but not applied — e.g. a shape
-    # this ClientSt0r does not understand. Kept so the gap-free cursor moves
+    # this Clientst0r does not understand. Kept so the gap-free cursor moves
     # on, shown on the connection's health, and re-tried by reconciliation
     # after the next successful capabilities check.
     applied = models.BooleanField(default=True)

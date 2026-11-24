@@ -1,6 +1,6 @@
 {
   "name": "error.clientst0r-hmac-request",
-  "description": "ClientSt0r → rem0te, signed the way ClientSt0r signs today (HMAC-SHA256, X-Integration-* headers). Refused: ticket-rmm-v1 is Ed25519 with rem0te-* headers. See CLIENTST0R.md.",
+  "description": "Clientst0r → rem0te, signed the way Clientst0r signs today (HMAC-SHA256, X-Integration-* headers). Refused: ticket-rmm-v1 is Ed25519 with rem0te-* headers. See CLIENTST0R.md.",
   "direction": "clientst0r_to_rem0te",
   "request": {
     "method": "GET",

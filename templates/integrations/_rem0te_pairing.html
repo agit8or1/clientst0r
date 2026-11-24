@@ -36,7 +36,7 @@ key is ever rendered. Everything from Rem0te is autoescaped text.
     </details>
 
     <details class="mb-2" {% if not pairing.identity or not pairing.identity.has_keys %}open{% endif %}>
-        <summary class="fw-semibold">ClientSt0r's Rem0te identity (all organizations)</summary>
+        <summary class="fw-semibold">Clientst0r's Rem0te identity (all organizations)</summary>
         {% if pairing.identity and pairing.identity.has_keys %}
         <table class="table table-sm mt-1 mb-1">
             <tr><th width="40%">Peer id</th><td><code>{{ pairing.identity.peer_id }}</code></td></tr>
@@ -51,14 +51,14 @@ key is ever rendered. Everything from Rem0te is autoescaped text.
         <pre class="small bg-light border rounded p-2 mb-1" style="max-height: 18rem; overflow: auto; white-space: pre-wrap;" data-rem0te-peer-entry>{{ pairing.peer_entry }}</pre>
         {% endif %}
         {% else %}
-        <p class="text-muted mt-1 mb-1">ClientSt0r has no Rem0te keys yet.</p>
+        <p class="text-muted mt-1 mb-1">Clientst0r has no Rem0te keys yet.</p>
         {% endif %}
         {% if user.is_superuser %}
         <form method="post" action="{% url 'integrations:rmm_rem0te_identity' connection.pk %}" class="mt-2">
             {% csrf_token %}<input type="hidden" name="op" value="update">
             <div class="row g-1">
                 <div class="col-md-4"><input name="peer_id" class="form-control form-control-sm" aria-label="Peer id" placeholder="Peer id" value="{{ pairing.identity.peer_id|default:'clientst0r' }}"></div>
-                <div class="col-md-4"><input name="audience" class="form-control form-control-sm" aria-label="ClientSt0r's audience" placeholder="clientst0r:host" value="{{ pairing.identity.audience|default:'' }}"></div>
+                <div class="col-md-4"><input name="audience" class="form-control form-control-sm" aria-label="Clientst0r's audience" placeholder="clientst0r:host" value="{{ pairing.identity.audience|default:'' }}"></div>
                 <div class="col-md-4"><input name="public_base_url" class="form-control form-control-sm" aria-label="Public address" placeholder="https://clientst0r.example.com" value="{{ pairing.identity.public_base_url|default:'' }}"></div>
             </div>
             <button class="btn btn-sm btn-outline-secondary mt-1">Save identity</button>
@@ -67,15 +67,15 @@ key is ever rendered. Everything from Rem0te is autoescaped text.
             {% csrf_token %}
             {% if pairing.identity and pairing.identity.has_keys %}
             <input type="hidden" name="op" value="rotate">
-            <button class="btn btn-sm btn-outline-danger mt-1" data-confirm="Rotating replaces ClientSt0r's keys: every Rem0te pairing stops working until Rem0te's peers file has the new public keys. Continue?">Rotate keys</button>
+            <button class="btn btn-sm btn-outline-danger mt-1" data-confirm="Rotating replaces Clientst0r's keys: every Rem0te pairing stops working until Rem0te's peers file has the new public keys. Continue?">Rotate keys</button>
             {% else %}
             <input type="hidden" name="op" value="generate">
             <button class="btn btn-sm btn-primary mt-1">Generate keys</button>
             {% endif %}
         </form>
         {% else %}
-        <p class="text-muted mb-0">Only a superuser can change ClientSt0r's Rem0te identity, because it serves every organization.</p>
+        <p class="text-muted mb-0">Only a superuser can change Clientst0r's Rem0te identity, because it serves every organization.</p>
         {% endif %}
     </details>
-    <p class="text-muted mb-0">Technicians are known to Rem0te as <code>tech-&lt;ClientSt0r user id&gt;</code>; map each one in Rem0te. Private keys are encrypted at rest and never shown.</p>
+    <p class="text-muted mb-0">Technicians are known to Rem0te as <code>tech-&lt;Clientst0r user id&gt;</code>; map each one in Rem0te. Private keys are encrypted at rest and never shown.</p>
 </div>

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ action }} RMM Integration - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+{% block title %}{{ action }} RMM Integration - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Clientst0r" }}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -295,8 +295,8 @@
                         </div>
                         <div class="alert alert-info small py-2 mb-2" data-pairing-mode="ed25519">
                             Rem0te pairs with Ed25519 keys, never shared secrets: enter Rem0te's audience and public
-                            signing key here, then add ClientSt0r's entry (shown on the connection page) to Rem0te's
-                            peers file. ClientSt0r's own keys are generated on the connection page.</div>
+                            signing key here, then add Clientst0r's entry (shown on the connection page) to Rem0te's
+                            peers file. Clientst0r's own keys are generated on the connection page.</div>
                         {% for f in form %}{% if f.name == 'ticket_rmm_url' or f.name == 'ticket_rmm_key_id' or f.name == 'ticket_rmm_outbound_secret' or f.name == 'ticket_rmm_inbound_secret' or f.name == 'ticket_rmm_location' or f.name == 'rem0te_audience' or f.name == 'rem0te_signing_keys' %}
                         <div class="mb-2"{% if f.name == 'ticket_rmm_key_id' or f.name == 'ticket_rmm_outbound_secret' or f.name == 'ticket_rmm_inbound_secret' %} data-pairing-mode="hmac"{% elif f.name == 'rem0te_audience' or f.name == 'rem0te_signing_keys' %} data-pairing-mode="ed25519"{% endif %}>
                             <label for="{{ f.id_for_label }}" class="form-label">{{ f.label }}</label>
@@ -398,7 +398,7 @@
                                 <div class="invalid-feedback d-block">{{ form.import_organizations.errors }}</div>
                                 {% endif %}
                                 <small class="form-text text-muted d-block">
-                                    When enabled, Client St0r will create a separate organization for each RMM site/client instead of grouping all devices under this connection's organization.
+                                    When enabled, Clientst0r will create a separate organization for each RMM site/client instead of grouping all devices under this connection's organization.
                                 </small>
                             </div>
                         </div>

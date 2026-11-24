@@ -7122,7 +7122,7 @@ class ServiceCatalogChange(models.Model):
 class TicketShare(models.Model):
     """
     Records that a Ticket has been shared with an outsourcing partner.
-    The partner sees this ticket via their copy of Client St0r — comments
+    The partner sees this ticket via their copy of Clientst0r — comments
     + status sync bidirectionally via the partner webhook.
     """
     STATUS_CHOICES = [
@@ -8274,7 +8274,7 @@ class TicketPresence(models.Model):
 
 
 # ---------------------------------------------------------------------------
-# Affected devices (ClientSt0r ↔ RMM Phase 4). A ticket's own `related_asset`
+# Affected devices (Clientst0r ↔ RMM Phase 4). A ticket's own `related_asset`
 # stays its primary device; these rows add the other devices the same
 # problem touches. Always the ticket's own customer: `save()` refuses an
 # asset from anywhere else, and every reader filters on the organization

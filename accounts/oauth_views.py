@@ -189,7 +189,7 @@ def azure_callback(request):
         extra_data={'auth_source': 'azure_ad', 'tid': identity.tid, 'oid': identity.oid},
     )
 
-    # A Microsoft sign-in stands in for ClientSt0r's 2FA only when Microsoft
+    # A Microsoft sign-in stands in for Clientst0r's 2FA only when Microsoft
     # confirms MFA (or the operator trusts the tenant); otherwise
     # Enforce2FAMiddleware asks for the user's authenticator code, or for
     # enrolment, as after a password sign-in (v3.17.660).
@@ -310,7 +310,7 @@ def _safe_next(request, default='/core/dashboard/'):
 @ratelimit(key='user_or_ip', rate='10/15m', method='POST', block=False)
 @require_http_methods(['GET', 'POST'])
 def azure_verify(request):
-    """Ask a Microsoft-signed-in user for their ClientSt0r authenticator code
+    """Ask a Microsoft-signed-in user for their Clientst0r authenticator code
     when Microsoft didn't confirm MFA for the sign-in (v3.17.660).
 
     Enforce2FAMiddleware sends such sessions here instead of ending them
@@ -343,7 +343,7 @@ def azure_verify(request):
                 otp_login(request, device)
                 request.session.pop('azure_verify_failures', None)
                 AuditLog.log(user=request.user, action='login', description=(
-                    'Microsoft sign-in completed with the ClientSt0r authenticator '
+                    'Microsoft sign-in completed with the Clientst0r authenticator '
                     '(Microsoft did not confirm MFA)'),
                     ip_address=request.META.get('REMOTE_ADDR'),
                     extra_data={'event': 'azure_sso_2fa_verified'})

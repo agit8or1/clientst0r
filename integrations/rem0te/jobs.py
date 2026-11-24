@@ -22,7 +22,7 @@ first signed event, which carries the job's correlation id and payload hash.
 Model runs. Rem0te asks the inference gateway once per profile. A retry of
 the same run (Rem0te retries transient failures, with a new request id) is
 answered from the stored run: the model is called at most once per
-(job, profile). The prompt is built from what ClientSt0r sent, plus the
+(job, profile). The prompt is built from what Clientst0r sent, plus the
 Rem0te-observed endpoint segments only when the job named an endpoint.
 """
 from __future__ import annotations
@@ -68,7 +68,7 @@ def ticket_ext_id(ticket) -> str:
 
 
 def ticket_revision_int(job) -> int:
-    """The contract wants an integer revision; ClientSt0r's revision is a
+    """The contract wants an integer revision; Clientst0r's revision is a
     SHA-256. Its first 28 bits are stable for a revision and change with it."""
     return int((job.ticket_revision or '0')[:7] or '0', 16)
 
@@ -159,7 +159,7 @@ def submit(job) -> str:
             req = build_request(job)
         except schema.SchemaError as e:
             _set(job, status='failed', processor_error_code='INVALID_REQUEST',
-                 error=f'ClientSt0r could not build a valid Rem0te job request: {e}'[:1000])
+                 error=f'Clientst0r could not build a valid Rem0te job request: {e}'[:1000])
             _refuse_pending(job, 'Not sent.')
             return 'failed'
         _set(job, processor_request=req)
@@ -178,7 +178,7 @@ def submit(job) -> str:
                 or data.get('payload_sha256') != request_sha256(req):
             _set(job, processor_error_code='RESPONSE_INVALID',
                  error='Rem0te accepted the job but its answer does not match what was sent; '
-                       'ClientSt0r will confirm it from Rem0te\'s signed events.')
+                       'Clientst0r will confirm it from Rem0te\'s signed events.')
             return 'retrying'
         _set(job, processor_job_id=data['job_id'], processor_error_code='', error='',
              status='submitted' if job.status == 'created' else job.status)
@@ -192,7 +192,7 @@ def submit(job) -> str:
         # A containment pause in Rem0te: an administrator decision, not an
         # outage. The job ends now with the reason (Rem0te's free-text pause
         # reason is not kept: /capabilities deliberately never discloses it).
-        why = ('Rem0te has paused ClientSt0r jobs for this business (containment). Nothing was queued; run the '
+        why = ('Rem0te has paused Clientst0r jobs for this business (containment). Nothing was queued; run the '
                'analysis again once a Rem0te administrator lifts the pause.')
         _set(job, status='failed', processor_error_code='CONTAINED', error=why)
         _refuse_pending(job, 'Rem0te has paused this business.')
@@ -202,10 +202,10 @@ def submit(job) -> str:
     retryable = r.transport in ('unreachable', 'timeout', 'read') or r.status >= 500 or r.status == 429
     if retryable:
         _set(job, processor_error_code=r.code[:64],
-             error=f'{r.message} ClientSt0r keeps retrying (same request, nothing duplicated) until the job '
+             error=f'{r.message} Clientst0r keeps retrying (same request, nothing duplicated) until the job '
                    'expires.'[:1000])
         health.note(job.connection, 'jobs', f'Analysis jobs are waiting to be sent to Rem0te: {r.message}',
-                    code=r.code, action='ClientSt0r retries every minute with the same request.')
+                    code=r.code, action='Clientst0r retries every minute with the same request.')
         return 'retrying'
     reason = describe_refusal(r)
     _set(job, status='failed', processor_error_code=r.code[:64], error=reason[:1000])
@@ -221,10 +221,10 @@ def submit(job) -> str:
 def describe_refusal(r: client.Result) -> str:
     hints = {
         'FORBIDDEN': 'Rem0te refused the technician or organization: {m} Check the organization and technician '
-                     'mappings and the technician\'s "Ticket analysis (ClientSt0r)" capability in Rem0te.',
+                     'mappings and the technician\'s "Ticket analysis (Clientst0r)" capability in Rem0te.',
         'DELEGATION_INVALID': 'Rem0te refused the technician delegation: {m} Check the delegation key in the '
                               'peers file and the clocks.',
-        'UNAUTHENTICATED': 'Rem0te refused ClientSt0r\'s signature: {m} Run Check pairing on the connection.',
+        'UNAUTHENTICATED': 'Rem0te refused Clientst0r\'s signature: {m} Run Check pairing on the connection.',
         'REPLAYED': 'Rem0te refused a replayed token or nonce: {m}',
         'IDEMPOTENCY_CONFLICT': 'Rem0te already has a different job under this request key.',
         'INVALID_REQUEST': 'Rem0te refused the job request: {m}',
@@ -370,12 +370,12 @@ def _refused(body_in, code, run=None, profile=None):
     if run is not None and run.status == 'pending':
         from psa_ai.models import AnalysisRun
         AnalysisRun.objects.filter(pk=run.pk, status='pending').update(
-            status='refused', error=f'Refused by ClientSt0r: {code}'[:500], finished_at=timezone.now())
+            status='refused', error=f'Refused by Clientst0r: {code}'[:500], finished_at=timezone.now())
     return 200, _resp(body_in, 'refused', error_code=code[:64], resolved_model=resolved)
 
 
 def _segments_ok(job, segments) -> Tuple[bool, List[dict]]:
-    """Ticket segments must be the ticket ClientSt0r sent; endpoint segments
+    """Ticket segments must be the ticket Clientst0r sent; endpoint segments
     only for the endpoint the job named. Returns (ok, endpoint segments)."""
     req = job.processor_request or {}
     t = req.get('ticket') or {}
@@ -397,7 +397,7 @@ def _segments_ok(job, segments) -> Tuple[bool, List[dict]]:
 
 
 def ticket_segments(req: dict) -> List[dict]:
-    """The ticket as segments, rebuilt from what ClientSt0r sent (Rem0te's
+    """The ticket as segments, rebuilt from what Clientst0r sent (Rem0te's
     ticketSegments(), same refs) — never from the text in the inference
     request."""
     t = req['ticket']
@@ -453,7 +453,7 @@ def parse_output(text: str) -> dict:
 
 
 def local_view(output: dict) -> dict:
-    """The same output in the shape ClientSt0r's ticket UI, draft detection
+    """The same output in the shape Clientst0r's ticket UI, draft detection
     and fix suggestions already read (services/analysis_result.py)."""
     from psa_ai.services.evidence import redact
     return {

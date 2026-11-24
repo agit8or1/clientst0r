@@ -1,6 +1,6 @@
-# ClientSt0r Browser Extension
+# Clientst0r Browser Extension
 
-A Chrome/Edge/Firefox extension that brings ClientSt0r's password vault and asset inventory directly into your browser.
+A Chrome/Edge/Firefox extension that brings Clientst0r's password vault and asset inventory directly into your browser.
 
 ## Features
 
@@ -18,7 +18,7 @@ A Chrome/Edge/Firefox extension that brings ClientSt0r's password vault and asse
 2. Enable **Developer mode** (top-right toggle)
 3. Click **Load unpacked**
 4. Select the `clientst0r-extension/` directory
-5. The ClientSt0r icon appears in the toolbar
+5. The Clientst0r icon appears in the toolbar
 
 ### Firefox
 
@@ -32,7 +32,7 @@ A Chrome/Edge/Firefox extension that brings ClientSt0r's password vault and asse
 
 1. Click the extension icon → click **⚙ Settings** (or right-click → Options)
 2. Enter your **Server URL** (e.g. `https://clientst0r.app` or your self-hosted address)
-3. Enter your **API Key** — generate one from **Settings → API Keys** in ClientSt0r
+3. Enter your **API Key** — generate one from **Settings → API Keys** in Clientst0r
 4. Click **Test Connection** to verify, then **Save Settings**
 
 ## Usage
@@ -59,7 +59,7 @@ Both lists support drag-and-drop ordering. Your preferred order is stored locall
 ## Architecture
 
 ```
-content.js  ──sendMessage──→  service-worker.js  ──fetch──→  ClientSt0r API
+content.js  ──sendMessage──→  service-worker.js  ──fetch──→  Clientst0r API
 popup.js    ──sendMessage──→  service-worker.js
 options.js  ──sendMessage──→  service-worker.js
 ```

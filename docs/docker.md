@@ -1,7 +1,7 @@
-# Running Client St0r with Docker
+# Running Clientst0r with Docker
 
 This guide covers the **Docker / Docker Compose** install path. It's
-the fastest way to stand up Client St0r on a fresh host — one command
+the fastest way to stand up Clientst0r on a fresh host — one command
 brings up the app, MariaDB, and (optionally) an Nginx TLS proxy. The
 classic `bash install.sh` path still works and is documented in
 `INSTALL.md`; Docker is a peer option, not a replacement.
@@ -188,7 +188,7 @@ existing proxy at `http://localhost:${WEB_PORT}`.
 docker compose --profile cache up -d
 ```
 
-Client St0r runs fine without Redis (the default cache backend is
+Clientst0r runs fine without Redis (the default cache backend is
 in-process `locmem`). The Redis service is provided for installs that
 already plumb `CACHES['default']` to Redis in `config/settings.py`.
 

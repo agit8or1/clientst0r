@@ -1,7 +1,7 @@
 """
 Autopay: charge the customer-authorized default method when an invoice is due.
 
-ClientSt0r decides what is due (invoice due date, less the connection's lead
+Clientst0r decides what is due (invoice due date, less the connection's lead
 days); the gateway only collects. One due cycle = one invoice due date. Per
 cycle there are at most `autopay_max_attempts` attempts, numbered 1..N, and
 (invoice, cycle, number) is unique, so running the command twice (or two

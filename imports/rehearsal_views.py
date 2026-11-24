@@ -89,7 +89,7 @@ class RehearsalForm(forms.Form):
         help_text='IT Glue organization ID or Hudu company ID of the ONE customer to rehearse.')
     target_organization = forms.ModelChoiceField(
         queryset=Organization.objects.none(), widget=forms.Select(attrs={'class': 'form-select'}),
-        help_text='The ClientSt0r customer the records go to.')
+        help_text='The Clientst0r customer the records go to.')
 
     def __init__(self, *args, orgs=None, **kwargs):
         super().__init__(*args, **kwargs)

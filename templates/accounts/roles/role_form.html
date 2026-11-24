@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}{% if is_edit %}Edit{% else %}Create{% endif %} Role - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+{% block title %}{% if is_edit %}Edit{% else %}Create{% endif %} Role - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Clientst0r" }}{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb">
@@ -92,7 +92,7 @@
                             {{ perm.description }}
                             {% if perm.privileged %}<span class="badge bg-danger">critical</span>{% elif perm.sensitivity == 'sensitive' %}<span class="badge bg-warning text-dark">sensitive</span>{% endif %}
                             {% if perm.status == 'unimplemented' %}<span class="badge bg-secondary">Not yet implemented</span>{% elif perm.status == 'pending' %}<span class="badge bg-secondary" title="Defined; the pages that use it are being wired up">being wired up</span>{% endif %}
-                            {% if perm.status == 'unimplemented' %}<div class="form-text">Client St0r has no such feature yet ({% if perm.key == 'vault_export' %}no bulk password export{% else %}nothing checks it{% endif %}). The setting is stored, but granting it does not currently allow anything.</div>{% endif %}
+                            {% if perm.status == 'unimplemented' %}<div class="form-text">Clientst0r has no such feature yet ({% if perm.key == 'vault_export' %}no bulk password export{% else %}nothing checks it{% endif %}). The setting is stored, but granting it does not currently allow anything.</div>{% endif %}
                             {% if perm.staff_only %}<span class="badge bg-light text-dark border">staff only</span>{% endif %}
                         </label>
                         {% if checked and not editable %}<input type="hidden" name="{{ perm.key }}" value="on">{% endif %}

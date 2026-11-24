@@ -259,5 +259,5 @@ _HANDLERS = {
     'add_internal_note': _add_internal_note,
     'start_workflow':    _start_workflow,   # 10c
     'escalate':          _escalate,         # 10c
-    # No endpoint execution from ClientSt0r, ever: see guardrails.ALLOWED_ACTION_TYPES.
+    # No endpoint execution from Clientst0r, ever: see guardrails.ALLOWED_ACTION_TYPES.
 }

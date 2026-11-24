@@ -429,7 +429,7 @@ Return ONLY the HTML content starting with a <div> tag."""
     def review_imported_document(self, title, content, standard='general', output_format='html'):
         """
         Review an imported/extracted document in a single LLM call: reformat it
-        to a ClientSt0r documentation standard AND identify gaps for improvement.
+        to a Clientst0r documentation standard AND identify gaps for improvement.
 
         Issue #140. Returns both the cleaned document and a list of gap notes so
         the importer can save the improved body and surface the gaps to the user.

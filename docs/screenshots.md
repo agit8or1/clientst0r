@@ -1,6 +1,6 @@
-# ClientSt0r — screenshot gallery
+# Clientst0r — screenshot gallery
 
-121 views of the running application — 65 in the light theme (Default Blue), 56 in Professional Dark, the default theme. Every one is a capture of ClientSt0r against an isolated demo database; no mockups, no composites.
+121 views of the running application — 65 in the light theme (Default Blue), 56 in Professional Dark, the default theme. Every one is a capture of Clientst0r against an isolated demo database; no mockups, no composites.
 
 All organizations, people, hostnames, addresses and credentials below are invented. Domains use the reserved `.example` TLD and addresses are RFC 1918. Nothing is masked after the fact because nothing needed masking — the application never renders a secret into a list, a ticket or a report.
 
@@ -672,13 +672,13 @@ Send to RMM shows exactly what will leave: the destination, its tenant and devic
 
 [![Requests to the RMM list on a ticket in the Professional Dark theme: a handoff marked Sent with receipt confirmed, a Disk space diagnostic marked Completed with its staff-only result expanded showing C: at 4% free, and a fix referral to clear the X-ray bridge cache marked Approved in the RMM](images/github/ticket-rmm-requests-dark.png)](images/github/ticket-rmm-requests-dark.png)
 
-Every request keeps the RMM's signed status callbacks: a handoff counts as sent once receipt is confirmed, a read-only diagnostic's sanitised, size-limited result is shown to staff only, and a fix referral shows the RMM's approval. ClientSt0r only refers a fix; the RMM approves and runs it.
+Every request keeps the RMM's signed status callbacks: a handoff counts as sent once receipt is confirmed, a read-only diagnostic's sanitised, size-limited result is shown to staff only, and a fix referral shows the RMM's approval. Clientst0r only refers a fix; the RMM approves and runs it.
 
 ### Effective access with a paired RMM
 
 **Light theme**
 
-[![Preview effective access in light theme for demo.tech at Ridgeline Dental Group: ticket AI, Private RMM handoff, read-only diagnostics and low-risk fix requests allowed in scope; view and control sessions by time-limited request; advanced diagnostics, elevation, unattended access, clipboard and file transfer unavailable because the paired RMM does not advertise them; and locked rows such as approving an endpoint fix and running commands from ClientSt0r](images/github/technician-access-rmm-light.png)](images/github/technician-access-rmm-light.png)
+[![Preview effective access in light theme for demo.tech at Ridgeline Dental Group: ticket AI, Private RMM handoff, read-only diagnostics and low-risk fix requests allowed in scope; view and control sessions by time-limited request; advanced diagnostics, elevation, unattended access, clipboard and file transfer unavailable because the paired RMM does not advertise them; and locked rows such as approving an endpoint fix and running commands from Clientst0r](images/github/technician-access-rmm-light.png)](images/github/technician-access-rmm-light.png)
 
 The effective-access preview shows, for one technician at one customer, each capability's result and why. RMM, remote-access and fix capabilities stay Unavailable until the customer's paired RMM advertises them; remote sessions on the L2 preset are by request.
 
@@ -1044,7 +1044,7 @@ Alerts that need handling become incidents with a severity, a status, the client
 
 **Light theme**
 
-[![Top bar in light theme: the ClientSt0r logo with an amber Update Available v3.17.681 pill beside it, then Go to with its Ctrl K hint, Favorites, Recent, the client switcher, the notifications bell, Help, the settings gear and the account menu](images/github/update-badge-light.png)](images/github/update-badge-light.png)
+[![Top bar in light theme: the Clientst0r logo with an amber Update Available v3.17.681 pill beside it, then Go to with its Ctrl K hint, Favorites, Recent, the client switcher, the notifications bell, Help, the settings gear and the account menu](images/github/update-badge-light.png)](images/github/update-badge-light.png)
 
 When the scheduled update check finds a newer release, superusers see a glowing amber Update Available pill beside the logo, at every window width, and an entry in the notifications bell; both link to Administration → System → System Updates. Pages never contact GitHub while loading, and other users never see it.
 
@@ -1072,4 +1072,4 @@ Older captures from previous releases are kept in [`docs/screenshots/`](screensh
 
 ---
 
-[← Back to the README](../README.md) · [MSP Reboot](https://mspreboot.com) — the MSP consulting practice behind ClientSt0r
+[← Back to the README](../README.md) · [MSP Reboot](https://mspreboot.com) — the MSP consulting practice behind Clientst0r

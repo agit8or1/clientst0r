@@ -67,7 +67,7 @@ def _xero_payment(payment_id, amount, *, invoice_id='XINV-1', status='AUTHORISED
 
 
 def _payments_page(*rows):
-    return {'Id': 'resp-1', 'Status': 'OK', 'ProviderName': 'ClientSt0r',
+    return {'Id': 'resp-1', 'Status': 'OK', 'ProviderName': 'Clientst0r',
             'DateTimeUTC': '/Date(1768500000000)/',
             'pagination': {'page': 1, 'pageSize': 100, 'pageCount': 1,
                            'itemCount': len(rows)},

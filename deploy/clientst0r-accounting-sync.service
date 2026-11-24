@@ -1,5 +1,5 @@
 [Unit]
-Description=Client St0r Accounting Sync (QuickBooks Online / Xero)
+Description=Clientst0r Accounting Sync (QuickBooks Online / Xero)
 After=network.target
 
 [Service]

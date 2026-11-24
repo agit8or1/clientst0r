@@ -1,5 +1,5 @@
 """
-Django management command for auto-updating Client St0r.
+Django management command for auto-updating Clientst0r.
 Usage: python manage.py auto_update [--check-only]
 """
 import subprocess
@@ -16,7 +16,7 @@ UPDATE_SCRIPT_TIMEOUT = 60 * 60
 
 
 class Command(BaseCommand):
-    help = 'Automatically update Client St0r from GitHub (pull, migrate, restart)'
+    help = 'Automatically update Clientst0r from GitHub (pull, migrate, restart)'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -37,7 +37,7 @@ class Command(BaseCommand):
         project_dir = settings.BASE_DIR
         update_script = project_dir / 'scripts' / 'auto_update.sh'
 
-        self.stdout.write(self.style.HTTP_INFO('Client St0r Auto-Update'))
+        self.stdout.write(self.style.HTTP_INFO('Clientst0r Auto-Update'))
         self.stdout.write(self.style.HTTP_INFO('=' * 50))
 
         # Check if auto_update.sh exists

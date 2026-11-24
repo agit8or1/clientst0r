@@ -1,7 +1,7 @@
 [
   {
     "kind": "card",
-    "title": "ClientSt0r",
+    "title": "Clientst0r",
     "subtitle": "Self-hosted IT documentation and service desk for MSPs — client assets, runbooks, an encrypted credential vault and native ticketing, all on your own infrastructure.",
     "url": "github.com/agit8or1/clientst0r",
     "secs": 6.0
@@ -348,7 +348,7 @@
   {
     "kind": "card",
     "title": "MSP Reboot",
-    "subtitle": "ClientSt0r is built by the people behind MSP Reboot — an MSP consulting practice working with owners on pricing, operations and service delivery.",
+    "subtitle": "Clientst0r is built by the people behind MSP Reboot — an MSP consulting practice working with owners on pricing, operations and service delivery.",
     "url": "mspreboot.com",
     "secs": 5.5
   }

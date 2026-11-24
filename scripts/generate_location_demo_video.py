@@ -242,7 +242,7 @@ def screen_operations():
 def main():
     title = make_title_card(
         ['Background Location', 'Opt-in only'],
-        sub='Client St0r Mobile · field technician toolkit',
+        sub='Clientst0r Mobile · field technician toolkit',
     )
     closing = make_title_card(
         ['Off by default.', 'User-controlled.'],

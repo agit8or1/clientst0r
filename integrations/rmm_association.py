@@ -687,7 +687,7 @@ def console_link(device):
     """Where "Open in <provider>" goes for this device, or '' for no link.
 
     'static' providers get the validated vendor URL itself. 'on_demand'
-    providers (NinjaOne) get a ClientSt0r URL that asks the vendor for a
+    providers (NinjaOne) get a Clientst0r URL that asks the vendor for a
     short-lived link when clicked, so nothing is fetched while the page
     renders and no credential ever reaches the browser.
     """

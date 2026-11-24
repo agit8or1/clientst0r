@@ -1,4 +1,4 @@
-ClientSt0r walkthrough — transcript
+Clientst0r walkthrough — transcript
 (caption-led; no narration track. Use this as a narration script.)
 
 [00:00:06.000] The dashboard starts with a KPI row — everything that needs you today: open tickets, SLA at risk, overdue, unassigned, approvals and work due.

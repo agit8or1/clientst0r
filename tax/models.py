@@ -33,16 +33,16 @@ class TaxSettings(BaseModel):
     MODES = [
         (MODE_NONE, 'No sales tax (documents show "tax not configured", tax is zero)'),
         (MODE_FLAT, 'Flat rate typed on each quote / invoice (legacy)'),
-        (MODE_MANUAL, 'Manual jurisdiction rates (ClientSt0r rate table)'),
+        (MODE_MANUAL, 'Manual jurisdiction rates (Clientst0r rate table)'),
         (MODE_AVALARA, 'Avalara AvaTax'),
         (MODE_TAXJAR, 'TaxJar'),
     ]
     PROVIDER_MODES = (MODE_AVALARA, MODE_TAXJAR)
 
     AUTHORITY_CHOICES = [
-        ('clientst0r', 'ClientSt0r calculates; the accounting system records the amount it is sent'),
-        ('provider', 'The tax provider calculates and reports; ClientSt0r and accounting record it'),
-        ('accounting', 'The accounting system calculates its own tax (ClientSt0r amounts are estimates)'),
+        ('clientst0r', 'Clientst0r calculates; the accounting system records the amount it is sent'),
+        ('provider', 'The tax provider calculates and reports; Clientst0r and accounting record it'),
+        ('accounting', 'The accounting system calculates its own tax (Clientst0r amounts are estimates)'),
     ]
 
     organization = models.ForeignKey(

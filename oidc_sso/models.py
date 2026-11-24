@@ -2,7 +2,7 @@
 Single sign-on with a generic OpenID Connect provider (Keycloak or any
 certified OP).
 
-One ClientSt0r install serves one MSP. A provider row pins the OP issuer and
+One Clientst0r install serves one MSP. A provider row pins the OP issuer and
 (by default) the MSP's organization at the OP; tokens for any other issuer or
 organization are refused. Accounts are found strictly by (issuer, sub) in
 OIDCIdentity, never by e-mail.
@@ -83,7 +83,7 @@ class OIDCProvider(models.Model):
 
     # MFA
     accept_idp_mfa = models.BooleanField(default=False,
-                                         help_text='Let the OP\'s MFA stand in for ClientSt0r\'s 2FA when the '
+                                         help_text='Let the OP\'s MFA stand in for Clientst0r\'s 2FA when the '
                                                    'token\'s acr / amr say so. Off: local 2FA as today.')
     mfa_acr_values = models.CharField(max_length=500, blank=True,
                                       default='urn:agit8or:acr:mfa urn:agit8or:acr:phr',

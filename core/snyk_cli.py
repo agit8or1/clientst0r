@@ -226,7 +226,7 @@ def notify_if_new(settings):
 
     from core.superuser_alerts import email_superusers
 
-    site_name = settings.site_name or 'Client St0r'
+    site_name = settings.site_name or 'Clientst0r'
     site_url = (settings.site_url or '').rstrip('/')
     subject = f'[{site_name}] Snyk CLI update available: {installed} → {latest}'
     lines = [

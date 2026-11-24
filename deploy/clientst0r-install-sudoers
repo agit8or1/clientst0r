@@ -1,4 +1,4 @@
-# Sudoers configuration for Client St0r automatic fail2ban installation
+# Sudoers configuration for Clientst0r automatic fail2ban installation
 # Install: sudo cp /home/administrator/deploy/clientst0r-install-sudoers /etc/sudoers.d/clientst0r-install
 # Permissions: sudo chmod 0440 /etc/sudoers.d/clientst0r-install
 

@@ -1,6 +1,6 @@
 """v3.17.660 — fixes from the 2026-11-10 security scan:
 
-* a Microsoft (Azure AD) sign-in skipped ClientSt0r's 2FA even when Microsoft
+* a Microsoft (Azure AD) sign-in skipped Clientst0r's 2FA even when Microsoft
   never asked for a second factor;
 * the customer portal's password reveal skipped the approval requirement and
   access rules, had no rate limit, and returned the secret when its audit

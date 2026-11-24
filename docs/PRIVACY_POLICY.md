@@ -1,17 +1,17 @@
-# Privacy Policy — Client St0r Mobile
+# Privacy Policy — Clientst0r Mobile
 
 **Effective:** 2026-05-09
 **Last updated:** 2026-05-10
 
-This policy describes how the **Client St0r Mobile** Android app handles user data. Client St0r Mobile is a companion app for the Client St0r IT service-management platform. It is intended for use by IT technicians and staff at organizations that have deployed Client St0r on their own infrastructure.
+This policy describes how the **Clientst0r Mobile** Android app handles user data. Clientst0r Mobile is a companion app for the Clientst0r IT service-management platform. It is intended for use by IT technicians and staff at organizations that have deployed Clientst0r on their own infrastructure.
 
 ## Who is the data controller
 
-Client St0r is **self-hosted**. Each customer deploys the Client St0r server on their own infrastructure and is the data controller for everything stored on that server. The Client St0r Mobile app is a thin client that connects to the server URL its user enters at first launch.
+Clientst0r is **self-hosted**. Each customer deploys the Clientst0r server on their own infrastructure and is the data controller for everything stored on that server. The Clientst0r Mobile app is a thin client that connects to the server URL its user enters at first launch.
 
 The app developer **does not operate a centralized backend**, does not host any user data, and never receives data entered into the app. All network traffic from the app goes directly to the user-configured server URL and stays within the user's organization.
 
-If you have questions about how data is processed inside your organization's Client St0r deployment, contact your Client St0r administrator. Their privacy policy applies to data on the server.
+If you have questions about how data is processed inside your organization's Clientst0r deployment, contact your Clientst0r administrator. Their privacy policy applies to data on the server.
 
 ## What the app sends to your server
 
@@ -42,7 +42,7 @@ Signing out (or uninstalling the app) clears all on-device storage.
 Since v3.17.452, the app may also capture the following data when you take specific actions. Each capture happens only at the moment of that action — not in the background, not continuously.
 
 - **Precise location** (Android `ACCESS_FINE_LOCATION`) — captured at the moment you tap **Clock in** in the Timeclock screen. The single GPS reading is sent to your server with the clock-in event so it can be checked against your organization's geofence configuration.
-- **Background location** (Android `ACCESS_BACKGROUND_LOCATION`, iOS "Always" location) — **off by default**. If you turn it on in Settings, your location is sampled every 5 minutes (and only when you've moved at least 50 meters) and sent to your server while you're on shift. Off-shift pings are dropped at the API layer by the server and never stored. You can turn this off at any time in Settings. When background tracking is active, Android shows a persistent foreground notification labeled "Client St0r is tracking your shift."
+- **Background location** (Android `ACCESS_BACKGROUND_LOCATION`, iOS "Always" location) — **off by default**. If you turn it on in Settings, your location is sampled every 5 minutes (and only when you've moved at least 50 meters) and sent to your server while you're on shift. Off-shift pings are dropped at the API layer by the server and never stored. You can turn this off at any time in Settings. When background tracking is active, Android shows a persistent foreground notification labeled "Clientst0r is tracking your shift."
 - **Camera** (`CAMERA`) — used for damage report photos, fuel receipt photos, and scanning inventory QR codes / asset barcodes. The camera is opened only when you tap a "Take photo" or "Scan" button, and closes when you complete or cancel the action.
 - **Photo library** (`READ_MEDIA_IMAGES` on Android 13+) — used for the "From library" option on damage and fuel forms when you'd rather attach an existing photo than take a new one.
 
@@ -76,7 +76,7 @@ The app does not integrate any third-party SDKs that collect user data. Network 
 ## Data retention and deletion
 
 - **On-device data** is retained until you sign out, clear app data through Android Settings, or uninstall the app.
-- **Server-side data** is retained according to your organization's Client St0r configuration. Contact your Client St0r administrator to request export, correction, or deletion of data your organization holds about you.
+- **Server-side data** is retained according to your organization's Clientst0r configuration. Contact your Clientst0r administrator to request export, correction, or deletion of data your organization holds about you.
 
 ## Children
 
@@ -104,4 +104,4 @@ If we materially change how the app handles data, we will update this page and b
 
 For privacy questions about the **app itself** (not your organization's server data), open an issue at <https://github.com/agit8or1/clientst0r/issues>.
 
-For privacy questions about **data your organization holds in its Client St0r server**, contact that organization directly.
+For privacy questions about **data your organization holds in its Clientst0r server**, contact that organization directly.

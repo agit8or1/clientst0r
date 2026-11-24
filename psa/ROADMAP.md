@@ -390,7 +390,7 @@ Update this doc whenever scope shifts.
 
 ### 1. Feature Overview — business value
 
-For an MSP team running on Client St0r, the bottleneck is rarely the
+For an MSP team running on Clientst0r, the bottleneck is rarely the
 ticketing system itself; it's the cognitive load on technicians of
 context-switching between clients. AI assists with:
 

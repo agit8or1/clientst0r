@@ -215,7 +215,7 @@ def _warnings_from_app_version():
         'id': f'app_version:{latest}',
         'severity': 'info',
         'category': 'app_version',
-        'title': f'Client St0r update available: {current} → {latest}',
+        'title': f'Clientst0r update available: {current} → {latest}',
         'detail': 'Apply via Settings → Updates.',
         'action_url': _safe_reverse('core:system_updates'),
         'action_label': 'Open Updates',

@@ -1,9 +1,9 @@
 """
-Payment processing: collecting money against ClientSt0r invoices.
+Payment processing: collecting money against Clientst0r invoices.
 
 Who does what (mandatory architecture):
 
-  * ClientSt0r owns the billing schedule. Invoices are created, numbered and
+  * Clientst0r owns the billing schedule. Invoices are created, numbered and
     dated here (psa.Invoice); autopay decides here when an invoice is due.
   * The payment gateway (Stripe, GoCardless) only collects. We never create
     invoices, subscriptions or prices in the gateway: Stripe gets a Checkout

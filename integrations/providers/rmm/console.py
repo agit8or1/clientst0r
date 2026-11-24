@@ -1,4 +1,4 @@
-"""Links from a ClientSt0r page into an RMM's own web console.
+"""Links from a Clientst0r page into an RMM's own web console.
 
 An adapter offers a device link only when the vendor documents (or itself
 returns) a per-device console address for that deployment. The link is

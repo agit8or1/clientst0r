@@ -20,7 +20,7 @@ Encrypted credential storage for teams — AES-256-GCM encryption, TOTP, breach 
 
 ## Breach Detection
 
-ClientSt0r checks stored passwords against **Have I Been Pwned (HIBP)**:
+Clientst0r checks stored passwords against **Have I Been Pwned (HIBP)**:
 
 - Uses k-anonymity: only the first 5 characters of the password's hash are sent; the password never leaves your server
 - Breached entries are flagged with a **Breached** badge

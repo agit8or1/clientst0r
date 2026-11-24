@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Record the ClientSt0r walkthrough against the isolated demo instance.
+"""Record the Clientst0r walkthrough against the isolated demo instance.
 
 Produces, into --out:
 
@@ -342,7 +342,7 @@ def main() -> int:
                         '-loop', '0', str(out / 'walkthrough.gif')], check=True, capture_output=True)
     write_captions(rec.captions, out / 'walkthrough.vtt')
     (out / 'walkthrough.txt').write_text(
-        'ClientSt0r walkthrough — transcript\n'
+        'Clientst0r walkthrough — transcript\n'
         '(caption-led; no narration track. Use this as a narration script.)\n\n'
         + '\n'.join(f"[{vtt_time(c['start'])}] {c['text']}" for c in rec.captions) + '\n')
 

@@ -116,7 +116,7 @@ def _quote_env(value):
 
 
 def _key_lines():
-    lines = ['# Client St0r keys captured with this backup. Treat like .env itself.']
+    lines = ['# Clientst0r keys captured with this backup. Treat like .env itself.']
     for name in REQUIRED_KEYS + OPTIONAL_KEYS + DB_ENV:
         v = _setting_or_env(name) if name in REQUIRED_KEYS + OPTIONAL_KEYS else os.environ.get(name, '')
         if v:
@@ -1055,7 +1055,7 @@ def import_export(src, passphrase: str) -> Path:
     from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
     blob = Path(src).read_bytes()
     if not blob.startswith(EXPORT_MAGIC):
-        raise SnapshotError('not a Client St0r backup export')
+        raise SnapshotError('not a Clientst0r backup export')
     salt, nonce, ct = blob[9:25], blob[25:37], blob[37:]
     key = Scrypt(salt=salt, length=32, n=2 ** 15, r=8, p=1).derive(passphrase.encode())
     try:

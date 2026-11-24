@@ -23,9 +23,9 @@ The questionnaire is six sections in Play Console; this doc mirrors them.
 **Answer: Yes.** All API traffic uses TLS (HTTPS) to the user-configured server. Multipart uploads (photos) use the same channel.
 
 > Do you provide a way for users to request that their data is deleted?
-**Answer: Yes — through their Client St0r administrator.**
+**Answer: Yes — through their Clientst0r administrator.**
 
-In the free-text "How users can request data deletion": *"Client St0r is self-hosted; contact your organization's Client St0r administrator to request export or deletion of data on the server. On-device app data is cleared by signing out, clearing app data in Android Settings, or uninstalling the app."*
+In the free-text "How users can request data deletion": *"Clientst0r is self-hosted; contact your organization's Clientst0r administrator to request export or deletion of data on the server. On-device app data is cleared by signing out, clearing app data in Android Settings, or uninstalling the app."*
 
 ---
 
@@ -175,7 +175,7 @@ Google Play's automatic crash + diagnostics is governed by Google's own policies
 > How can users request that you delete their data?
 
 **Answer (free-text):**
-*"Client St0r is a self-hosted application. The mobile app does not store user data on any infrastructure operated by the developer — all data is held by the user's organization on the Client St0r server they have deployed. To request deletion of data the organization holds, the user contacts their Client St0r administrator. To clear app data on the device, the user signs out of the app, clears app data through Android Settings, or uninstalls the app."*
+*"Clientst0r is a self-hosted application. The mobile app does not store user data on any infrastructure operated by the developer — all data is held by the user's organization on the Clientst0r server they have deployed. To request deletion of data the organization holds, the user contacts their Clientst0r administrator. To clear app data on the device, the user signs out of the app, clears app data through Android Settings, or uninstalls the app."*
 
 ---
 

@@ -1,6 +1,6 @@
 {
   "name": "event.job-succeeded",
-  "description": "rem0te → ClientSt0r: a signed job event, pushed to the events URL. Verify `signature` over \"rem0te-event-v1\\n\" + canonical JSON of `event`.",
+  "description": "rem0te → Clientst0r: a signed job event, pushed to the events URL. Verify `signature` over \"rem0te-event-v1\\n\" + canonical JSON of `event`.",
   "direction": "rem0te_to_clientst0r",
   "request": {
     "method": "POST",

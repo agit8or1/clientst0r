@@ -424,8 +424,8 @@ def test_smtp_email(request):
         )
 
         # Send test email
-        subject = 'Client St0r SMTP Test Email'
-        message = f"""This is a test email from Client St0r.
+        subject = 'Clientst0r SMTP Test Email'
+        message = f"""This is a test email from Clientst0r.
 
 Your SMTP configuration is working correctly!
 
@@ -440,7 +440,7 @@ Configuration Details:
 This email was sent at: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')} UTC
 
 ---
-Client St0r - IT Documentation Platform
+Clientst0r - IT Documentation Platform
 """
 
         from_email = f'{settings.smtp_from_name} <{settings.smtp_from_email}>' if settings.smtp_from_name else settings.smtp_from_email
@@ -2638,12 +2638,12 @@ def export_data(request):
                 # leaving whoever receives it to discover it.
                 formatted_data = {
                     'export_info': {
-                        'source': 'Client St0r',
+                        'source': 'Clientst0r',
                         'format': 'json',
                         'organization': org.name if org else 'all organizations',
                         'passwords_note': (
                             'password_encrypted values are ciphertext readable only '
-                            'by the Client St0r install that produced them. They '
+                            'by the Clientst0r install that produced them. They '
                             'cannot be imported into another system.'
                         ),
                     },
@@ -2755,7 +2755,7 @@ def _format_for_hudu(data):
     # Hudu API structure
     formatted = {
         'export_info': {
-            'source': 'Client St0r',
+            'source': 'Clientst0r',
             'format': 'hudu',
             'version': '1.0',
         },
@@ -2796,7 +2796,7 @@ def _format_for_itglue(data):
     # IT Glue API structure
     formatted = {
         'export_info': {
-            'source': 'Client St0r',
+            'source': 'Clientst0r',
             'format': 'itglue',
             'version': '1.0',
         },

@@ -1,5 +1,5 @@
 """
-ClientSt0r's side of the paired RMM's job API (docs/contracts/ticket-rmm-v1).
+Clientst0r's side of the paired RMM's job API (docs/contracts/ticket-rmm-v1).
 Any RMM that implements the contract can be the processor; rem0te is the
 reference implementation.
 
@@ -65,7 +65,7 @@ MAX_RESPONSE = 256 * 1024
 def _request(conn, method, path, payload=None, idempotency_key=''):
     from integrations.ticket_rmm import secrets as integration_secrets, settings as integration_settings
     if getattr(conn, 'provider_type', '') == 'rem0te':
-        # Rem0te authenticates ClientSt0r with Ed25519 only (integrations/
+        # Rem0te authenticates Clientst0r with Ed25519 only (integrations/
         # rem0te/). Never sign anything for it with an HMAC secret.
         raise ProcessorUnavailable('Rem0te pairings use Rem0te\'s Ed25519 protocol; this request kind is not '
                                    'part of Rem0te\'s contract.')

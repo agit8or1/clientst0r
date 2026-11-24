@@ -9,7 +9,7 @@ permission that was missing, and it does not echo the URL or the exception
 text, so a 403 tells nobody more than "not for you". The way forward is the
 user's own dashboard, the previous page, or their administrator.
 {% endcomment %}
-{% block title %}{% trans "No access" %} - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+{% block title %}{% trans "No access" %} - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Clientst0r" }}{% endblock %}
 {% block content %}
 <section class="denied" aria-labelledby="deniedTitle" data-permission-denied>
     <div class="denied__icon" aria-hidden="true"><i class="fas fa-lock"></i></div>

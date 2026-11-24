@@ -24,7 +24,7 @@ Status key: **C** Complete · **P** Partial · **PI** Existing but poorly integr
 | Ticket ↔ endpoint links | C | `TicketAffectedAsset` `psa/models.py:7497`; panel `templates/psa/_ticket_rmm_panel.html`; alert→ticket `integrations/rem0te/alerts.py:381,429` | 63.4, 52 | — |
 | Health, alerts, inventory, patch, connectivity in the ticket | P | Panel alerts L60-64; `_rmm_device_summary.html` (`ticket_detail.html:640`); patch summary comes only from alert payloads `alerts.py:288-320`; Rem0te online and last-seen through the Public API only | 63.3/63.4; P10 device summary rev-3 | Device summary P10 (Rem0te-blocked); patch status not a device fact for Rem0te; the 6 alert kinds Rem0te does not send are listed, not consumed (v3.17.721) |
 | Remote session launch | P | `psa_ai/services/rmm_actions.py:528` live-authorized launch for HMAC RMMs only; Rem0te gets a static console deep link `providers/rmm/rem0te.py:207-218` | 57.6 (partial), 56.5 | P6 launch and R6 session events (Rem0te); time-limited grants |
-| Read-only diagnostic requests | M (for Rem0te) | `integrations/ticket_rmm.py:165-169` returns `[]` for every Ed25519 (Rem0te) connection | 56.5, 86.3 (rev-3 P1–P3) | Rem0te P1–P3; ClientSt0r capability-flagged branch |
+| Read-only diagnostic requests | M (for Rem0te) | `integrations/ticket_rmm.py:165-169` returns `[]` for every Ed25519 (Rem0te) connection | 56.5, 86.3 (rev-3 P1–P3) | Rem0te P1–P3; Clientst0r capability-flagged branch |
 | Remediation proposals with status and results | P | `integrations/rem0te/actions.py:83-195`, `STATUS_MAP` L33-45; only `windows.service.start@1` `pairing.py:67-70`; 30 s poll L30; cross-peer s12 `scripts/e2e/cross_peer/remediation_chain.py` (pinned to Rem0te 0.68.0 since v3.17.721) | 56.8, 56.6, 63.7 | Catalog limited to one action; no push status (R7); parameter schemas (R8) |
 | Results written to the ticket, then verify and close | P | The result note is written only when a technician POSTs `/psa/rmm/<t>/note/` (`psa_ai/rmm_views.py:206`; E2E L384). Verification comes from `alert.resolved` and the workflow run (s12) | 63.4, 63.7 | Automatic staff-only result note on terminal status; P5 verification evidence |
 | Ticket synchronization | P | Alert→ticket link-back only `alerts.py:438,533-540`. No ticket status, notes or closure go to Rem0te | gap (P7 handoff in rev-3; 79.7) | Ticket-state events to Rem0te; P7 handoff note |
@@ -42,7 +42,7 @@ Status key: **C** Complete · **P** Partial · **PI** Existing but poorly integr
 **Proposed acceptance criteria**
 1. Cross-peer run at the current Rem0te release passes s1–s13. A CI check fails when `clientst0r-interop.json` and `PIN.json` disagree.
 2. When a proposal reaches a terminal status, the ticket gets one staff-only result note without a technician click, idempotent per `RMMRequest`.
-3. A test shows no ClientSt0r URL, worker or AI path can change an `RMMRequest` to `approved`.
+3. A test shows no Clientst0r URL, worker or AI path can change an `RMMRequest` to `approved`.
 4. Diagnostics for Rem0te stay hidden until Rem0te advertises the rev-3 capability. A fixture test shows them appear behind the flag.
 5. Closing a ticket that has an open Rem0te proposal warns the technician and records the proposal ID in the closure audit row.
 
@@ -133,7 +133,7 @@ Status key: **C** Complete · **P** Partial · **PI** Existing but poorly integr
 | Routing, escalation | P | `SecurityIncidentSLAPolicy` `models.py:533`; alert policy on-call | 87 | Unified routing per severity |
 | Customer summaries | C | Security digest `security_alerts/digest.py`, `tests_digest.py`; throttled unsubscribe (v3.17.725) | 89.2 (reviews) | Monthly review report |
 | Approval-driven playbooks | **PI / misleading** | `RemediationPlaybook` runs automatically when an incident opens, with no approval (`models.py:899-901`). The `run_workflow_rule` step returns "ok … flagged for execution" but runs nothing, and looks up the rule by pk with no org check (`models.py:~844-853`) | 23 (shipped), 86.1/86.2 | Approval gates, real or removed step, org check, off by default |
-| Endpoint execution stays in Rem0te | C (invariant) | No execution path in ClientSt0r; proposals only (§A) | 86.3 | — |
+| Endpoint execution stays in Rem0te | C (invariant) | No execution path in Clientst0r; proposals only (§A) | 86.3 | — |
 
 **Reuse:** `events` (envelope, queue, retention, health, permissions 82.6), `security_alerts` ingest and SIEM receivers (81.5 signatures), incident timeline, `psa/routing/alert_policy.py`, `reports` wallboards, `health_score`, `support_workflows` approval model.
 
@@ -198,7 +198,7 @@ Status key: **C** Complete · **P** Partial · **PI** Existing but poorly integr
 ## Closing findings
 
 ### (1) Genuine gaps not covered by any roadmap phase
-- Passkey/WebAuthn sign-in and step-up for ClientSt0r users (Phase 80 is OIDC only).
+- Passkey/WebAuthn sign-in and step-up for Clientst0r users (Phase 80 is OIDC only).
 - Periodic access reviews and attestation. One-action technician offboarding.
 - Workflow delays, retries and per-customer rule overrides. Time-based triggers ("no reply in N hours") are named in Phase 14 but never shipped.
 - Several coverage schedules per contract (Phase 93 has one calendar per customer/contract) and SLA breach prediction.

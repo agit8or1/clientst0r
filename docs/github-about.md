@@ -50,7 +50,7 @@ panel was linking visitors to a host that did not resolve. `mspreboot.com` resol
 is the consulting practice the project comes from, which makes it the most relevant
 *verified* URL available.
 
-There is no dedicated ClientSt0r product site. If one is stood up later, prefer it here —
+There is no dedicated Clientst0r product site. If one is stood up later, prefer it here —
 a product site serves someone looking for the software better than a consulting site does
 — and keep the MSP Reboot links in the README and the gallery either way.
 
@@ -101,7 +101,7 @@ been applied.
 | `docker` | **add** | First-class install path with a published image at `ghcr.io/agit8or1/clientst0r`. |
 | `it-glue-alternative` | **remove** | Competitor name in project metadata; the importer guides under `docs/` cover moving data in. |
 | `hudu-alternative` | **remove** | Same. |
-| `rmm` | **remove** | ClientSt0r integrates with RMM tools but is not one — the topic invites the wrong expectation. |
+| `rmm` | **remove** | Clientst0r integrates with RMM tools but is not one — the topic invites the wrong expectation. |
 | `workflow-engine` | keep or drop | Accurate (workflow rules ship), but lower search value than the additions above. Drop it if you need the slot. |
 
 Existing topics kept as-is: `msp`, `self-hosted`, `it-documentation`, `service-desk`,
@@ -124,13 +124,13 @@ Existing topics kept as-is: `msp`, `self-hosted`, `it-documentation`, `service-d
 
 ## Related links to keep visible
 
-ClientSt0r is built by the people behind **[MSP Reboot](https://mspreboot.com)**, an MSP
+Clientst0r is built by the people behind **[MSP Reboot](https://mspreboot.com)**, an MSP
 consulting practice. The README carries a link in its top navigation and a short section
 near the bottom; the screenshot gallery carries one in its footer.
 
-Keep that description accurate. ClientSt0r is self-hosted software. MSP Reboot sells
+Keep that description accurate. Clientst0r is self-hosted software. MSP Reboot sells
 **consulting** — pricing, operations, margins, service delivery and technology strategy —
-and separately offers **optional managed hosting and commercial support for ClientSt0r**
+and separately offers **optional managed hosting and commercial support for Clientst0r**
 for teams that would rather not run it themselves.
 
 What must not drift is the line between the two: the software itself is MIT-licensed and

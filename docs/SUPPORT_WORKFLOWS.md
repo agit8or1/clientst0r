@@ -46,7 +46,7 @@ The editor has these sections:
   - other computers at the same site
   - this issue on this computer in the last 30 days
 - **Likely causes**: plain-language text, each with a **When** condition.
-- **Suggested actions**: choose from the Rem0te catalog actions ClientSt0r knows, with an optional impact note and a **When** condition. There is no field for a command, script, path or URL.
+- **Suggested actions**: choose from the Rem0te catalog actions Clientst0r knows, with an optional impact note and a **When** condition. There is no field for a command, script, path or URL.
 - **Manual steps**: one per line. These are shown when no advertised action fits.
 - **Verification**: how many minutes monitoring has to confirm the fix.
 
@@ -60,7 +60,7 @@ The editor has these sections:
 
 **Advanced: JSON** shows the same definition as JSON, the format documented in `psa/support_workflows/builtins.py`. Use it for conditions nested deeper than one all/any list. The editor keeps such a condition as JSON in that condition's own field, so switching between the two views loses nothing.
 
-Every save, from either view, is checked as a whole. If anything is wrong (an unknown fact, op, category or evidence item, an action ClientSt0r doesn't know, extra keys on an action, or text over 600 characters), the problems are listed and nothing is stored.
+Every save, from either view, is checked as a whole. If anything is wrong (an unknown fact, op, category or evidence item, an action Clientst0r doesn't know, extra keys on an action, or text over 600 characters), the problems are listed and nothing is stored.
 
 ## What needs Rem0te
 
@@ -70,10 +70,10 @@ Every save, from either view, is checked as a whole. If anything is wrong (an un
   - the action's condition holds;
   - the technician may request fixes of that risk there.
 
-  The proposal goes through the existing fix-referral flow. Rem0te answers *awaiting approval*, and its approvers approve on Rem0te's own signer. ClientSt0r never approves, dispatches or runs anything.
+  The proposal goes through the existing fix-referral flow. Rem0te answers *awaiting approval*, and its approvers approve on Rem0te's own signer. Clientst0r never approves, dispatches or runs anything.
 - **The alert's current state** (`alert_now`) is a read-only call to Rem0te. It is made only when the technician holds read-only diagnostics for that customer. Servers need the advanced diagnostics access.
 - **Read-only diagnostics** are the RMM's own advertised diagnostics, requested through the normal request flow.
-- **Without Rem0te** (or with an RMM that takes only fix referrals), workflows still gather what ClientSt0r holds, explain likely causes and give manual steps. The run page says why each action isn't offered.
+- **Without Rem0te** (or with an RMM that takes only fix referrals), workflows still gather what Clientst0r holds, explain likely causes and give manual steps. The run page says why each action isn't offered.
 
 ## How verification works
 

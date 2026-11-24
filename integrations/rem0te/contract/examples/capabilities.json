@@ -1,6 +1,6 @@
 {
   "name": "capabilities",
-  "description": "ClientSt0r → rem0te: discovery. `organizations` is the explicit binding (contract revision 2): one organization per business, each request names its organization, and `paused` lists the containment kinds in force.",
+  "description": "Clientst0r → rem0te: discovery. `organizations` is the explicit binding (contract revision 2): one organization per business, each request names its organization, and `paused` lists the containment kinds in force.",
   "direction": "clientst0r_to_rem0te",
   "request": {
     "method": "GET",

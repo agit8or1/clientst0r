@@ -6,16 +6,16 @@ Pre-written copy for the Play Console **Main store listing** page. Lengths are i
 
 ## App name (max 30 chars)
 ```
-Client St0r Mobile
+Clientst0r Mobile
 ```
 
-(If "Client St0r" is unavailable as a Play Store name due to similarity rules, alternative: `Client St0r MSP` — 16 chars.)
+(If "Clientst0r" is unavailable as a Play Store name due to similarity rules, alternative: `Clientst0r MSP` — 16 chars.)
 
 ---
 
 ## Short description (max 80 chars)
 ```
-Field companion for IT technicians using Client St0r — tickets, KB, vault, more.
+Field companion for IT technicians using Clientst0r — tickets, KB, vault, more.
 ```
 
 (79 chars — counted.)
@@ -25,9 +25,9 @@ Field companion for IT technicians using Client St0r — tickets, KB, vault, mor
 ## Full description (max 4000 chars)
 
 ```
-Client St0r Mobile is the on-the-go companion app for technicians using the Client St0r IT service-management platform. It connects to your organization's self-hosted Client St0r server so your team can work tickets, look up client documentation, and access vaulted credentials from the field.
+Clientst0r Mobile is the on-the-go companion app for technicians using the Clientst0r IT service-management platform. It connects to your organization's self-hosted Clientst0r server so your team can work tickets, look up client documentation, and access vaulted credentials from the field.
 
-The app is designed for IT service providers (MSPs) and internal IT teams who already run Client St0r on their own infrastructure. It is not a standalone product — you need a Client St0r server URL and an account on it to sign in.
+The app is designed for IT service providers (MSPs) and internal IT teams who already run Clientst0r on their own infrastructure. It is not a standalone product — you need a Clientst0r server URL and an account on it to sign in.
 
 WHAT YOU CAN DO FROM THE APP
 
@@ -53,19 +53,19 @@ WHAT YOU CAN DO FROM THE APP
 
 PRIVACY AND SECURITY
 
-The app is a thin client to the Client St0r server you operate. It does not send data to any third-party service except the optional Sentry crash-reporting service (which only receives stack traces and device model — no PII). All traffic to your server is encrypted with TLS. On-device storage (auth token, server URL, basic profile cache) is encrypted with the Android Keystore. Vault secrets retrieved through the reveal flow are held in memory only — never written to disk.
+The app is a thin client to the Clientst0r server you operate. It does not send data to any third-party service except the optional Sentry crash-reporting service (which only receives stack traces and device model — no PII). All traffic to your server is encrypted with TLS. On-device storage (auth token, server URL, basic profile cache) is encrypted with the Android Keystore. Vault secrets retrieved through the reveal flow are held in memory only — never written to disk.
 
 Location is collected only while you are clocked in, and only against client sites your organization has configured. Off-shift GPS is dropped at the server. You can disable background location entirely from the Settings screen, and you can delete your own location history at any time.
 
-Photos are uploaded only when you explicitly attach them to a ticket comment, damage report, or receipt. The camera is used to scan inventory QR codes and capture receipts; images are sent only to your Client St0r server.
+Photos are uploaded only when you explicitly attach them to a ticket comment, damage report, or receipt. The camera is used to scan inventory QR codes and capture receipts; images are sent only to your Clientst0r server.
 
 WHAT YOU NEED
 
-• A Client St0r server (self-hosted) reachable over HTTPS
+• A Clientst0r server (self-hosted) reachable over HTTPS
 • An account on that server with API access
 • Android 7 (Nougat) or newer
 
-For setup, contact your Client St0r administrator for your server URL.
+For setup, contact your Clientst0r administrator for your server URL.
 
 BETA STATUS
 
@@ -128,7 +128,7 @@ Play Console asks how their reviewer can log in to test the app. Since this is a
 
 **Suggested answer (free-text in Play Console):**
 
-*"This app is a thin client to a self-hosted Client St0r server. To test, set the server URL to `https://huduglue.agit8or.net/api/mobile/v1` on the login screen and use the following credentials:*
+*"This app is a thin client to a self-hosted Clientst0r server. To test, set the server URL to `https://huduglue.agit8or.net/api/mobile/v1` on the login screen and use the following credentials:*
 
 *  Username: `play-reviewer`*
 *  Password: `[generated, share via Play Console secure note]`*

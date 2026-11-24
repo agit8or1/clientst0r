@@ -1,5 +1,5 @@
 """
-Auto-update service for Client St0r.
+Auto-update service for Clientst0r.
 
 Checks GitHub for new releases and performs automated updates.
 """
@@ -61,7 +61,7 @@ class UpdateService:
         # Go up two levels: core/updater.py -> core/ -> project_root/
         project_root = current_file.parent.parent
 
-        # Validate it's a valid Client St0r installation
+        # Validate it's a valid Clientst0r installation
         required_files = ['manage.py', 'config/wsgi.py', 'requirements.txt']
         for req_file in required_files:
             if not (project_root / req_file).exists():

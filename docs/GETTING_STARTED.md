@@ -89,5 +89,5 @@ For a short answer about one screen, **Help** in the top bar opens the quick hel
 
 - Administrators: [Administrator guide](ADMIN_GUIDE.md) lists where each optional feature is switched on.
 - [Billing, prepaid hours and contracts](BILLING.md)
-- [Backing up and restoring Client St0r](BACKUP_AND_RESTORE.md)
+- [Backing up and restoring Clientst0r](BACKUP_AND_RESTORE.md)
 - [Screenshot gallery](screenshots.md): every area of the application, in light and dark themes.

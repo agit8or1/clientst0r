@@ -5,7 +5,7 @@ My Work data sources for remote sessions and remote jobs
     remote_sessions(request, customer_ids)
         The remote-session launch links this technician was issued recently
         (psa_ai.services.rmm_actions.launch audits each one). No paired RMM
-        tells ClientSt0r whether a session followed a launch, so every item
+        tells Clientst0r whether a session followed a launch, so every item
         says "launch link issued — session not confirmed"; nothing here
         claims a session started or is running. None (the panel is not
         drawn, My Work lists it under "Set up more") until a paired RMM at
@@ -97,8 +97,8 @@ def remote_sessions(request, customer_ids):
         'items': items[:LIMIT],
         'title': 'Remote session launches',
         'empty': 'No remote session launch links issued to you in the last two hours.',
-        'note': ('ClientSt0r records the launch links it hands out. The RMM runs the session and does not tell '
-                 'ClientSt0r whether one started, so none is shown as active.'),
+        'note': ('Clientst0r records the launch links it hands out. The RMM runs the session and does not tell '
+                 'Clientst0r whether one started, so none is shown as active.'),
     }
 
 

@@ -1,6 +1,6 @@
 # Competitive program — Phase 0 security review
 
-Findings from the Phase 0 internal code audit (ClientSt0r v3.17.719) and the ClientSt0r ↔ Rem0te integration
+Findings from the Phase 0 internal code audit (Clientst0r v3.17.719) and the Clientst0r ↔ Rem0te integration
 audit (Rem0te v0.67.0 `2dab9ef`). Static reading only: nothing was run against any instance, and no finding
 below has been reproduced. Where this document re-read code at v3.17.720 (`58a83b32`), it says so; a re-read
 confirms that the code path exists, not that it is exploitable.
@@ -29,7 +29,7 @@ confirms that the code path exists, not that it is exploitable.
 | SR-07 | Audit log has no tamper evidence, retention or export | Medium | Confirmed as a design gap |
 | SR-08 | Security-alert auto-tickets have no dedup; legacy webhooks accept token-only posts | Medium | Unverified |
 | SR-17 | No routine scheduled backup; keys stored beside data | Medium | Unverified (scheduler registry read) |
-| SR-24 | Rem0te silently drops alert kinds ClientSt0r cannot see | Medium | Confirmed by Rem0te code read |
+| SR-24 | Rem0te silently drops alert kinds Clientst0r cannot see | Medium | Confirmed by Rem0te code read |
 | SR-25 | Cross-peer assurance is stale (pinned 0.30.1) and never exercises remediation | Medium | Confirmed (configuration fact) |
 | SR-06 | Ticket attachments trust the declared MIME type and allow SVG | Low–Medium | Unverified (code path re-read) |
 | SR-14 | Some staff views skip per-customer restriction checks | Low–Medium | Unverified |
@@ -37,7 +37,7 @@ confirms that the code path exists, not that it is exploitable.
 | SR-09 | Alert re-delivery with the same external id overwrites fields | Low–Medium | Unverified |
 | SR-11 | Public lead form rate-limits on the proxy address | Low–Medium | Unverified (code path re-read) |
 | SR-21 | Interim R2 policy accepts unknown fields from a peer declaring revision > 2 | Low–Medium | Confirmed as deliberate design |
-| SR-27 | Double tickets when Rem0te automatic PSA tickets also target ClientSt0r | Low–Medium | Unverified |
+| SR-27 | Double tickets when Rem0te automatic PSA tickets also target Clientst0r | Low–Medium | Unverified |
 | SR-10 | Vendor webhook severity is stored unvalidated | Low | Unverified |
 | SR-12 | Public token endpoints without throttles | Low | Unverified |
 | SR-13 | `asset_api_detail` exempt from CSRF with session auth | Low | Unverified (code path re-read) |
@@ -229,25 +229,25 @@ confirms that the code path exists, not that it is exploitable.
 - **Test to add.** `core/tests`: scheduler registry contains the backup task; the task refuses to run with
   no destination configured and raises a health issue; restore-verify runs on the produced archive.
 
-### SR-24 — Rem0te silently drops alert kinds ClientSt0r cannot see
+### SR-24 — Rem0te silently drops alert kinds Clientst0r cannot see
 
 - **Finding.** Rem0te filters out DRIVE_FREE, UPTIME_LONG, UPDATES_MISSING, UPDATE_FAILED,
-  WARRANTY_EXPIRING and AGENT_SILENT because they are not contract kinds. ClientSt0r shows the integration as
+  WARRANTY_EXPIRING and AGENT_SILENT because they are not contract kinds. Clientst0r shows the integration as
   Connected with no indication that these conditions are invisible to it.
 - **Evidence.** `r0:apps/api/src/monitoring/alert-events.service.ts:44,75`; `r0:apps/api/prisma/schema.prisma:3211-3225`
   vs `r0:apps/api/src/integration/contract.ts:406`.
-- **Severity: Medium.** Fail-safe for data, but a technician relying on ClientSt0r misses agent-silent and
+- **Severity: Medium.** Fail-safe for data, but a technician relying on Clientst0r misses agent-silent and
   failed-update conditions (missed detection, not a breach).
 - **Exploit preconditions.** None; it is the normal state.
 - **Status.** Confirmed by reading Rem0te code; no reproduction needed.
-- **Proposed fix.** ClientSt0r: show a notice on the connection page listing kinds not sent (gap 9.01).
+- **Proposed fix.** Clientst0r: show a notice on the connection page listing kinds not sent (gap 9.01).
   Rem0te: a contract revision that adds the kinds gated on the peer's declared revision.
 - **Test to add.** Template test for the notice; cross-peer test per kind once the revision ships.
 
 ### SR-25 — Cross-peer assurance is stale and never exercises remediation
 
 - **Finding.** CI runs both real applications but pins Rem0te 0.30.1. It never sends a proposal to Rem0te,
-  never approves, never observes a result, and bypasses ClientSt0r's second-admin enablement.
+  never approves, never observes a result, and bypasses Clientst0r's second-admin enablement.
 - **Evidence.** `integrations/rem0te/contract/PIN.json`; `.github/workflows/cross-peer-e2e.yml`;
   `scripts/e2e/cross_peer/run.py:327` (fixture technician capabilities), `:355` (bypass), `:457-468`.
 - **Severity: Medium (assurance).** The security properties claimed for remediation (AI never approves,
@@ -325,7 +325,7 @@ confirms that the code path exists, not that it is exploitable.
 
 ### SR-21 — Interim R2 policy accepts unknown fields from a peer declaring revision > 2
 
-- **Finding.** ClientSt0r accepts and logs unknown fields in signed documents when the peer declares a
+- **Finding.** Clientst0r accepts and logs unknown fields in signed documents when the peer declares a
   revision above 2. Deliberate and documented, but fail-open for future revisions.
 - **Evidence.** `INTEGRATION_COORDINATION.md` §11 ("Unknown fields (pending R2)"); `schema.errors_from_peer`.
 - **Severity: Low–Medium.** Unknown fields are not acted on; risk is a future field changing meaning of a
@@ -336,18 +336,18 @@ confirms that the code path exists, not that it is exploitable.
   revision 3+ documents against vendored schemas and refuse unknown required semantics.
 - **Test to add.** Revision-3 document with an unknown field is stored, flagged and never applied.
 
-### SR-27 — Double tickets when Rem0te automatic PSA tickets also target ClientSt0r
+### SR-27 — Double tickets when Rem0te automatic PSA tickets also target Clientst0r
 
 - **Finding.** Rem0te 0.55 can create tickets in a PSA through email/webhook connectors. If an operator points
-  that connector at ClientSt0r while alert events also flow over the contract, each alert opens two tickets.
-- **Evidence.** Rem0te CHANGELOG 0.55 Tripwire (`MonitorTicketPolicy`); ClientSt0r `alerts.py:170-177`
+  that connector at Clientst0r while alert events also flow over the contract, each alert opens two tickets.
+- **Evidence.** Rem0te CHANGELOG 0.55 Tripwire (`MonitorTicketPolicy`); Clientst0r `alerts.py:170-177`
   (dedup only within the contract path).
 - **Severity: Low–Medium.** Integrity and noise, no disclosure.
 - **Exploit preconditions.** Operator configuration on the Rem0te side.
 - **Status.** Unverified — needs a reproducing configuration.
-- **Proposed fix.** Rem0te suppresses automatic PSA tickets for businesses mapped to a ClientSt0r peer, or
-  exposes the setting so ClientSt0r can warn in the setup wizard.
-- **Test to add.** Cross-peer: with both paths enabled, ClientSt0r shows a warning and opens one ticket.
+- **Proposed fix.** Rem0te suppresses automatic PSA tickets for businesses mapped to a Clientst0r peer, or
+  exposes the setting so Clientst0r can warn in the setup wizard.
+- **Test to add.** Cross-peer: with both paths enabled, Clientst0r shows a warning and opens one ticket.
 
 ---
 
@@ -439,17 +439,17 @@ confirms that the code path exists, not that it is exploitable.
 
 ### SR-28 — Rem0te returns the containment reason in 423 bodies (R4)
 
-- **Evidence.** Rem0te audit §3 "Containment" and §6 (v); ClientSt0r discards it.
+- **Evidence.** Rem0te audit §3 "Containment" and §6 (v); Clientst0r discards it.
 - **Severity: Low.** Operator note could disclose incident context to the peer. Rem0te-side fix.
 - **Status.** Unverified. **Fix.** Rem0te drops the reason from 423/403 bodies (request R4).
-  **Test.** ClientSt0r unit test that no pause reason is stored or displayed.
+  **Test.** Clientst0r unit test that no pause reason is stored or displayed.
 
 ### SR-29 — Rem0te inference retries only three times (R11)
 
 - **Evidence.** `r0:apps/api/src/integration/worker.service.ts:31,169`.
-- **Severity: Low (availability).** A ClientSt0r restart longer than ~13 s fails queued jobs with
+- **Severity: Low (availability).** A Clientst0r restart longer than ~13 s fails queued jobs with
   `ALL_PROFILES_FAILED`. **Status.** Confirmed by code read. **Fix.** Rem0te retries until job expiry.
-  **Test.** Cross-peer s5 variant with a 60 s ClientSt0r outage.
+  **Test.** Cross-peer s5 variant with a 60 s Clientst0r outage.
 
 ### SR-30 — Rem0te mapping uniqueness includes revoked rows
 
@@ -499,7 +499,7 @@ from another customer is refused; the timeline never records "ok" for an action 
   any URLconf; the mounted endpoint is `/api/v2/graphql/` in `config/urls.py:150-158`, which is **not**
   exempt (comment states why). Action: delete the dead module so it cannot be re-included. Test: a URL
   resolver test that `/graphql/` does not resolve and `/api/v2/graphql/` enforces CSRF for session POSTs.
-- **SR-32 — Proposed P16 ticket request has no idempotency.** Rem0te built it gated off; ClientSt0r answers
+- **SR-32 — Proposed P16 ticket request has no idempotency.** Rem0te built it gated off; Clientst0r answers
   404 today (fail-closed). Raise in the P16 answer.
 - **SR-33 — Vendored `clientst0r-interop.json` is the 0.29.1 run**, while `PIN.json` says the directory was
   copied at `4b2b9f5c`. Cosmetic; fixed by re-vendoring (increment R-02).

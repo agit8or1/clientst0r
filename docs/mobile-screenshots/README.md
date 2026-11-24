@@ -1,6 +1,6 @@
 # Mobile App Screenshots — Play Console assets
 
-Pre-sized listing assets for the Client St0r mobile app. Every PNG
+Pre-sized listing assets for the Clientst0r mobile app. Every PNG
 matches a Play Console slot's exact aspect ratio (16:9 or 9:16) and
 size range, so they upload without resizing.
 

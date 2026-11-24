@@ -5,7 +5,7 @@ Modules:
     transport  HTTP access to the source API (the only module that talks to the network)
     sources    staging: fetch one source organization into StagedRecord rows
     normalize  source record -> canonical record (shared with the legacy importer)
-    targets    canonical record -> ClientSt0r model (field specs, natural keys, writes)
+    targets    canonical record -> Clientst0r model (field specs, natural keys, writes)
     planner    build / correct / freeze a plan
     applier    apply exactly the frozen plan (idempotent, resumable)
     undo       roll a plan back without undoing later local edits

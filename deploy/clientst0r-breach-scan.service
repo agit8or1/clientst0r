@@ -1,5 +1,5 @@
 [Unit]
-Description=Client St0r Password Breach Scanning
+Description=Clientst0r Password Breach Scanning
 After=network.target mariadb.service
 
 [Service]

@@ -26,7 +26,7 @@ These can't ship from the repo. Each is filled in at `play.google.com/console` �
 | Asset | Spec | Where you stand |
 |---|---|---|
 | **App icon (high-res)** | 512×512 PNG, 32-bit | ✅ You have `mobile/assets/icon.png`. Verify it's at least 512×512. |
-| **Feature graphic** | 1024×500 PNG/JPG | ❌ Missing. Required to publish. Quick build: solid background + project logo + "Client St0r Mobile" text in Figma / Inkscape (~5 min). |
+| **Feature graphic** | 1024×500 PNG/JPG | ❌ Missing. Required to publish. Quick build: solid background + project logo + "Clientst0r Mobile" text in Figma / Inkscape (~5 min). |
 | **Phone screenshots** | 1080×1920 (or any 16:9 ratio), ≥2 | ❌ Need fresh ones from a phone running v3.17.461 (the dashboard, vault, ticket detail, dispatch board, and timeclock-on-the-clock are all visually different from earlier builds). |
 | **Tablet screenshots** | Optional | Skip unless you want tablet support. |
 | **Promo video URL (YouTube)** | Optional | Skip. |
@@ -47,7 +47,7 @@ These can't ship from the repo. Each is filled in at `play.google.com/console` �
 
 ### Store listing copy (paste from `PLAY_STORE_LISTING.md`)
 
-- **App name** (≤ 30 chars): `Client St0r Mobile`
+- **App name** (≤ 30 chars): `Clientst0r Mobile`
 - **Short description** (≤ 80 chars): line provided in doc
 - **Full description** (≤ 4000 chars): markdown body provided in doc
 - **App category**: Business

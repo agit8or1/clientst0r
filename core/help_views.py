@@ -287,7 +287,7 @@ def help_getting_started(request):
         {'anchor': 'api-keys', 'heading': 'API Keys'},
     ]
     content = """
-    <h4>Getting Started with ClientSt0r</h4>
+    <h4>Getting Started with Clientst0r</h4>
     <p class="lead">Welcome! This guide walks you through setting up your instance and getting your team up and running.</p>
 
     <h5 class="mt-4" id="quick-start"><i class="fas fa-rocket"></i> Quick Start</h5>
@@ -301,7 +301,7 @@ def help_getting_started(request):
     </ol>
 
     <h5 class="mt-4" id="organizations"><i class="fas fa-building"></i> Organizations</h5>
-    <p>Organizations are the top-level containers for all data. ClientSt0r is multi-tenant — each client, department, or team has its own organization with full data isolation.</p>
+    <p>Organizations are the top-level containers for all data. Clientst0r is multi-tenant — each client, department, or team has its own organization with full data isolation.</p>
     <ul>
         <li><strong>Create:</strong> <em>Clients → All Clients → Create Organization</em></li>
         <li><strong>Switch:</strong> Use the client switcher in the top bar, or <em>Go to</em> (Ctrl+K / Cmd+K) and type the client's name</li>
@@ -317,7 +317,7 @@ def help_getting_started(request):
         <rect width="700" height="26" fill="#0a0e14"/>
         <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
         <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
-        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Clientst0r</text>
         <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
@@ -445,7 +445,7 @@ def help_getting_started(request):
         <rect width="700" height="26" fill="#0a0e14"/>
         <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
         <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
-        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Clientst0r</text>
         <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
@@ -557,7 +557,7 @@ def help_getting_started(request):
         <rect width="700" height="26" fill="#0a0e14"/>
         <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
         <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
-        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Clientst0r</text>
         <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
@@ -693,7 +693,7 @@ def help_assets(request):
         <rect width="700" height="26" fill="#0a0e14"/>
         <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
         <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
-        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Clientst0r</text>
         <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
@@ -807,7 +807,7 @@ def help_assets(request):
         <rect width="700" height="26" fill="#0a0e14"/>
         <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
         <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
-        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Clientst0r</text>
         <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
@@ -943,7 +943,7 @@ def help_assets(request):
         <rect width="700" height="26" fill="#0a0e14"/>
         <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
         <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
-        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Clientst0r</text>
         <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
@@ -1135,7 +1135,7 @@ def help_vehicles(request):
         <rect width="700" height="26" fill="#0a0e14"/>
         <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
         <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
-        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Clientst0r</text>
         <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
@@ -1253,7 +1253,7 @@ def help_vehicles(request):
         <rect width="700" height="26" fill="#0a0e14"/>
         <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
         <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
-        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Clientst0r</text>
         <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
@@ -1426,7 +1426,7 @@ def help_vault(request):
         <rect width="700" height="26" fill="#0a0e14"/>
         <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
         <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
-        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Clientst0r</text>
         <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
@@ -1668,7 +1668,7 @@ def help_security(request):
         <rect width="700" height="26" fill="#0a0e14"/>
         <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
         <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
-        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Clientst0r</text>
         <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
@@ -1821,7 +1821,7 @@ def help_security(request):
         <rect width="700" height="26" fill="#0a0e14"/>
         <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
         <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
-        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Clientst0r</text>
         <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
@@ -2151,7 +2151,7 @@ def help_workflows(request):
         <rect width="700" height="26" fill="#0a0e14"/>
         <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
         <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
-        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Clientst0r</text>
         <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
@@ -2326,7 +2326,7 @@ def help_documentation(request):
         <rect width="700" height="26" fill="#0a0e14"/>
         <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
         <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
-        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Clientst0r</text>
         <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
@@ -2451,7 +2451,7 @@ def help_documentation(request):
         <rect width="700" height="26" fill="#0a0e14"/>
         <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
         <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
-        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Clientst0r</text>
         <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
@@ -2600,7 +2600,7 @@ def help_locations(request):
         <rect width="700" height="26" fill="#0a0e14"/>
         <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
         <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
-        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Clientst0r</text>
         <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
@@ -2727,7 +2727,7 @@ def help_locations(request):
         <rect width="700" height="26" fill="#0a0e14"/>
         <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
         <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
-        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Clientst0r</text>
         <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
@@ -2837,7 +2837,7 @@ def help_locations(request):
         <rect width="700" height="26" fill="#0a0e14"/>
         <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
         <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
-        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Clientst0r</text>
         <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
         <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>

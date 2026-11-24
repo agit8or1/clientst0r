@@ -1,5 +1,5 @@
 """
-The devices a ticket is about (ClientSt0r ↔ RMM Phase 4).
+The devices a ticket is about (Clientst0r ↔ RMM Phase 4).
 
     ticket_assets(ticket)  primary asset first (`Ticket.related_asset`), then
                            the extra affected devices, in the order added.

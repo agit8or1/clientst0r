@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Cross-peer end-to-end: a real ClientSt0r and a real Rem0te, talking the
+Cross-peer end-to-end: a real Clientst0r and a real Rem0te, talking the
 ticket-rmm-v1 contract (Ed25519) over loopback.
 
-  * ClientSt0r: this checkout, `manage.py runserver` on an isolated SQLite
+  * Clientst0r: this checkout, `manage.py runserver` on an isolated SQLite
     database (settings_e2e.py; never the deployment's .env or database),
     plus this process, which drives it through its own code and test client.
   * Rem0te: a built checkout (REM0TE_SRC, pinned SHA in
@@ -139,7 +139,7 @@ def main():
     ap.add_argument('--signer-internal-port', type=int, default=int(os.environ.get('SIGNER_INTERNAL_PORT', 0)),
                     help='s12/s13: its internal port (default Rem0te port + 1001)')
     ap.add_argument('--db-cache', default=os.environ.get('E2E_DB_CACHE', ''),
-                    help='file holding a migrated, empty ClientSt0r database to start from')
+                    help='file holding a migrated, empty Clientst0r database to start from')
     a = ap.parse_args()
     a.signer_public_port = a.signer_public_port or a.rem0te_port + 1000
     a.signer_internal_port = a.signer_internal_port or a.rem0te_port + 1001
@@ -265,7 +265,7 @@ class Harness(remediation_chain.RemediationChain):
                                         env, str(ROOT), self.logs).start()
         ok = wait_for(lambda: http_json('GET', f'{self.cs_url}/health/')[0] < 500, 90, 1)
         if not ok:
-            raise RuntimeError('ClientSt0r did not start:\n' + self.procs['clientst0r'].tail())
+            raise RuntimeError('Clientst0r did not start:\n' + self.procs['clientst0r'].tail())
 
     def stop_cs(self):
         self.procs['clientst0r'].stop()
@@ -303,7 +303,7 @@ class Harness(remediation_chain.RemediationChain):
         from psa_ai.services.gateway import origin
         from tech_access.testing import grant, make_tech
 
-        section('boot', 'Start the model stub, ClientSt0r and Rem0te; write the peers file')
+        section('boot', 'Start the model stub, Clientst0r and Rem0te; write the peers file')
         self.start_llm()
         s = SystemSetting.get_settings()
         s.psa_enabled = True
@@ -359,7 +359,7 @@ class Harness(remediation_chain.RemediationChain):
         self.write_peers_file()
         self.start_rem0te()
         self.start_cs()
-        check(True, f'Rem0te {self.rem0te_sha[:12]} on :{self.a.rem0te_port}, ClientSt0r on :{self.a.cs_port}')
+        check(True, f'Rem0te {self.rem0te_sha[:12]} on :{self.a.rem0te_port}, Clientst0r on :{self.a.cs_port}')
 
         r_pub = protocol.public_pem(self.r_key_pem)
         self.conns = {}
@@ -528,7 +528,7 @@ class Harness(remediation_chain.RemediationChain):
                                                device_name=ep['hostname'], hostname=ep['hostname'],
                                                device_type='workstation')
                 how = how if how != 'device sync' else 'direct (sync returned no device)'
-            check(how == 'device sync', f'{ext}: its FRONTDESK-01 arrived through ClientSt0r\'s Rem0te device sync', how)
+            check(how == 'device sync', f'{ext}: its FRONTDESK-01 arrived through Clientst0r\'s Rem0te device sync', how)
             asset = dev.linked_asset or Asset.objects.create(organization=conn.organization, name='Front desk PC',
                                                              hostname='FRONTDESK-01', asset_type='desktop')
             RMMDevice.objects.filter(pk=dev.pk).update(linked_asset=asset, link_status=RMMDevice.LINK_CONFIRMED,
@@ -547,7 +547,7 @@ class Harness(remediation_chain.RemediationChain):
         check(job.protocol == AnalysisJob.PROTOCOL_REM0TE and job.processor_job_id, 'the job was accepted by Rem0te',
               f'{job.status} {job.processor_error_code} {job.error}')
         sent = json.dumps(job.processor_request)
-        check('hunter2' not in sent, 'the ticket\'s password never left ClientSt0r (redacted)')
+        check('hunter2' not in sent, 'the ticket\'s password never left Clientst0r (redacted)')
         check((job.processor_request.get('endpoint') or {}).get('rem0te_endpoint_id') == self.fx['endpoints'][self.oa]['id'],
               'the job names Acme\'s FRONTDESK-01 by Rem0te id (from the verified device link)')
         done = self.wait_job(job, 90)
@@ -591,7 +591,7 @@ class Harness(remediation_chain.RemediationChain):
         st, body = self.heartbeat(self.oa, 5_000)
         check(st == 200 or st == 201, 'heartbeat with 5% free disk accepted by Rem0te', f'{st} {body}')
         row = wait_for(lambda: Rem0teAlertTicket.objects.filter(connection=self.conns[self.oa]).first(), 60, 1)
-        check(row is not None, 'Rem0te pushed a signed alert.raised and ClientSt0r opened a ticket',
+        check(row is not None, 'Rem0te pushed a signed alert.raised and Clientst0r opened a ticket',
               self.node('deliveries', {'peerId': self.peer_id}))
         if row is None:
             return
@@ -606,7 +606,7 @@ class Harness(remediation_chain.RemediationChain):
         r = client.request(self.conns[self.oa], 'GET', f'/alerts/{row.alert_id}', query={'organization_id': self.oa})
         tid = ((r.data or {}).get('ticket') or {}).get('id')
         from integrations.rem0te.jobs import ticket_ext_id
-        check(r.ok and tid == ticket_ext_id(t), 'Rem0te shows ClientSt0r\'s ticket on the alert', f'{r.status} {r.data}')
+        check(r.ok and tid == ticket_ext_id(t), 'Rem0te shows Clientst0r\'s ticket on the alert', f'{r.status} {r.data}')
         from integrations.rem0te import alerts
         alerts.poll(self.conns[self.oa])
         check(Rem0teAlertTicket.objects.filter(connection=self.conns[self.oa]).count() == 1,
@@ -616,10 +616,10 @@ class Harness(remediation_chain.RemediationChain):
     def s5_restart_retry(self):
         from psa_ai.models import AnalysisJob, ProcessorEvent, Rem0teAlertTicket
         from integrations.rem0te import alerts
-        section('s5', 'Retry after a ClientSt0r restart: exactly one ticket and one result')
+        section('s5', 'Retry after a Clientst0r restart: exactly one ticket and one result')
         self.stop_cs()
         st, _ = self.heartbeat(self.ob, 4_000)
-        check(st in (200, 201), 'Birch\'s FRONTDESK-01 breaches while ClientSt0r is down')
+        check(st in (200, 201), 'Birch\'s FRONTDESK-01 breaches while Clientst0r is down')
         before = self.llm_calls()
         self.c_b = self.client(self.tech_b, self.org_b)
         self.ticket_b = self.ticket_for(self.org_b, self.assets[self.ob], self.tech_b, 'Front desk printer (Birch)')
@@ -631,7 +631,7 @@ class Harness(remediation_chain.RemediationChain):
         self.start_cs()
         self.node('retryNow', {'peerId': self.peer_id})
         row = wait_for(lambda: Rem0teAlertTicket.objects.filter(connection=self.conns[self.ob]).first(), 60, 1)
-        check(row is not None, 'after the restart the alert reached ClientSt0r (Rem0te retry / ClientSt0r poll)')
+        check(row is not None, 'after the restart the alert reached Clientst0r (Rem0te retry / Clientst0r poll)')
         alerts.poll(self.conns[self.ob])
         self.node('retryNow', {'peerId': self.peer_id})
         time.sleep(3)
@@ -739,7 +739,7 @@ class Harness(remediation_chain.RemediationChain):
         section('s9', 'L1 technician: no elevated approval, no restricted credential, no unreviewed AI send')
         c = self.client(self.l1, self.org_a)
         d = decide(self.l1, self.org_a, 'fix_approval', ticket=self.ticket_a)
-        check(not d.allowed, 'L1 cannot approve an endpoint fix (and ClientSt0r has no approve route for Rem0te)',
+        check(not d.allowed, 'L1 cannot approve an endpoint fix (and Clientst0r has no approve route for Rem0te)',
               d.reason)
         try:
             rmm_actions.refer_fix(self.l1, self.ticket_a, self.ticket_a.related_asset.rmm_devices.first().pk
@@ -805,7 +805,7 @@ class Harness(remediation_chain.RemediationChain):
         identity.generate_keys(rotate=True)
         doc = pairing.check(conn)
         check(doc['code'] == 'KEY_UNKNOWN' and identity.get().request_kid in doc['error'],
-              'rotated ClientSt0r keys not yet in the peers file → "Rem0te does not know the key id …"',
+              'rotated Clientst0r keys not yet in the peers file → "Rem0te does not know the key id …"',
               doc.get('error'))
         check(not self.no_secrets(json.dumps(doc)), 'no secrets in it', self.no_secrets(json.dumps(doc)))
         from integrations.models import Rem0teIdentity
@@ -870,7 +870,7 @@ class Harness(remediation_chain.RemediationChain):
             conn.refresh_from_db()
             text = json.dumps(conn.field_mappings) + job.error + json.dumps(health.evaluate(conn), default=str)
             check(reason not in text and 'suspected compromise' not in text,
-                  'Rem0te\'s pause reason is stored nowhere in ClientSt0r')
+                  'Rem0te\'s pause reason is stored nowhere in Clientst0r')
         finally:
             self.node('unpause', {'id': p['id']})
         doc = pairing.check(conn)
@@ -891,7 +891,7 @@ class Harness(remediation_chain.RemediationChain):
         check(moved, 'Rem0te tracks the pending restart (monitor state backdated 90 min)')
         self.heartbeat(self.oa, 60_000, updateChannel='signed', patchPosture=posture)
         row = wait_for(lambda: Rem0teAlertTicket.objects.filter(connection=conn, kind='REBOOT_PENDING').first(), 60, 1)
-        check(row is not None, 'Rem0te pushed a REBOOT_PENDING alert and ClientSt0r opened a ticket',
+        check(row is not None, 'Rem0te pushed a REBOOT_PENDING alert and Clientst0r opened a ticket',
               self.node('alert', {'endpointId': ep['id']}))
         if row is not None:
             ps = row.patch_summary or {}

@@ -1,5 +1,5 @@
 /**
- * ClientSt0r Browser Extension — Service Worker
+ * Clientst0r Browser Extension — Service Worker
  *
  * Handles all API communication so:
  *  - Content scripts never touch the API key
@@ -24,7 +24,7 @@ async function getConfig() {
 async function apiRequest(path, options = {}) {
   const { serverUrl, apiKey } = await getConfig();
   if (!serverUrl || !apiKey) {
-    throw new Error('ClientSt0r not configured. Open the options page to set your server URL and API key.');
+    throw new Error('Clientst0r not configured. Open the options page to set your server URL and API key.');
   }
 
   const url = `${serverUrl}${path}`;

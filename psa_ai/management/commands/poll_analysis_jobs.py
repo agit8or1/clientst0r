@@ -60,7 +60,7 @@ class Command(BaseCommand):
     def _rem0te(self):
         """Rem0te: reconciliation (integrations/rem0te/reconcile.py) —
         capabilities re-check with backoff, alert events missed while
-        ClientSt0r was down, ticket link retries, open action proposals —
+        Clientst0r was down, ticket link retries, open action proposals —
         with every outcome on the connection's integration health."""
         from integrations.rem0te.reconcile import reconcile_all
         try:

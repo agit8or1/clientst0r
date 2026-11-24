@@ -2075,11 +2075,11 @@ class NetworkAssetLink(models.Model):
 # ===========================================================================
 
 class Rem0teIdentity(models.Model):
-    """ClientSt0r's own identity towards Rem0te: one row per install.
+    """Clientst0r's own identity towards Rem0te: one row per install.
 
-    Rem0te lists ClientSt0r once in its root-owned INTEGRATION_PEERS_FILE —
+    Rem0te lists Clientst0r once in its root-owned INTEGRATION_PEERS_FILE —
     a peer id, the audience Rem0te signs for (`peerAudience`), two public
-    keys and two URLs — and maps each ClientSt0r organization to a business.
+    keys and two URLs — and maps each Clientst0r organization to a business.
     Every Rem0te connection here shares this identity.
 
     Two keys, as the contract requires: the *request* key signs requests to
@@ -2089,12 +2089,12 @@ class Rem0teIdentity(models.Model):
     every other integration secret) and are never shown, exported or sent.
     """
     peer_id = models.CharField(max_length=64, default='clientst0r',
-                               help_text="ClientSt0r's peer id in Rem0te's peers file (peers[].id).")
+                               help_text="Clientst0r's peer id in Rem0te's peers file (peers[].id).")
     audience = models.CharField(max_length=256, blank=True, default='',
-                                help_text="ClientSt0r's audience (peers[].peerAudience): what Rem0te signs "
-                                          'its requests to ClientSt0r for.')
+                                help_text="Clientst0r's audience (peers[].peerAudience): what Rem0te signs "
+                                          'its requests to Clientst0r for.')
     public_base_url = models.URLField(max_length=500, blank=True, default='',
-                                      help_text='Where Rem0te reaches ClientSt0r (https; http only for loopback).')
+                                      help_text='Where Rem0te reaches Clientst0r (https; http only for loopback).')
     request_kid = models.CharField(max_length=64, blank=True, default='')
     request_private_key = EncryptedTextField(blank=True, default='')
     delegation_kid = models.CharField(max_length=64, blank=True, default='')
@@ -2119,7 +2119,7 @@ class Rem0teIdentity(models.Model):
 
 
 class Rem0teReplayGuard(models.Model):
-    """Single-use markers for requests Rem0te signs to ClientSt0r (request
+    """Single-use markers for requests Rem0te signs to Clientst0r (request
     nonces). One INSERT is the test-and-set, so two concurrent replays cannot
     both win, and the rows outlive the clock-skew window and a restart."""
     key = models.CharField(max_length=200, unique=True)

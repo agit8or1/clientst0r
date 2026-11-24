@@ -53,7 +53,7 @@ def body_bytes(body):
 
 
 class ExampleVectorTests(SimpleTestCase):
-    """Rem0te's real exchanges, reproduced with ClientSt0r's own primitives."""
+    """Rem0te's real exchanges, reproduced with Clientst0r's own primitives."""
 
     def test_test_only_keys_match_their_public_halves(self):
         for who in ('clientst0r-request', 'clientst0r-delegation', 'rem0te-self'):
@@ -101,7 +101,7 @@ class ExampleVectorTests(SimpleTestCase):
                 self.assertEqual(claims['req_sha256'], protocol.sha256_hex(protocol.canonical_json(parsed)), e['name'])
                 self.assertEqual(schema.errors(x['request_schema'], parsed), [])
                 self.assertEqual(claims['org'], body['organization_id'])
-            # ClientSt0r's minting reproduces the token for the same claims.
+            # Clientst0r's minting reproduces the token for the same claims.
             priv = protocol.load_private_key(key('clientst0r-delegation.TEST-ONLY.pem'))
             self.assertEqual(protocol.sign_jws(priv, INDEX['peer']['delegation_key_id'], claims).split('.')[2],
                              token.split('.')[2], e['name'])

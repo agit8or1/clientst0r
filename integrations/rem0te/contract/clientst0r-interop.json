@@ -15,7 +15,7 @@
       "key_id": "clientst0r-example"
     },
     {
-      "step": "refresh_capabilities (ClientSt0r signs with HMAC)",
+      "step": "refresh_capabilities (Clientst0r signs with HMAC)",
       "result": {
         "ok": false,
         "error": "The RMM answered HTTP 401."

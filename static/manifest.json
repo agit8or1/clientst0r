@@ -1,6 +1,6 @@
 {
-  "name": "Client St0r",
-  "short_name": "Client St0r",
+  "name": "Clientst0r",
+  "short_name": "Clientst0r",
   "description": "Advanced integration platform for Hudu documentation and IT management",
   "start_url": "/",
   "display": "standalone",

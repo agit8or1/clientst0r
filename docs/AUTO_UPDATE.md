@@ -1,4 +1,4 @@
-# Client St0r Auto-Update System
+# Clientst0r Auto-Update System
 
 Optional unattended updates for native (`install.sh`) installs. Docker installs update with
 `docker compose pull && docker compose up -d` instead and do not use this.

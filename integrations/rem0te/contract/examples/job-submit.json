@@ -1,6 +1,6 @@
 {
   "name": "job-submit",
-  "description": "ClientSt0r → rem0te: analyse one ticket, with rem0te's evidence about the bound computer. Signed request plus a delegation token bound to the body hash (req_sha256).",
+  "description": "Clientst0r → rem0te: analyse one ticket, with rem0te's evidence about the bound computer. Signed request plus a delegation token bound to the body hash (req_sha256).",
   "direction": "clientst0r_to_rem0te",
   "request": {
     "method": "POST",

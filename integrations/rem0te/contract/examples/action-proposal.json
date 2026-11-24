@@ -1,6 +1,6 @@
 {
   "name": "action-proposal",
-  "description": "ClientSt0r → rem0te: propose a catalog action from an AI suggestion on a ticket. It becomes a plan awaiting independent approval on rem0te's approval signer; nothing runs until approvers sign it there.",
+  "description": "Clientst0r → rem0te: propose a catalog action from an AI suggestion on a ticket. It becomes a plan awaiting independent approval on rem0te's approval signer; nothing runs until approvers sign it there.",
   "direction": "clientst0r_to_rem0te",
   "request": {
     "method": "POST",

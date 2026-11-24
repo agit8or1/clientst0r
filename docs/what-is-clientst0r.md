@@ -1,6 +1,6 @@
-# What is ClientSt0r?
+# What is Clientst0r?
 
-ClientSt0r is **self-hosted, open-source (MIT) IT documentation and service desk software
+Clientst0r is **self-hosted, open-source (MIT) IT documentation and service desk software
 for Managed Service Providers (MSPs)** and IT teams.
 
 It keeps client documentation, assets, credentials and support work in one structured,

@@ -2,13 +2,13 @@
 Rem0te action proposals from a ticket (contract ticket-rmm-v1,
 POST /action-proposals, GET /action-proposals/{job_id}).
 
-A proposal authorizes nothing. ClientSt0r proposes one of the catalog
+A proposal authorizes nothing. Clientst0r proposes one of the catalog
 actions Rem0te advertised in its capabilities (`features.actions`, e.g.
-`windows.service.start@1`) with fixed parameters from ClientSt0r's own table
+`windows.service.start@1`) with fixed parameters from Clientst0r's own table
 (`pairing.KNOWN_ACTIONS`) — there is no field for a command, script, path or
 URL. Rem0te checks the delegated technician's live access to the computer,
 answers `awaiting_approval` with an `approval_url`, and approval happens
-there, by passkey, by Rem0te's approvers. ClientSt0r shows the link and
+there, by passkey, by Rem0te's approvers. Clientst0r shows the link and
 Rem0te's status; it never marks anything approved and nothing here can close
 the ticket or reply to the customer.
 
@@ -156,7 +156,7 @@ def send(req) -> str:
     if r.transport in ('unreachable', 'timeout', 'read') or r.status >= 500 or r.status == 429:
         # Kept 'created': the poller re-sends the same proposal, and Rem0te's
         # idempotency answers with the original if the first one landed.
-        _update(req, error=f'{r.message} ClientSt0r will retry.'[:500])
+        _update(req, error=f'{r.message} Clientst0r will retry.'[:500])
         return 'retrying'
     from . import health
     if r.code == 'CONTAINED' or r.status == 423:
@@ -173,7 +173,7 @@ def send(req) -> str:
         health.note(req.connection, 'actions', DIRECT_MODE, code=r.code, action=DIRECT_MODE_ACTION)
         return 'unavailable'
     known = r.code in REFUSAL_TEXT
-    text = REFUSAL_TEXT[r.code] if known else f'Rem0te refused the proposal with a code ClientSt0r does not recognise ({r.code}).'
+    text = REFUSAL_TEXT[r.code] if known else f'Rem0te refused the proposal with a code Clientst0r does not recognise ({r.code}).'
     # Only a recognised contract refusal is shown as "Rejected"; anything else
     # (an unknown code, or an answer outside the contract's error envelope) is
     # a failure, so it never reads as an approver's decision.

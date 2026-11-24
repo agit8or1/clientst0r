@@ -1,4 +1,4 @@
-"""Canonical kind -> ClientSt0r model.
+"""Canonical kind -> Clientst0r model.
 
 Every query here is scoped to ONE organization. ``get`` and ``matches``
 never look outside it, so a record of another customer can neither be
@@ -284,7 +284,7 @@ class WebsiteSpec(Spec):
 
     def new(self, org, user):
         # Imported monitors start disabled: the operator decides when
-        # ClientSt0r starts polling a customer's site.
+        # Clientst0r starts polling a customer's site.
         return self.model(organization=org, is_enabled=False)
 
 

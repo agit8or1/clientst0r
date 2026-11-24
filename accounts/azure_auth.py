@@ -1,7 +1,7 @@
 """
 Azure AD / Microsoft Entra ID sign-in (OpenID Connect, authorization code flow).
 
-How a Microsoft sign-in becomes a ClientSt0r session (v3.17.688):
+How a Microsoft sign-in becomes a Clientst0r session (v3.17.688):
 
 1. ``AzureOAuthClient.initiate_flow`` starts MSAL's auth code flow, which adds
    PKCE (S256), a nonce and the state; the flow is kept in the session.
@@ -572,7 +572,7 @@ def azure_mfa_asserted(token_response):
     """True when Microsoft says this sign-in used multi-factor authentication
     (`mfa` in the `amr` claim) — v3.17.660.
 
-    Before v3.17.660 every Microsoft sign-in skipped ClientSt0r's 2FA, even
+    Before v3.17.660 every Microsoft sign-in skipped Clientst0r's 2FA, even
     when the tenant never asked for a second factor. `amr` is read from the
     ID token claims MSAL validated; when the ID token doesn't carry it (v2
     tokens usually don't), from the access token's payload. That token came
@@ -596,7 +596,7 @@ def azure_mfa_asserted(token_response):
 
 
 def azure_sso_counts_as_2fa(request):
-    """Whether this session's Microsoft sign-in stands in for ClientSt0r's 2FA:
+    """Whether this session's Microsoft sign-in stands in for Clientst0r's 2FA:
     Microsoft confirmed MFA, or the operator set AZURE_SSO_TRUSTED_AS_2FA
     (their tenant enforces MFA, e.g. by Conditional Access, but the tokens
     don't say so)."""

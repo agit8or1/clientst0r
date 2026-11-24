@@ -1,5 +1,5 @@
 #!/bin/bash
-# Client St0r Docker entrypoint
+# Clientst0r Docker entrypoint
 #
 # Order of operations:
 #   1. Wait for the database to accept connections (only for the
@@ -25,7 +25,7 @@
 
 set -e
 
-echo "Client St0r container starting..."
+echo "Clientst0r container starting..."
 
 if [ "${DB_ENGINE:-mysql}" != "sqlite3" ]; then
     echo "Waiting for database at ${DB_HOST}:${DB_PORT:-3306}..."

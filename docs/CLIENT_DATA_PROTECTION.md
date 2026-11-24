@@ -1,6 +1,6 @@
-# How ClientSt0r protects client data
+# How Clientst0r protects client data
 
-This page describes what ClientSt0r does as of v3.17.656, plus the
+This page describes what Clientst0r does as of v3.17.656, plus the
 ticket-to-RMM integration that ships in v3.17.658 (marked where it applies).
 Planned work is in [ROADMAP.md](ROADMAP.md), not here. Every statement below
 points to the code or test that backs it. Administrators can see whether each
@@ -11,7 +11,7 @@ The examples use made-up customers, people and tickets.
 
 ## Who can see what
 
-ClientSt0r has two kinds of users, and they get different reach on purpose.
+Clientst0r has two kinds of users, and they get different reach on purpose.
 
 | | Customer users (User Type: Organization User) | MSP staff (User Type: Staff) and superusers |
 |---|---|---|
@@ -63,13 +63,13 @@ detail: [TECHNICIAN_ACCESS.md](TECHNICIAN_ACCESS.md). Source:
 
 | Capability | L1 Help Desk | L2 Technician | L3 Senior | Who finally decides |
 |---|---|---|---|---|
-| Analyze ticket (one model) | yes | yes | yes | ClientSt0r |
-| Editable AI reply drafts | yes | yes | yes | ClientSt0r |
+| Analyze ticket (one model) | yes | yes | yes | Clientst0r |
+| Editable AI reply drafts | yes | yes | yes | Clientst0r |
 | Send a reply that started as an AI draft (customer reply) | – | yes | yes | The technician presses Send |
-| Compare models | – | yes | yes | ClientSt0r (customer policy must allow it) |
+| Compare models | – | yes | yes | Clientst0r (customer policy must allow it) |
 | Apply AI-suggested ticket changes | – | yes | yes | The technician |
-| Other technicians' tickets | – | – | yes | ClientSt0r |
-| Private RMM handoff | – | yes | yes | ClientSt0r sends it; the RMM confirms receipt |
+| Other technicians' tickets | – | – | yes | Clientst0r |
+| Private RMM handoff | – | yes | yes | Clientst0r sends it; the RMM confirms receipt |
 | Read-only diagnostics | – | standard workstations | standard workstations (advanced diagnostics: see below) | The RMM runs only diagnostics it advertises |
 | Remote session (view / control / elevation) | – | may **request** view or control | may request view, control or elevation | **The paired RMM** grants each session |
 | Request a catalog fix | – | low-risk | low- and higher-risk | **The paired RMM** approves and runs it |
@@ -161,7 +161,7 @@ Evidence: `psa/ticket_secure.py` (`create_secure_message`, `secure_status`,
 *Example.* An Editor at Example Accounting opens the entry "Front desk
 Wi-Fi" and clicks Reveal.
 
-1. **Permission.** ClientSt0r checks `vault_view_password` for the entry's
+1. **Permission.** Clientst0r checks `vault_view_password` for the entry's
    own customer. A Read-only member gets 403. Membership elsewhere doesn't
    count.
 2. **Approval** (if the entry requires it). Without an unused, unexpired
@@ -193,7 +193,7 @@ that any active access rule applies to — a rule on the entry, on its customer
 (which every entry there inherits), or on that technician at that customer.
 Country, address and time conditions can only be judged when someone
 reveals, so a rule applying at all is enough. The sync still lists the entry,
-marked `online_only` with no secret and the message "Connect to ClientSt0r to
+marked `online_only` with no secret and the message "Connect to Clientst0r to
 reveal this password." A complete sync replaces the cache (`cache_policy:
 replace`), so an entry cached yesterday and restricted today loses its local
 copy at the next successful sync. **A device that stays disconnected keeps
@@ -259,10 +259,10 @@ RMM.
 |---|---|---|---|
 | **Console link** ("Open in …" / "Connect with Rem0te" on asset and ticket pages) | Opens the device's page in the RMM. No key, password or session credential is in the link | **The RMM**, with the technician's own RMM sign-in | Shipped (v3.17.644), technicians only |
 | **Pairing** | Any RMM that implements [ticket-rmm-v1](contracts/ticket-rmm-v1/README.md), on a single-customer connection: a key ID and two shared secrets (stored encrypted), signed requests both ways, pinned to the RMM tenant named in its first capabilities check | A second administrator approves turning it on (protected change) | v3.17.658 |
-| **Handoff** | The ticket's redacted context, previewed first, sent privately to the RMM | ClientSt0r (preset); marked Sent only on the RMM's signed receipt | v3.17.658 |
+| **Handoff** | The ticket's redacted context, previewed first, sent privately to the RMM | Clientst0r (preset); marked Sent only on the RMM's signed receipt | v3.17.658 |
 | **Read-only diagnostic** | One named diagnostic from the RMM's advertised list, on a standard workstation | The RMM runs it; the result is sanitised, limited to 32 KiB and staff-only | v3.17.658 |
-| **Remote session** | A view or control session | **The RMM** grants each session; ClientSt0r checks the launch address is on the connection's console hosts and expires within 10 minutes, then forgets it | v3.17.658 |
-| **Fix referral** | A request for work on the device | **The RMM** approves and runs it; ClientSt0r never sends commands | v3.17.658 |
+| **Remote session** | A view or control session | **The RMM** grants each session; Clientst0r checks the launch address is on the connection's console hosts and expires within 10 minutes, then forgets it | v3.17.658 |
+| **Fix referral** | A request for work on the device | **The RMM** approves and runs it; Clientst0r never sends commands | v3.17.658 |
 
 - **Which devices.** Only the ticket's own asset, through an RMM device
   linked to it at the same customer, on a live pairing of that customer. The
@@ -278,9 +278,9 @@ RMM.
 - **Audit.** Every request and every remote launch is audited; the launch
   address itself is never stored or logged.
 
-An AI suggestion, a ClientSt0r referral or a technician's preset is **not**
+An AI suggestion, a Clientst0r referral or a technician's preset is **not**
 proof that the RMM authorized or ran anything. Only the RMM's own records
-show that. ClientSt0r has no endpoint command path: the old `run_rmm_script`
+show that. Clientst0r has no endpoint command path: the old `run_rmm_script`
 AI action was removed, and the RMM adapters only read.
 
 Evidence: `integrations/ticket_rmm.py`, `psa_ai/services/rmm_actions.py`,
@@ -349,7 +349,7 @@ Known gaps, stated plainly:
   bypass it; they are recorded and announced.
 - **Ticket text and attachments aren't encrypted** by the app.
 - **RMM request status is the RMM's word.** A fix shown as approved or
-  succeeded reflects the RMM's signed events, not something ClientSt0r
+  succeeded reflects the RMM's signed events, not something Clientst0r
   checked on the device.
 - **Browser-extension offline cache.** Restricted entries are synced without
   their secret (see above), but a disconnected device keeps what it already

@@ -82,7 +82,7 @@ if id -u "$AI_USER" >/dev/null 2>&1; then
     say "user $AI_USER exists"
 else
     sudo useradd --system --user-group --no-create-home --home-dir /nonexistent \
-        --shell /usr/sbin/nologin --comment "Client St0r AI gateway worker" "$AI_USER"
+        --shell /usr/sbin/nologin --comment "Clientst0r AI gateway worker" "$AI_USER"
     say "created system user $AI_USER"
 fi
 

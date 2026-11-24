@@ -1,5 +1,5 @@
 [Unit]
-Description=Client St0r Gunicorn
+Description=Clientst0r Gunicorn
 After=network.target mariadb.service
 Wants=mariadb.service
 

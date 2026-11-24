@@ -1,5 +1,5 @@
 """
-Rem0te's ticket-rmm-v1 protocol (Ed25519), ClientSt0r side.
+Rem0te's ticket-rmm-v1 protocol (Ed25519), Clientst0r side.
 
 Rem0te owns this contract. A vendored, pinned copy of it lives in
 `contract/` (schemas, fixtures, README, openapi) with the revision it was
@@ -9,9 +9,9 @@ copied from in `contract/PIN.json`; `pin.py` exposes that pin.
                 EdDSA delegation JWS
   schema.py     a JSON-Schema (2020-12 subset) validator for the vendored
                 schemas
-  identity.py   ClientSt0r's own request and delegation keys
+  identity.py   Clientst0r's own request and delegation keys
   pairing.py    per-connection Rem0te settings and Check pairing
-  client.py     signed requests ClientSt0r sends to Rem0te
+  client.py     signed requests Clientst0r sends to Rem0te
   inbound.py    verifying Rem0te's signed requests and events
   jobs.py       analysis jobs: submit, poll, events, inference
   alerts.py     alert events → tickets, ticket links back

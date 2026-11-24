@@ -940,7 +940,7 @@ class RoleTemplate(BaseModel):
     vault_create = models.BooleanField(default=False, help_text='Create passwords and secrets')
     vault_edit = models.BooleanField(default=False, help_text='Edit passwords and secrets')
     vault_delete = models.BooleanField(default=False, help_text='Delete passwords and secrets')
-    # Nothing checks this flag. Client St0r has no bulk password export, so
+    # Nothing checks this flag. Clientst0r has no bulk password export, so
     # it is stored, shown in the role editor as unimplemented, and grants
     # nothing. Kept rather than dropped so a role's stored intent survives
     # until the feature exists. help_text is left alone deliberately: changing

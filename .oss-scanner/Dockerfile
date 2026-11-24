@@ -1,4 +1,4 @@
-# Client St0r — build environment for Anthropic's OSS Scanner
+# Clientst0r — build environment for Anthropic's OSS Scanner
 # (https://github.com/anthropics/oss-scanner).
 #
 # This is NOT the production image (that's ./Dockerfile). It builds an

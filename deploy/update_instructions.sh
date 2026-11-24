@@ -1,5 +1,5 @@
 #!/bin/bash
-# Client St0r Update Instructions
+# Clientst0r Update Instructions
 # Downloaded and executed by perform_update() — do not rename or move
 #
 # Environment variables (passed by caller):
@@ -18,7 +18,7 @@
 #   CLIENTST0R_VERIFIED_BACKUP - the verified pre-upgrade snapshot directory
 #   CLIENTST0R_JOURNAL         - core/upgrade/journal.py's JSON file
 #
-# Without CLIENTST0R_TARGET_SHA (an older Client St0r downloaded this script
+# Without CLIENTST0R_TARGET_SHA (an older Clientst0r downloaded this script
 # from main) it runs in legacy mode: fetch main and reset to it, as before, but
 # it still takes and verifies a backup before migrating, and records the run
 # in the journal.
@@ -60,7 +60,7 @@ VERIFIED_BACKUP="${CLIENTST0R_VERIFIED_BACKUP:-}"
 trap 'log "ERROR: command failed at line $LINENO: $BASH_COMMAND (exit $?)"' ERR
 
 log "=================================================="
-log "Client St0r Update Instructions"
+log "Clientst0r Update Instructions"
 log "=================================================="
 log "Base directory: $BASE_DIR"
 log "Service: ${SERVICE:-<none detected>}"
@@ -192,7 +192,7 @@ if [ -n "$TARGET_SHA" ]; then
     fi
 else
     log "Step 1/5: Fetching latest code from GitHub..."
-    log "[legacy mode] an older Client St0r started this update; installing main as before"
+    log "[legacy mode] an older Clientst0r started this update; installing main as before"
     $GIT -C "$BASE_DIR" fetch origin main
     $GIT -C "$BASE_DIR" reset --hard origin/main
     TARGET_SHA=$($GIT -C "$BASE_DIR" rev-parse HEAD)

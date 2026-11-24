@@ -547,7 +547,7 @@ def two_factor_setup(request):
             # Generate QR code URL
             totp_uri = pyotp.totp.TOTP(secret).provisioning_uri(
                 name=request.user.email or request.user.username,
-                issuer_name='Client St0r'
+                issuer_name='Clientst0r'
             )
 
             return render(request, 'accounts/two_factor_setup.html', {

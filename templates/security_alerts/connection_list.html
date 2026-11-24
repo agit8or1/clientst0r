@@ -34,7 +34,7 @@
             {% for c in connections %}
                 <tr>
                     <td><strong>{{ c.name }}</strong></td>
-                    <td>{{ c.get_provider_display }}{% if not c.polls_api %} <span class="badge bg-light text-dark border" title="ClientSt0r has no API integration for this vendor yet; alerts arrive only through the connection's webhook.">Webhook only</span>{% endif %}</td>
+                    <td>{{ c.get_provider_display }}{% if not c.polls_api %} <span class="badge bg-light text-dark border" title="Clientst0r has no API integration for this vendor yet; alerts arrive only through the connection's webhook.">Webhook only</span>{% endif %}</td>
                     <td>{{ c.get_category_display }}</td>
                     <td>{{ c.client_org.name|default:"(MSP-wide)" }}</td>
                     <td>{% if c.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Off</span>{% endif %}</td>

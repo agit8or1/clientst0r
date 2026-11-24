@@ -1,5 +1,5 @@
 """
-Restore management command for Client St0r
+Restore management command for Clientst0r
 Restores encrypted backups of database and media files
 """
 
@@ -81,7 +81,7 @@ class Command(BaseCommand):
                 # Read metadata
                 metadata = self._read_metadata(extract_dir)
                 self.stdout.write(f'Backup created: {metadata.get("backup_time", "unknown")}')
-                self.stdout.write(f'Client St0r version: {metadata.get("clientst0r_version", "unknown")}')
+                self.stdout.write(f'Clientst0r version: {metadata.get("clientst0r_version", "unknown")}')
 
                 # Restore database
                 if not options['skip_database']:

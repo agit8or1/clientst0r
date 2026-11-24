@@ -1,7 +1,7 @@
 """
 Fetch demo/sample KB articles from GitHub repository.
 
-Pulls curated KB articles from the Client St0r GitHub repository
+Pulls curated KB articles from the Clientst0r GitHub repository
 and populates the knowledge base with professional IT documentation.
 """
 from django.core.management.base import BaseCommand

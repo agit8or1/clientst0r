@@ -4,7 +4,7 @@ GoCardless adapter — REST over `requests`, no SDK.
 Collect-only, like the Stripe adapter: no GoCardless subscriptions or
 instalment schedules are created. Mandates are set up through a billing
 request + hosted billing request flow; money is collected with one payment
-per ClientSt0r invoice against the mandate.
+per Clientst0r invoice against the mandate.
 
 Credentials (sealed on the PaymentConnection):
   access_token     read-write access token

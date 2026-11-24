@@ -3,7 +3,7 @@ AI Troubleshoot on a ticket or a device (OPTIONAL AI, gated by psa_ai_enabled).
 
 What it does: builds an observation set from what the requesting technician
 may see and the customer's sharing rules allow, sends it to the customer's
-configured model(s) through ClientSt0r's own inference gateway
+configured model(s) through Clientst0r's own inference gateway
 (gateway.call_provider: fixed provider hosts, sealed keys, no redirects),
 and stores a validated, structured answer (troubleshoot_result.py).
 
@@ -448,20 +448,20 @@ def build_observations(user, *, ticket=None, device=None, policy=None) -> dict:
     excluded = {'vault_data': 'never included', 'raw_rmm_payloads': 'never included',
                 'remote_session_data': 'never included'}
     if ticket is not None:
-        add('T1', 'ticket.state', 'ClientSt0r ticket', ticket.updated_at,
+        add('T1', 'ticket.state', 'Clientst0r ticket', ticket.updated_at,
             f'Ticket {ticket.ticket_number}: status {ticket.status.name if ticket.status_id else "unknown"}, '
             f'priority {ticket.priority.name if ticket.priority_id else "unknown"}', 200)
         comments = ticket.comments.select_related('author').order_by('created_at', 'pk')
         excluded['internal_notes'] = comments.filter(is_internal=True).count()
         excluded['attachments'] = ticket.attachments.count() if hasattr(ticket, 'attachments') else 0
         if rules.ticket_text:
-            add('E1', 'ticket.subject', 'ClientSt0r ticket', ticket.created_at, ticket.subject, 300)
+            add('E1', 'ticket.subject', 'Clientst0r ticket', ticket.created_at, ticket.subject, 300)
             if ticket.description:
-                add('E2', 'ticket.description', 'ClientSt0r ticket', ticket.created_at, ticket.description, 4000)
+                add('E2', 'ticket.description', 'Clientst0r ticket', ticket.created_at, ticket.description, 4000)
             public = list(comments.filter(is_internal=False, is_system=False).exclude(source=DEVICE_OUTPUT_SOURCE))
             excluded['older_comments'] = max(0, len(public) - MAX_COMMENTS)
             for n, c in enumerate(public[-MAX_COMMENTS:], start=1):
-                add(f'C{n}', f'comment ({ev._author_role(c)})', 'ClientSt0r ticket conversation', c.created_at,
+                add(f'C{n}', f'comment ({ev._author_role(c)})', 'Clientst0r ticket conversation', c.created_at,
                     c.body, 1500)
         else:
             withheld.append('ticket_text')
@@ -480,7 +480,7 @@ def build_observations(user, *, ticket=None, device=None, policy=None) -> dict:
         if rules.contact_data:
             names = _contact_names(ticket)
             if names:
-                add('P1', 'contact', 'ClientSt0r ticket', ticket.created_at, f'Requester: {names[0]}', 200)
+                add('P1', 'contact', 'Clientst0r ticket', ticket.created_at, f'Requester: {names[0]}', 200)
         elif _contact_names(ticket):
             withheld.append('contact_data')
 

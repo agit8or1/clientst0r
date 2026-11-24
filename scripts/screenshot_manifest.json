@@ -828,7 +828,7 @@
         }
       ],
       "heading": "What the RMM said back",
-      "caption": "Every request keeps the RMM's signed status callbacks: a handoff counts as sent once receipt is confirmed, a read-only diagnostic's sanitised, size-limited result is shown to staff only, and a fix referral shows the RMM's approval. ClientSt0r only refers a fix; the RMM approves and runs it.",
+      "caption": "Every request keeps the RMM's signed status callbacks: a handoff counts as sent once receipt is confirmed, a read-only diagnostic's sanitised, size-limited result is shown to staff only, and a fix referral shows the RMM's approval. Clientst0r only refers a fix; the RMM approves and runs it.",
       "alt": "Requests to the RMM list on a ticket in the Professional Dark theme: a handoff marked Sent with receipt confirmed, a Disk space diagnostic marked Completed with its staff-only result expanded showing C: at 4% free, and a fix referral to clear the X-ray bridge cache marked Approved in the RMM",
       "pad": 16
     },
@@ -843,7 +843,7 @@
       "max_h": 2400,
       "heading": "Effective access with a paired RMM",
       "caption": "The effective-access preview shows, for one technician at one customer, each capability's result and why. RMM, remote-access and fix capabilities stay Unavailable until the customer's paired RMM advertises them; remote sessions on the L2 preset are by request.",
-      "alt": "Preview effective access in light theme for demo.tech at Ridgeline Dental Group: ticket AI, Private RMM handoff, read-only diagnostics and low-risk fix requests allowed in scope; view and control sessions by time-limited request; advanced diagnostics, elevation, unattended access, clipboard and file transfer unavailable because the paired RMM does not advertise them; and locked rows such as approving an endpoint fix and running commands from ClientSt0r",
+      "alt": "Preview effective access in light theme for demo.tech at Ridgeline Dental Group: ticket AI, Private RMM handoff, read-only diagnostics and low-risk fix requests allowed in scope; view and control sessions by time-limited request; advanced diagnostics, elevation, unattended access, clipboard and file transfer unavailable because the paired RMM does not advertise them; and locked rows such as approving an endpoint fix and running commands from Clientst0r",
       "tight": true
     },
     {
@@ -1043,7 +1043,7 @@
       },
       "heading": "Update available",
       "caption": "When the scheduled update check finds a newer release, superusers see a glowing amber Update Available pill beside the logo, at every window width, and an entry in the notifications bell; both link to Administration → System → System Updates. Pages never contact GitHub while loading, and other users never see it.",
-      "alt": "Top bar in light theme: the ClientSt0r logo with an amber Update Available v3.17.681 pill beside it, then Go to with its Ctrl K hint, Favorites, Recent, the client switcher, the notifications bell, Help, the settings gear and the account menu"
+      "alt": "Top bar in light theme: the Clientst0r logo with an amber Update Available v3.17.681 pill beside it, then Go to with its Ctrl K hint, Favorites, Recent, the client switcher, the notifications bell, Help, the settings gear and the account menu"
     },
     {
       "name": "nav-sidebar-dark",

@@ -9,7 +9,7 @@ Technicians only. The checks are recomputed on POST; this page only shows them.
     <h1 class="h4 mb-0">Verify resolution — {{ ticket.ticket_number }}</h1>
     <a class="btn btn-sm btn-outline-secondary" href="{% url 'psa:ticket_detail' ticket.ticket_number %}#ticket-rmm-panel">Back to ticket</a>
 </div>
-<p class="text-muted small">{{ ticket.subject }} · checked {{ v.checked_at|date:"Y-m-d H:i" }} from the latest synced RMM data. ClientSt0r doesn't contact the RMM for this; refresh the RMM connection first if the data is old.</p>
+<p class="text-muted small">{{ ticket.subject }} · checked {{ v.checked_at|date:"Y-m-d H:i" }} from the latest synced RMM data. Clientst0r doesn't contact the RMM for this; refresh the RMM connection first if the data is old.</p>
 
 <div class="card mb-3" data-verify-result="{% if v.all_ok %}ok{% else %}not-ok{% endif %}">
     <div class="card-body">

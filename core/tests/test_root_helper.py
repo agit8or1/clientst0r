@@ -648,7 +648,7 @@ class OfficeSiteIncludeTests(SimpleTestCase):
 
 
 UNIT = """[Unit]
-Description=Client St0r Gunicorn
+Description=Clientst0r Gunicorn
 
 [Service]
 Type=notify

@@ -1,6 +1,6 @@
 {
   "name": "job-result",
-  "description": "ClientSt0r → rem0te: poll the job. `result` is staff-facing analysis; every next step is `executable: false`.",
+  "description": "Clientst0r → rem0te: poll the job. `result` is staff-facing analysis; every next step is `executable: false`.",
   "direction": "clientst0r_to_rem0te",
   "request": {
     "method": "GET",

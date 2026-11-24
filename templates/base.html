@@ -5,14 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token }}">
-    <title>{% block title %}{{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }} - IT Documentation Platform{% endblock %}</title>
+    <title>{% block title %}{{ system_settings.custom_company_name|default:system_settings.site_name|default:"Clientst0r" }} - IT Documentation Platform{% endblock %}</title>
     <meta name="description" content="Secure, Self-Hosted IT Documentation Platform for MSPs and IT Departments">
-    <meta name="generator" content="Client St0r v{{ app_version }}">
+    <meta name="generator" content="Clientst0r v{{ app_version }}">
     <meta name="theme-color" content="{% if user_theme_is_dark %}#0a0e14{% else %}#58a6ff{% endif %}">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="{{ system_settings.custom_company_name|default:system_settings.site_name|default:'Client St0r' }}">
+    <meta name="apple-mobile-web-app-title" content="{{ system_settings.custom_company_name|default:system_settings.site_name|default:'Clientst0r' }}">
     <link rel="icon" type="image/svg+xml" href="{% static 'images/favicon.svg' %}">
     <link rel="manifest" href="{% static 'manifest.json' %}">
     <link rel="apple-touch-icon" href="{% static 'icons/icon-192x192.png' %}">
@@ -48,7 +48,7 @@
     {% endif %}
     <!-- PWA Install Banner -->
     <div id="pwa-install-banner" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #58a6ff; color: white; padding: 15px 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 9999; max-width: 90%; text-align: center;">
-        <p style="margin: 0 0 10px 0; font-weight: bold;">📱 Install Client St0r</p>
+        <p style="margin: 0 0 10px 0; font-weight: bold;">📱 Install Clientst0r</p>
         <p style="margin: 0 0 15px 0; font-size: 0.9em;">Add to your home screen for quick access!</p>
         <button id="pwa-install-button" style="background: white; color: #58a6ff; border: none; padding: 8px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; margin-right: 10px;">Install</button>
         <button id="pwa-dismiss-button" style="background: transparent; color: white; border: 1px solid white; padding: 8px 20px; border-radius: 5px; cursor: pointer;">Not Now</button>
@@ -77,16 +77,16 @@
             {% endif %}
             <a class="navbar-brand" href="{% url 'home' %}">
                 {% if system_settings.custom_logo %}
-                    <img src="{{ system_settings.custom_logo.url }}" alt="{{ system_settings.custom_company_name|default:'Client St0r' }}" height="{{ system_settings.custom_logo_height }}">
+                    <img src="{{ system_settings.custom_logo.url }}" alt="{{ system_settings.custom_company_name|default:'Clientst0r' }}" height="{{ system_settings.custom_logo_height }}">
                 {% else %}
-                    <img src="{% static 'images/logo-light.svg' %}" alt="{{ system_settings.custom_company_name|default:'Client St0r' }}" height="30">
+                    <img src="{% static 'images/logo-light.svg' %}" alt="{{ system_settings.custom_company_name|default:'Clientst0r' }}" height="30">
                 {% endif %}
             </a>
             {% if update_badge %}
             {# Update available (superusers; core.context_processors._update_badge, fed by the scheduled update check). Outside the collapsible area so it shows at every width. #}
             <a class="update-pill{% if update_badge.security %} update-pill--security{% endif %}" href="{% url 'core:system_updates' %}" id="navUpdateBadge"
                data-bs-toggle="tooltip" data-bs-placement="bottom"
-               {% if update_badge.security %}title="{% blocktrans with v=update_badge.version s=update_badge.security_version %}Security fixes are available (v{{ s }}). Client St0r {{ v }} is available — open Settings → Updates{% endblocktrans %}"{% else %}title="{% blocktrans with v=update_badge.version %}Client St0r {{ v }} is available — open Settings → Updates{% endblocktrans %}"{% endif %}>
+               {% if update_badge.security %}title="{% blocktrans with v=update_badge.version s=update_badge.security_version %}Security fixes are available (v{{ s }}). Clientst0r {{ v }} is available — open Settings → Updates{% endblocktrans %}"{% else %}title="{% blocktrans with v=update_badge.version %}Clientst0r {{ v }} is available — open Settings → Updates{% endblocktrans %}"{% endif %}>
                 <i class="fas {% if update_badge.security %}fa-shield-halved{% else %}fa-circle-arrow-up{% endif %}" aria-hidden="true"></i>
                 {% if update_badge.security %}<span class="update-pill__text">{% trans "Security" %}<span class="update-pill__more"> {% trans "Update" %}</span></span>{% else %}<span class="update-pill__text">{% trans "Update" %}<span class="update-pill__more"> {% trans "Available" %}</span></span>{% endif %}
                 <span class="update-pill__ver">v{{ update_badge.version }}</span>
@@ -261,9 +261,9 @@
 
     <footer>
         <div class="container text-center">
-            <small class="text-muted">Client St0r v{{ app_version }} | Secure, Self-Hosted IT Documentation{% if user.is_authenticated %} | <a href="{% url 'core:guides' %}" class="text-muted">Clientst0r Docs</a>{% endif %}</small>
+            <small class="text-muted">Clientst0r v{{ app_version }} | Secure, Self-Hosted IT Documentation{% if user.is_authenticated %} | <a href="{% url 'core:guides' %}" class="text-muted">Clientst0r Docs</a>{% endif %}</small>
             <small class="text-muted">
-                {# Like Client St0r? <a href="https://mspreboot.com/donations.php" target="_blank" class="text-decoration-none">Support the project ❤️</a> #}
+                {# Like Clientst0r? <a href="https://mspreboot.com/donations.php" target="_blank" class="text-decoration-none">Support the project ❤️</a> #}
             </small>
         </div>
     </footer>
@@ -449,7 +449,7 @@
                             <label class="form-label">System Information (Auto-collected)</label>
                             <div class="card bg-light">
                                 <div class="card-body small">
-                                    <strong>Client St0r Version:</strong> {{ app_version }}<br>
+                                    <strong>Clientst0r Version:</strong> {{ app_version }}<br>
                                     <strong>Django Version:</strong> {{ DJANGO_VERSION }}<br>
                                     <strong>Python Version:</strong> {{ PYTHON_VERSION }}<br>
                                     <strong>Browser:</strong> <span id="browserInfo">Detecting...</span><br>
@@ -754,7 +754,7 @@
                             if (isHTTP) {
                                 alert('💻 PWA Install — HTTPS Required\n\nBrowsers only offer PWA installation over HTTPS (HTTP is blocked for security).\n\nTo install this app:\n• Set up HTTPS on your server, then revisit — the install button will appear automatically.\n• Or in Chrome, go to: chrome://flags → search "unsafely-treat-insecure-origin-as-secure" → add your server URL and relaunch.');
                             } else {
-                                alert('💻 To install on desktop:\n\n1. Look for the install icon ⬇ in your browser\'s address bar\n2. Or open the browser menu (⋮) → "Install Client St0r"\n3. Follow the prompts');
+                                alert('💻 To install on desktop:\n\n1. Look for the install icon ⬇ in your browser\'s address bar\n2. Or open the browser menu (⋮) → "Install Clientst0r"\n3. Follow the prompts');
                             }
                         }
                     }

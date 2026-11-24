@@ -14,8 +14,8 @@
 # Or point REM0TE_ENV_SH at a file that exports those (and PATH for node).
 # Rem0te must be built (pnpm install && pnpm -r build) with its scratch
 # database migrated and seeded (pnpm --filter api exec prisma migrate deploy;
-# pnpm --filter api exec prisma db seed). Nothing here touches a ClientSt0r
-# deployment: ClientSt0r runs on a throwaway SQLite file under the work dir.
+# pnpm --filter api exec prisma db seed). Nothing here touches a Clientst0r
+# deployment: Clientst0r runs on a throwaway SQLite file under the work dir.
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"

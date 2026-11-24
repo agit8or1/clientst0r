@@ -194,7 +194,7 @@ def _announce(alert, settings_obj=None):
                    .exclude(pk=alert.user_id).exclude(email='').values_list('email', flat=True)}
     if recipients:
         try:
-            send_mail('[ClientSt0r] Possible bulk data access', text + '\n\nReview: Settings → Security → '
+            send_mail('[Clientst0r] Possible bulk data access', text + '\n\nReview: Settings → Security → '
                       'Technician Access → Alerts.', None, sorted(recipients), fail_silently=True)
         except Exception:
             logger.exception('theft alert mail failed')

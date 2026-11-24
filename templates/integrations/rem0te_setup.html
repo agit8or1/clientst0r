@@ -4,7 +4,7 @@ Settings → RMM → Rem0te setup wizard. Public keys, key ids, fingerprints and
 the peers-file entry only: no private key is ever rendered. Everything from
 Rem0te is autoescaped text.
 {% endcomment %}
-{% block title %}Rem0te setup - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+{% block title %}Rem0te setup - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Clientst0r" }}{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -13,7 +13,7 @@ Rem0te is autoescaped text.
         <p class="text-muted">Contract <code>{{ pin.contract }}</code>, revision {{ implemented_revision }} (tested against Rem0te {{ pin.rem0te_version }} <code title="{{ pin.rem0te_sha }}">{{ pin.rem0te_sha|slice:":12" }}</code>). A Rem0te at revision 1 still works; features it lacks are shown as not supported by the connected Rem0te.</p>
 
         <div class="card mb-3">
-            <div class="card-header"><strong>1. ClientSt0r's identity</strong> <span class="text-muted">(one peer for every organization)</span></div>
+            <div class="card-header"><strong>1. Clientst0r's identity</strong> <span class="text-muted">(one peer for every organization)</span></div>
             <div class="card-body">
                 {% if identity and identity.has_keys %}
                 <table class="table table-sm">
@@ -28,13 +28,13 @@ Rem0te is autoescaped text.
                 <div class="mb-1">Entry for Rem0te's peers file (<code>peers[]</code> in <code>INTEGRATION_PEERS_FILE</code>; set <code>audience</code> to Rem0te's own):</div>
                 <pre class="small bg-light border rounded p-2" style="max-height: 18rem; overflow: auto; white-space: pre-wrap;" data-rem0te-peer-entry>{{ peer_entry }}</pre>
                 {% else %}
-                <p>ClientSt0r has no Rem0te keys yet.</p>
+                <p>Clientst0r has no Rem0te keys yet.</p>
                 {% endif %}
                 <form method="post" action="{% url 'integrations:rem0te_setup_identity' %}" class="mb-2">
                     {% csrf_token %}<input type="hidden" name="op" value="update">
                     <div class="row g-1">
                         <div class="col-md-4"><input name="peer_id" class="form-control form-control-sm" aria-label="Peer id" value="{{ identity.peer_id|default:'clientst0r' }}"></div>
-                        <div class="col-md-4"><input name="audience" class="form-control form-control-sm" aria-label="ClientSt0r's audience" placeholder="clientst0r:host" value="{{ identity.audience|default:'' }}"></div>
+                        <div class="col-md-4"><input name="audience" class="form-control form-control-sm" aria-label="Clientst0r's audience" placeholder="clientst0r:host" value="{{ identity.audience|default:'' }}"></div>
                         <div class="col-md-4"><input name="public_base_url" class="form-control form-control-sm" aria-label="Public address" placeholder="https://clientst0r.example.com" value="{{ identity.public_base_url|default:'' }}"></div>
                     </div>
                     <button class="btn btn-sm btn-outline-secondary mt-1">Save identity</button>

@@ -261,7 +261,7 @@ def parse_authentication_results(msg):
     not present in the header are omitted.
 
     Trusts the upstream MTA to have written the header — no inline crypto
-    or DNS lookups happen here. If the deployment fronts ClientSt0r with
+    or DNS lookups happen here. If the deployment fronts Clientst0r with
     Postfix / Exchange / M365 / Mailcow / iRedMail, that header is set
     automatically.
     """

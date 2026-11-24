@@ -336,7 +336,7 @@ def delegation_claims(*, peer_id: str, audience: str, technician_id: str, organi
 
 def verify_jws(token: str, keys: Dict[str, Any], typ: str = DELEGATION_TYP) -> dict:
     """Verify a compact EdDSA JWS against {kid: public key}. Returns the
-    payload. (ClientSt0r mints delegations; this exists for tests and for the
+    payload. (Clientst0r mints delegations; this exists for tests and for the
     lab harness, which plays both sides.)"""
     header, payload, signing_input, sig = parse_jws(token)
     if header.get('alg') != 'EdDSA' or header.get('typ') != typ:

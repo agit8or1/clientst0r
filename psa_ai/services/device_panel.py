@@ -1,5 +1,5 @@
 """
-The ticket's RMM side panel, per affected device (ClientSt0r ↔ RMM Phase 4).
+The ticket's RMM side panel, per affected device (Clientst0r ↔ RMM Phase 4).
 
 rmm_actions.panel() decides what each device can do; this adds what the
 technician needs around it, from stored data only:
@@ -10,7 +10,7 @@ technician needs around it, from stored data only:
     last 14 days, Rem0te alert activity);
   * this ticket's requests and remote launches for that device, with their
     results. A launch is only ever "link issued — session not confirmed":
-    no RMM tells ClientSt0r that a session started, so nothing here says so.
+    no RMM tells Clientst0r that a session started, so nothing here says so.
 
 Plus two technician steps with server-side rules:
 
@@ -182,7 +182,7 @@ def verification(ticket) -> Dict:
         checks = []
         devices = list(exposed_devices(asset))
         if not devices:
-            checks.append((UNKNOWN, 'No RMM reports this device, so ClientSt0r has no evidence. Verify it by hand.'))
+            checks.append((UNKNOWN, 'No RMM reports this device, so Clientst0r has no evidence. Verify it by hand.'))
         for d in devices:
             st = device_status(d, now)
             label = f'{d.connection.get_provider_type_display()} · {d.device_name}'

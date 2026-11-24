@@ -1,4 +1,4 @@
-"""Settings for the cross-peer end-to-end run: a real ClientSt0r on its own
+"""Settings for the cross-peer end-to-end run: a real Clientst0r on its own
 throwaway SQLite database next to a real Rem0te (scripts/e2e/cross_peer/run.py).
 
 Like scripts/demo/demo_settings.py, it never reads the deployment's .env and

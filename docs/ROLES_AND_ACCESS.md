@@ -1,6 +1,6 @@
 # Roles and access
 
-How Client St0r decides who may do what, for MSP staff and for customer users. Everything here is enforced on the
+How Clientst0r decides who may do what, for MSP staff and for customer users. Everything here is enforced on the
 server; hiding a button is never the check.
 
 <!-- guide-figure: guide-roles -->

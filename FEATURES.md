@@ -1,6 +1,6 @@
-# ClientSt0r Features
+# Clientst0r Features
 
-What ClientSt0r does as of **v3.17.761**, by area, with what each feature needs and where it stops.
+What Clientst0r does as of **v3.17.761**, by area, with what each feature needs and where it stops.
 See the [README](README.md) for install steps, [docs/screenshots.md](docs/screenshots.md) for the
 visual tour, and the [roadmap](docs/ROADMAP.md) for planned work.
 
@@ -168,15 +168,15 @@ Security Alerts and Incidents need `psa_enabled` and are MSP-staff only.
 ## 9. RMM and Rem0te
 
 Rem0te is a **separate component**: an RMM application maintained outside this repository.
-ClientSt0r never runs anything on a device; any endpoint action is approved in the RMM, never in
-ClientSt0r or by AI.
+Clientst0r never runs anything on a device; any endpoint action is approved in the RMM, never in
+Clientst0r or by AI.
 
 | Feature | Status | Configuration | Limitations | Docs |
 |---|---|---|---|---|
 | RMM sync (devices, alerts, software): Atera, ConnectWise Automate, Datto RMM, NinjaOne, Tactical RMM, Rem0te | Available | Settings → Integrations; scheduler task `rmm_sync` (off by default) | Polling; device map coordinates only from Tactical RMM | [INTEGRATION_SETUP_GUIDE.md](docs/INTEGRATION_SETUP_GUIDE.md) |
 | Rem0te pairing over contract ticket-rmm-v1 revision 2 (Ed25519 signatures, replay protection, tenant pinned by immutable IDs) | Available | Settings → Integrations → RMM · Rem0te; turning pairing on is a protected change a second administrator approves | Tested with both real applications in CI | [TECHNICIAN_ACCESS.md](docs/TECHNICIAN_ACCESS.md) |
 | Pairing other RMMs that implement the contract (HMAC signatures) | Limited | RMM connection page | Rem0te is the only known implementation | — |
-| Rem0te alert → ClientSt0r ticket with link back; alert-to-ticket policy and maintenance windows | Available | Security & Monitoring → Alert Policies | One ticket per Rem0te alert until the policy is switched on | — |
+| Rem0te alert → Clientst0r ticket with link back; alert-to-ticket policy and maintenance windows | Available | Security & Monitoring → Alert Policies | One ticket per Rem0te alert until the policy is switched on | — |
 | Redacted handoff from a ticket, view/control session launch | Limited | Technician access assignment at the customer | Session grants come from the RMM; the Rem0te handoff and session-launch routes (contract revision 3) are in development on the Rem0te side | [TECHNICIAN_ACCESS.md](docs/TECHNICIAN_ACCESS.md) |
 | Read-only diagnostics, remediation proposals, approval in Rem0te and results back to the ticket | Limited | | In development: contract routes agreed (revision 3) but not built on the Rem0te side; not yet end-to-end | [ROADMAP.md](docs/ROADMAP.md) |
 | Ticket RMM panel, verify-then-close, service lists (Tactical RMM only) | Available | Paired or synced RMM | | — |

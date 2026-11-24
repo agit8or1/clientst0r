@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Capture the documentation screenshot set from a running ClientSt0r instance.
+"""Capture the documentation screenshot set from a running Clientst0r instance.
 
 Reads ``scripts/screenshot_manifest.json`` and drives a real browser over the
 real application. It never touches production: it refuses to run unless the

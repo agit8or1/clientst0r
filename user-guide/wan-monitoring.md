@@ -1,6 +1,6 @@
 # Website & WAN Monitoring
 
-Checks run from the ClientSt0r server outward. No agent is installed on anything being checked. There are two kinds of check:
+Checks run from the Clientst0r server outward. No agent is installed on anything being checked. There are two kinds of check:
 
 | | Website monitors | WAN connection checks |
 |---|---|---|
@@ -159,7 +159,7 @@ Every check is stored. History older than 400 days is deleted by the same daily 
 
 ### Requirements
 
-The `ping` command must be on the server. Ubuntu installs include it, and the Docker image includes it from v3.17.617. Checks go out from the ClientSt0r server, so it must be able to reach the target: a site's public IP, for example, not an address only reachable inside that site's network.
+The `ping` command must be on the server. Ubuntu installs include it, and the Docker image includes it from v3.17.617. Checks go out from the Clientst0r server, so it must be able to reach the target: a site's public IP, for example, not an address only reachable inside that site's network.
 
 ---
 

@@ -1,4 +1,4 @@
-# Phase 1 — ClientSt0r ↔ Rem0te integration
+# Phase 1 — Clientst0r ↔ Rem0te integration
 
 Branch `dev/rmm-p1-integration` (from `47c30b72`). Peer: Rem0te `4b2b9f5cbe093b99563b9332ba3bdf9dded88720`
 (v0.30.1, contract `ticket-rmm-v1` revision 2). Nothing was released, tagged, pushed or deployed.
@@ -15,7 +15,7 @@ Branch `dev/rmm-p1-integration` (from `47c30b72`). Peer: Rem0te `4b2b9f5cbe093b9
   `contract_revision` that is not a positive integer, or `organizations` without a revision, is
   `CONTRACT_MISMATCH`. The revision Rem0te declared and the revision it validated against are stored on the
   check.
-- **Unknown fields (pending R2).** ClientSt0r accepts unknown fields only when Rem0te declares a revision newer
+- **Unknown fields (pending R2).** Clientst0r accepts unknown fields only when Rem0te declares a revision newer
   than 2, as the contract says ("revisions only add fields"). It logs them, stores their paths on the check
   (`unknown_fields`) and shows a warning. Rem0te documents at revision 1 or 2 must match their schema exactly.
   Alert events follow the same rule.
@@ -25,7 +25,7 @@ Branch `dev/rmm-p1-integration` (from `47c30b72`). Peer: Rem0te `4b2b9f5cbe093b9
 | Gap | What changed |
 |---|---|
 | G1 | The revision-2 capabilities schema is pinned; revision 1 is kept. Rem0te 0.30.1's capabilities now pair (s1 in the E2E below). |
-| G2 | The revision-2 alert schema includes `patch_summary`. An authentic event ClientSt0r cannot apply is recorded as skipped (`Rem0teAlertEvent.applied=False`, with the reason) and acknowledged with 200, so the cursor and Rem0te's push retries move on. It shows on the connection's health, sets a re-check flag, and reconciliation applies it again after the next good check. Events in the feed that name another peer or organization are recorded as foreign and never applied. |
+| G2 | The revision-2 alert schema includes `patch_summary`. An authentic event Clientst0r cannot apply is recorded as skipped (`Rem0teAlertEvent.applied=False`, with the reason) and acknowledged with 200, so the cursor and Rem0te's push retries move on. It shows on the connection's health, sets a re-check flag, and reconciliation applies it again after the next good check. Events in the feed that name another peer or organization are recorded as foreign and never applied. |
 | G3 | `contract_revision` is read and validated. A revision above 2 is accepted with a logged warning (policy above). |
 | G4/G5 | Only this organization's own `organizations[]` entry is used. Pause state is shown as **Degraded (containment)**. A job refused with 423 `CONTAINED` fails once, with a fixed message, and is not retried. A proposal refused with `CONTAINED` becomes `unavailable` (`remote_status CONTAINED`), not "rejected". The refusal clears once a check shows the pause lifted. |
 | G6 | `patch_summary` is validated against the pinned `patch-summary` schema, stored on `Rem0teAlertTicket.patch_summary`, written into the ticket description and refreshed by update events. |
@@ -62,25 +62,25 @@ Also part of Phase 1:
 
 R1–R10 from the coordination audit still stand. Two notes from this phase:
 
-- **R2 (unknown fields).** The interim policy above is implemented and covered by tests. ClientSt0r would drop
+- **R2 (unknown fields).** The interim policy above is implemented and covered by tests. Clientst0r would drop
   the tolerance branch once Rem0te publishes per-revision schemas or lets a peer declare its revision.
 - **R3 (technician probe).** The wizard learns whether a technician is mapped from a delegated
   `GET /jobs/00000000-0000-4000-8000-000000000000`. Rem0te checks the actor before the job, so the answer is
   404 when the technician is mapped and 403 with a reason when not. This relies on observed behaviour, not on a
   documented contract. It spends one delegation `jti` and reads nothing. A documented probe is still requested.
-- **R4 (pause reason).** ClientSt0r does not store or show the free-text `Reason:` from 423 / 403 `CONTAINED`
+- **R4 (pause reason).** Clientst0r does not store or show the free-text `Reason:` from 423 / 403 `CONTAINED`
   bodies anywhere; it uses a fixed message instead.
 
 - **R11 (new): inference retry budget.** Rem0te 0.30.1's worker retries a `GATEWAY_UNREACHABLE` model run 3
   times (`MAX_RUN_ATTEMPTS = 3`), about 13 seconds in all. It then ends the job `ALL_PROFILES_FAILED`. If a
-  ClientSt0r restart takes longer than that, every job queued during the restart fails for good. Request:
+  Clientst0r restart takes longer than that, every job queued during the restart fails for good. Request:
   keep retrying a transient gateway failure until the job expires, or for a configurable window (as alert
   delivery already does).
 
 ## E2E results
 
 `scripts/e2e/cross_peer/` was run against the real Rem0te: a copy of `4b2b9f5cbe093b99563b9332ba3bdf9dded88720`
-(v0.30.1) built locally, on its own scratch Postgres and Redis. ClientSt0r ran from this branch on a
+(v0.30.1) built locally, on its own scratch Postgres and Redis. Clientst0r ran from this branch on a
 throwaway SQLite database.
 
 - **Baseline** (branch base `47c30b72`, unchanged code): s1 failed with "Check pairing org-1: paired — its
@@ -103,13 +103,13 @@ throwaway SQLite database.
     - Reconciliation ran for both connections.
   - **s5 failed (3 checks):** "the analysis job submitted during the outage completed", "one terminal result"
     and "one model call". Rem0te ended the job `ALL_PROFILES_FAILED` after its 3 `GATEWAY_UNREACHABLE`
-    attempts (14:09:28, :32 and :41). ClientSt0r's `runserver` on this loaded shared machine answered again
+    attempts (14:09:28, :32 and :41). Clientst0r's `runserver` on this loaded shared machine answered again
     only at 14:09:56. Rem0te's worker retry code is the same at `1bff01a4` and `4b2b9f5c`; this is the
     restart-timing dependency described in R11, not a contract difference. The other s5 checks passed:
     exactly one alert ticket after push retries and polling, and every event acknowledged.
 - **Partial run (s1, s2, s11): 53 passed, 0 failed.** This was the run in which s11's posture heartbeat was
   corrected to the signed channel; Rem0te ignores `patchPosture` on any other channel.
 
-Interoperability is therefore shown for everything above except the s5 job-across-a-ClientSt0r-restart case.
+Interoperability is therefore shown for everything above except the s5 job-across-a-Clientst0r-restart case.
 Action proposals under a pause are covered by unit tests only: the harness's technicians cannot propose
 actions in Rem0te.

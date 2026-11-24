@@ -22,7 +22,7 @@ SCRIPT_VERSION = '1.0'
 CLASSIFY_PORTS = [80, 443, 22, 3389, 445, 9100]
 
 _TEMPLATE = r'''<#
-    Client St0r — Remote Network Discovery
+    Clientst0r — Remote Network Discovery
     Script version {script_version}
     Generated {generated_at} for {org_name} / {location_name}
 
@@ -65,7 +65,7 @@ $ErrorActionPreference = 'Stop'
 $ScriptVersion = '{script_version}'
 
 Write-Host ''
-Write-Host '  Client St0r — Network Discovery' -ForegroundColor Cyan
+Write-Host '  Clientst0r — Network Discovery' -ForegroundColor Cyan
 Write-Host '  Run this only on networks you are authorised to scan.' -ForegroundColor Yellow
 Write-Host "  Results upload to: $ServerUrl" -ForegroundColor Gray
 Write-Host ''

@@ -1,13 +1,13 @@
 # Importing from Hudu
 
-ClientSt0r is a self-hosted, MIT-licensed IT documentation and service desk platform for
+Clientst0r is a self-hosted, MIT-licensed IT documentation and service desk platform for
 MSPs, with documentation, credentials, assets and ticketing in one system you run yourself.
 This page covers its built-in Hudu importer: what it brings over today and what to plan
 for before switching.
 
-## ClientSt0r at a glance
+## Clientst0r at a glance
 
-| Category | ClientSt0r |
+| Category | Clientst0r |
 | --- | --- |
 | Licence | MIT, open source; no licence fee, seat or client limits |
 | Hosting | Self-hosted (Docker or native install). Optional managed hosting and support are offered separately by [MSP Reboot](https://mspreboot.com) |
@@ -17,7 +17,7 @@ for before switching.
 
 ## Capabilities
 
-| Capability | Status in ClientSt0r |
+| Capability | Status in Clientst0r |
 | --- | --- |
 | Asset management (fixed asset types, tags, photos, relationships) | Available; per-type custom fields are not in the UI yet |
 | Encrypted password vault (AES-256-GCM, audited reveals) | Available |

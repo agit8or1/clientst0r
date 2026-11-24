@@ -1,5 +1,5 @@
 [Unit]
-Description=Client St0r Task Scheduler Timer
+Description=Clientst0r Task Scheduler Timer
 Requires=clientst0r-scheduler.service
 
 [Timer]

@@ -1,6 +1,6 @@
-# Client St0r Mobile — Public Beta
+# Clientst0r Mobile — Public Beta
 
-Welcome. This is the public beta of the Client St0r Mobile companion app for Android. You are here because someone pointed you at the opt-in URL — thanks for testing.
+Welcome. This is the public beta of the Clientst0r Mobile companion app for Android. You are here because someone pointed you at the opt-in URL — thanks for testing.
 
 > **Heads up:** This is a beta. You will hit rough edges. Please report them — that's the entire point of being here.
 
@@ -11,12 +11,12 @@ Welcome. This is the public beta of the Client St0r Mobile companion app for And
 1. Tap the opt-in link:
    <p>
      <a class="cta" href="https://play.google.com/apps/testing/com.clientstor.mspreboot">
-       Join the Client St0r beta on Google Play →
+       Join the Clientst0r beta on Google Play →
      </a>
    </p>
 2. Sign in with the same Google account you use on your phone.
 3. Tap **Become a tester**, then **Download it on Google Play**.
-4. Install. The app appears on your home screen as **Client St0r Mobile**.
+4. Install. The app appears on your home screen as **Clientst0r Mobile**.
 
 The Play Store listing shows a small *(Unreleased)* badge next to the app name while you're a beta tester.
 
@@ -24,7 +24,7 @@ The Play Store listing shows a small *(Unreleased)* badge next to the app name w
 
 ## 2. Set up your account
 
-You need a working Client St0r account on the server you'll be connecting to. **This app is not a standalone product** — it talks to a Client St0r server your organization (or your provider) operates.
+You need a working Clientst0r account on the server you'll be connecting to. **This app is not a standalone product** — it talks to a Clientst0r server your organization (or your provider) operates.
 
 1. Get your server's public URL from your administrator. It looks like `https://yourcompany.clientstor.app` (or whatever your provider configured).
 2. Get your username + password — same credentials you use for the web app.
@@ -82,7 +82,7 @@ If the app **crashed**, Sentry sees the stack trace automatically (no PII attach
 
 ## 5. Privacy
 
-The app talks **only** to your Client St0r server. It does not include analytics or ad SDKs. The one exception is optional crash reporting via Sentry — stack traces only, no user data.
+The app talks **only** to your Clientst0r server. It does not include analytics or ad SDKs. The one exception is optional crash reporting via Sentry — stack traces only, no user data.
 
 Full details: see the [Privacy Policy](/privacy-policy/).
 
@@ -101,6 +101,6 @@ Beta is rolling — when we promote a build to general release, your beta instal
 
 ## 7. Need help that isn't a bug?
 
-Ask your administrator — they hold the keys to your Client St0r server, user accounts, and 2FA. We can't reset your password from this side; the server is yours.
+Ask your administrator — they hold the keys to your Clientst0r server, user accounts, and 2FA. We can't reset your password from this side; the server is yours.
 
 Thanks for testing. Every bug report you file makes the next build better.

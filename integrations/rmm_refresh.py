@@ -50,7 +50,7 @@ def availability(device):
     conn = device.connection
     cls = provider_class(conn)
     if cls is None or getattr(cls, 'get_device', None) is BaseRMMProvider.get_device:
-        return False, f"{conn.get_provider_type_display()} has no single-device refresh in ClientSt0r."
+        return False, f"{conn.get_provider_type_display()} has no single-device refresh in Clientst0r."
     if not conn.is_active or not conn.sync_enabled:
         return False, f'The {conn.name} connection is switched off.'
     if not device.is_exposed:

@@ -13,7 +13,7 @@ Shape of a definition:
   evidence          evidence items to gather (engine.EVIDENCE)
   causes            [{text, when}] likely causes, rule-based: `when` is a condition
   remediations      [{action, when, impact}] — `action` is a Rem0te catalog action
-                    key ClientSt0r knows (integrations.rem0te.pairing.KNOWN_ACTIONS);
+                    key Clientst0r knows (integrations.rem0te.pairing.KNOWN_ACTIONS);
                     it is offered only when the paired Rem0te advertises it and
                     `when` holds. Never a command, script, path or URL.
   manual_steps      what a technician does when no advertised action fits

@@ -2,7 +2,7 @@
 
 The permission is defined on every role template, is a labelled checkbox in
 the role editor, and is displayed in the role list. Nothing anywhere checks
-it: Client St0r has no bulk password export — no view, no URL. Granting or
+it: Clientst0r has no bulk password export — no view, no URL. Granting or
 denying it changed nothing at all.
 
 Building the export was deliberately not done. A bulk password export is a

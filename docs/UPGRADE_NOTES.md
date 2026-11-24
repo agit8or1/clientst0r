@@ -1,4 +1,4 @@
-# Client St0r Upgrade Notes
+# Clientst0r Upgrade Notes
 
 ## 💡 v2.25.1 - User-Configurable Tooltips
 
@@ -455,7 +455,7 @@ The migration automatically:
 - Restarts Gunicorn
 
 ### Perfect for Multiple Servers:
-This update is designed for administrators managing multiple Client St0r servers. Run the same single command on all servers - everything happens automatically!
+This update is designed for administrators managing multiple Clientst0r servers. Run the same single command on all servers - everything happens automatically!
 
 ### Already Applied the Fix Manually?
 No problem! The migration detects if the fix is already applied and won't duplicate the configuration.
@@ -497,7 +497,7 @@ If you've already run `./scripts/fix_gunicorn_env.sh` after v2.24.113, you're go
 
 ### New Feature: Report Bugs Directly to GitHub
 
-Users can now report bugs from Client St0r! Click **username dropdown → Report Bug**.
+Users can now report bugs from Clientst0r! Click **username dropdown → Report Bug**.
 
 **Features:**
 - Submit title, description, steps to reproduce

@@ -1,7 +1,7 @@
 """
 Settings → RMM → Rem0te: the setup wizard.
 
-One page for ClientSt0r's instance-wide Rem0te identity (peer id, audiences,
+One page for Clientst0r's instance-wide Rem0te identity (peer id, audiences,
 keys, the peers-file entry) and, for each Rem0te connection the viewer may
 manage, its status (Connected / Degraded / Disconnected / Authentication
 Problem / Configuration Required), a checklist of what is in place and what
@@ -81,22 +81,22 @@ def rem0te_setup_identity(request):
     try:
         if op == 'generate':
             if identity.has_keys():
-                messages.info(request, 'ClientSt0r already has Rem0te keys.')
+                messages.info(request, 'Clientst0r already has Rem0te keys.')
             else:
                 identity.generate_keys(by=request.user)
-                messages.success(request, "ClientSt0r's Rem0te keys were generated.")
+                messages.success(request, "Clientst0r's Rem0te keys were generated.")
         elif op == 'update':
             identity.update(identity.get(), peer_id=request.POST.get('peer_id', ''),
                             audience=request.POST.get('audience', ''),
                             public_base_url=request.POST.get('public_base_url', ''), by=request.user)
-            messages.success(request, "ClientSt0r's Rem0te identity was saved.")
+            messages.success(request, "Clientst0r's Rem0te identity was saved.")
         elif op == 'stage':
             identity.stage_next_keys(by=request.user)
             messages.success(request, 'Next keys staged. Add them to the peers file (the entry below lists both), '
                                       'restart Rem0te, then press "Switch to the next keys".')
         elif op == 'promote':
             identity.promote_next_keys(by=request.user)
-            messages.success(request, 'ClientSt0r now signs with the new keys. Remove the old ones from the peers '
+            messages.success(request, 'Clientst0r now signs with the new keys. Remove the old ones from the peers '
                                       'file at the next Rem0te restart.')
         elif op == 'discard':
             identity.discard_next_keys(by=request.user)

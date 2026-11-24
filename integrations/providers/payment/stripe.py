@@ -1,10 +1,10 @@
 """
 Stripe adapter — REST over `requests`, no SDK.
 
-Collect-only: ClientSt0r owns invoices and the billing schedule. This adapter
+Collect-only: Clientst0r owns invoices and the billing schedule. This adapter
 never creates Stripe Invoices, Prices, Products or Subscriptions; it creates
 Checkout Sessions (mode=payment / mode=setup) and PaymentIntents for an
-amount that names a ClientSt0r invoice in its metadata.
+amount that names a Clientst0r invoice in its metadata.
 
 Credentials (sealed on the PaymentConnection):
   api_key          secret key (sk_live_... / sk_test_... / rk_...)
@@ -155,7 +155,7 @@ class StripeProvider(BasePaymentProvider):
     def create_checkout_payment(self, *, customer_id: str, amount, currency: str, description: str,
                                 reference: str, metadata: dict, success_url: str, cancel_url: str,
                                 save_for_future: bool, idempotency_key: str) -> Dict[str, Any]:
-        """Checkout Session, mode=payment, for one ClientSt0r invoice balance.
+        """Checkout Session, mode=payment, for one Clientst0r invoice balance.
         `price_data` is an inline, one-off line — no Product / Price objects
         are created and no Stripe invoice is generated."""
         pi_data = {'metadata': metadata, 'description': description}

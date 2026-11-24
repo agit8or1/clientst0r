@@ -9,7 +9,7 @@ Endpoints that fail are recorded on ``plan.unavailable`` with a kind:
 
     permission     401/403 - the API key may not read it
     api_gap        404/405 - the endpoint does not exist on this source
-    not_supported  readable, but ClientSt0r has no mapping for it
+    not_supported  readable, but Clientst0r has no mapping for it
     error          anything else
 """
 from __future__ import annotations

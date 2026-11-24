@@ -123,7 +123,7 @@ _NUMBERING = (
 _APP = (
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
     '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">'
-    '<Application>Client St0r</Application></Properties>'
+    '<Application>Clientst0r</Application></Properties>'
 )
 
 
@@ -156,7 +156,7 @@ def _table(rows):
     return ''.join(out)
 
 
-def build_docx(title, blocks, author='Client St0r'):
+def build_docx(title, blocks, author='Clientst0r'):
     """A .docx from ``blocks``: ('title'|'h1'|'h2'|'p'|'bullet', text) or ('table', rows)."""
     styles = {'title': 'Title', 'h1': 'Heading1', 'h2': 'Heading2', 'bullet': 'ListBullet', 'p': None}
     body = []
@@ -208,7 +208,7 @@ def build_xlsx(sheet_title, header, rows, *, widths=None, number_formats=None, t
     ws.title = sheet_title[:31]
     if title:
         wb.properties.title = title
-    wb.properties.creator = 'Client St0r'
+    wb.properties.creator = 'Clientst0r'
     ws.append(list(header))
     fill = PatternFill('solid', fgColor='1F4E78')
     thin = Side(style='thin', color='BFBFBF')
@@ -252,7 +252,7 @@ def build_pdf(title, sections, *, subtitle=''):
 
     styles = getSampleStyleSheet()
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4, title=title, author='Client St0r',
+    doc = SimpleDocTemplate(buf, pagesize=A4, title=title, author='Clientst0r',
                             leftMargin=20 * mm, rightMargin=20 * mm, topMargin=18 * mm, bottomMargin=18 * mm)
     story = [Paragraph(escape(title), styles['Title'])]
     if subtitle:

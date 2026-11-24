@@ -41,7 +41,7 @@ class AccountingPreflightError(AccountingProviderError):
     pass
 
 
-PUSH_KEY_LABEL = 'ClientSt0r push key'
+PUSH_KEY_LABEL = 'Clientst0r push key'
 
 
 def push_key_note(key: str) -> str:

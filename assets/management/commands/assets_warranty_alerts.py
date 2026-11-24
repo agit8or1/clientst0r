@@ -88,7 +88,7 @@ class Command(BaseCommand):
             lines += [
                 '',
                 'Renew or replace ahead of the date to avoid service gaps. '
-                'Open the asset in Client St0r to update warranty details.',
+                'Open the asset in Clientst0r to update warranty details.',
             ]
             body = '\n'.join(lines)
 

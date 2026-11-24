@@ -27,7 +27,7 @@ Rules:
     after 24 hours.
 
 For Rem0te-managed devices this is in addition to Rem0te's own approvals
-(its roster, passkeys, signer), which ClientSt0r never replaces.
+(its roster, passkeys, signer), which Clientst0r never replaces.
 """
 from __future__ import annotations
 
@@ -106,7 +106,7 @@ def notify_approvers(approval):
         label = catalog.ACTIONS[approval.action].label if approval.action in catalog.ACTIONS else approval.action
         base = getattr(django_settings, 'SITE_URL', '').rstrip('/')
         url = f'{base}{reverse("rmm_permissions:approvals")}'
-        subject = f'[ClientSt0r] RMM approval waiting at {approval.organization.name}'
+        subject = f'[Clientst0r] RMM approval waiting at {approval.organization.name}'
         body = (f'{approval.requester.get_username()} asked for approval of an RMM action '
                 f'({label}) at {approval.organization.name}.\n\n'
                 f'Review it, after confirming your password, at {url}\n\n'

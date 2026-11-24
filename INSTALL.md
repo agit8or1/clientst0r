@@ -1,6 +1,6 @@
-# Client St0r Installation Guide
+# Clientst0r Installation Guide
 
-Complete guide for installing, upgrading, and managing Client St0r.
+Complete guide for installing, upgrading, and managing Clientst0r.
 
 ## Table of Contents
 
@@ -21,7 +21,7 @@ Complete guide for installing, upgrading, and managing Client St0r.
 
 ### One-Line Installation
 
-Install Client St0r on a fresh Ubuntu/Debian server:
+Install Clientst0r on a fresh Ubuntu/Debian server:
 
 ```bash
 git clone https://github.com/agit8or1/clientst0r.git && cd clientst0r && bash install.sh
@@ -124,7 +124,7 @@ The installer automatically detects existing installations by checking for:
 When you run the installer on an existing installation:
 
 ```
-[!] Existing Client St0r installation detected!
+[!] Existing Clientst0r installation detected!
 
   • Found: .env configuration file
   • Found: Python virtual environment
@@ -331,7 +331,7 @@ sudo apt-get install -y \
    API_KEY_SECRET=<paste_api_key_secret>
 
    EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
-   SITE_NAME=Client St0r
+   SITE_NAME=Clientst0r
    SITE_URL=http://YOUR_IP:8000
    EOF
    ```
@@ -630,4 +630,4 @@ tar -czf clientst0r_files_$(date +%Y%m%d).tar.gz \
 
 ---
 
-**Made with ❤️ and 🐕 by the Client St0r Team and Luna the German Shepherd**
+**Made with ❤️ and 🐕 by the Clientst0r Team and Luna the German Shepherd**

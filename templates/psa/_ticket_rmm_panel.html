@@ -81,7 +81,7 @@ autoescaped text; diagnostic output is shown in <pre>, never as HTML.
             {% else %}
             <button type="button" class="btn btn-sm btn-outline-secondary" disabled data-rmm-action="remote_view" title="{{ a.remote_view.reason }}">View session</button>
             {% if t.console.console_url %}
-            <a class="btn btn-sm btn-outline-primary" href="{{ t.console.console_url }}" target="_blank" rel="noopener noreferrer" data-rmm-action="console" title="Opens {{ t.console.provider }}, which applies its own sign-in and launch policy. ClientSt0r is not told whether a session started.">
+            <a class="btn btn-sm btn-outline-primary" href="{{ t.console.console_url }}" target="_blank" rel="noopener noreferrer" data-rmm-action="console" title="Opens {{ t.console.provider }}, which applies its own sign-in and launch policy. Clientst0r is not told whether a session started.">
                 <i class="fas fa-external-link-alt me-1" aria-hidden="true"></i>{{ t.console.console_label }}</a>
             {% endif %}
             {% endif %}
@@ -128,7 +128,7 @@ autoescaped text; diagnostic output is shown in <pre>, never as HTML.
                     </select>
                     <button class="btn btn-sm btn-outline-primary text-nowrap" data-rmm-action="fix">Propose</button>
                 </div>
-                <p class="small text-muted mb-0 mt-1">Rem0te checks your access to this computer and shows the proposal on its approval page; its approvers approve it there, by passkey. ClientSt0r never runs or approves it, and nothing Rem0te reports closes this ticket or replies to the customer.</p>
+                <p class="small text-muted mb-0 mt-1">Rem0te checks your access to this computer and shows the proposal on its approval page; its approvers approve it there, by passkey. Clientst0r never runs or approves it, and nothing Rem0te reports closes this ticket or replies to the customer.</p>
                 {% else %}
                 <div class="d-flex gap-1">
                     <select name="risk" class="form-select form-select-sm" aria-label="Risk">
@@ -137,7 +137,7 @@ autoescaped text; diagnostic output is shown in <pre>, never as HTML.
                     </select>
                     <button class="btn btn-sm btn-outline-primary text-nowrap" data-rmm-action="fix">Refer</button>
                 </div>
-                <p class="small text-muted mb-0 mt-1">The RMM approves and runs fixes on its own approval page. ClientSt0r never runs or approves them, and nothing the RMM reports closes this ticket or replies to the customer.</p>
+                <p class="small text-muted mb-0 mt-1">The RMM approves and runs fixes on its own approval page. Clientst0r never runs or approves them, and nothing the RMM reports closes this ticket or replies to the customer.</p>
                 {% endif %}
             </form>
         </details>
@@ -195,7 +195,7 @@ autoescaped text; diagnostic output is shown in <pre>, never as HTML.
         </li>
         {% endfor %}
     </ul>
-    <p class="small text-muted mb-0">The RMM authorizes and runs remote sessions. ClientSt0r records that it handed out a launch link; no RMM reports back whether a session started.</p>
+    <p class="small text-muted mb-0">The RMM authorizes and runs remote sessions. Clientst0r records that it handed out a launch link; no RMM reports back whether a session started.</p>
     {% endif %}
 
     <div class="d-flex flex-wrap gap-2 align-items-end mt-2 border-top pt-2">

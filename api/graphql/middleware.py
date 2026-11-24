@@ -1,5 +1,5 @@
 """
-GraphQL Middleware for Client St0r
+GraphQL Middleware for Clientst0r
 """
 
 from django.contrib.auth.models import AnonymousUser

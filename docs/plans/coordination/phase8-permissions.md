@@ -12,7 +12,7 @@ workspace and ticket panel, alert workflows and AI: **call this API for every RM
 | Platform administrator role | Missing. Superuser stood in | Built-in **Platform Administrator** template (tier `platform_admin`) |
 | High-impact RMM work (scripts, patches, device administration, automation) | Missing | Actions in the catalog. They need second-person approval |
 | Per-org / per-action allow, deny and require-approval overrides | Missing. `tech_access` had per-capability denies and restrictions only | `RMMPermissionOverride` |
-| Second-person approval of RMM operations | Missing in ClientSt0r. Rem0te has its own | `RMMApproval` |
+| Second-person approval of RMM operations | Missing in Clientst0r. Rem0te has its own | `RMMApproval` |
 | Audit of every allow and deny | Partial: only requests that were created | `rmm_action()` audits every allow and deny |
 | Composition with a Rem0te refusal | Partial: each path handled it by hand | `record_remote_refusal()` |
 
@@ -80,7 +80,7 @@ The catalog is `rmm_permissions/catalog.py`. `tech_access` capability = the pres
 
 Locked (never available): `shell.unrestricted`, `tenant.all_access`, `approval.self`, `endpoint.approve`.
 
-ClientSt0r invents no Rem0te scopes. The only ones it uses are Rem0te's own `ticket_analysis:submit`, `ticket_analysis:read`, `actions:propose` and `actions:read` (`integrations/rem0te/protocol.py SCOPES`). A test checks this. Rem0te's approval roster, passkeys and signer still apply on top of any ClientSt0r approval.
+Clientst0r invents no Rem0te scopes. The only ones it uses are Rem0te's own `ticket_analysis:submit`, `ticket_analysis:read`, `actions:propose` and `actions:read` (`integrations/rem0te/protocol.py SCOPES`). A test checks this. Rem0te's approval roster, passkeys and signer still apply on top of any Clientst0r approval.
 
 ## How a decision is made
 

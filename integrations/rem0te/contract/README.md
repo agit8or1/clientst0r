@@ -1,22 +1,22 @@
 # Contract ticket-rmm-v1
 
-The canonical interface between **ClientSt0r** and **rem0te**. rem0te owns it.
+The canonical interface between **Clientst0r** and **rem0te**. rem0te owns it.
 
 | Owner | Owns |
 |---|---|
-| ClientSt0r | Tickets, customer communication, AI configuration, model choice, **every provider key**, the inference gateway |
+| Clientst0r | Tickets, customer communication, AI configuration, model choice, **every provider key**, the inference gateway |
 | rem0te | Mapping organizations/technicians to businesses/users, endpoint evidence, job orchestration, signed results — and, in later milestones, independently approved catalog actions |
 
 | File | What |
 |---|---|
 | `openapi.yaml` | Routes on both sides |
 | `schemas/*.schema.json` | **Generated** from `apps/api/src/integration/contract.ts`. Do not edit — run `node scripts/gen-integration-contracts.mjs` |
-| `proposed/*.schema.json` | **Proposals, not contract** (0.34): `peer-capabilities`, `timeline-inference-request`, `timeline-inference-response`, `timeline-summary-output` — items P11/P12 of revision 4 in [`INTEGRATION_COORDINATION.md`](../../../INTEGRATION_COORDINATION.md) §5A. Generated from `PROPOSED_SCHEMAS` in `contract.ts`, checked for drift like the rest, and **not** part of any `contract_revision` until ClientSt0r acknowledges them |
+| `proposed/*.schema.json` | **Proposals, not contract** (0.34): `peer-capabilities`, `timeline-inference-request`, `timeline-inference-response`, `timeline-summary-output` — items P11/P12 of revision 4 in [`INTEGRATION_COORDINATION.md`](../../../INTEGRATION_COORDINATION.md) §5A. Generated from `PROPOSED_SCHEMAS` in `contract.ts`, checked for drift like the rest, and **not** part of any `contract_revision` until Clientst0r acknowledges them |
 | `fixtures/*.json` | Example messages, produced by rem0te's own code paths. `<schema>.invalid-*.json` must be rejected. CI validates all of them |
 | `fixtures/fixture-signing-key.pub.pem` | Verifies `signed-event.job-succeeded.json`. Test-only key; its private half was discarded |
 | `examples/*.json` | **Real exchanges** (0.30), recorded by `apps/api/scripts/e2e-ticket-workflow.mjs --write-examples`: method, path, every signing header, body, and the response. Signed with the TEST-ONLY keys in `examples/keys/` (fixed seeds; the private halves are published on purpose so a peer can reproduce the signatures). `gen-integration-contracts.mjs --check` verifies every signature, delegation binding and schema in CI |
-| `CLIENTST0R.md` | What ClientSt0r should consume, and the measured gaps between it and this contract |
-| `clientst0r-interop.json` | The last run of ClientSt0r's own code against rem0te (`apps/api/scripts/interop-clientst0r.mjs`) |
+| `CLIENTST0R.md` | What Clientst0r should consume, and the measured gaps between it and this contract |
+| `clientst0r-interop.json` | The last run of Clientst0r's own code against rem0te (`apps/api/scripts/interop-clientst0r.mjs`) |
 
 ## Revisions
 
@@ -27,25 +27,25 @@ implements.
 |---|---|---|
 | 1 | 0.25–0.29 | Jobs, events, action proposals (0.26), alerts and ticket links (0.29) |
 | 2 | 0.30 | `contract_revision`; `organizations` in `/capabilities` (each organization's `business_id`, `business_name` and `paused` kinds — the binding made explicit); `alert.patch_summary` on REBOOT_PENDING alerts (schema `patch-summary`) |
-| *3 (agreed, not built)* | *—* | *P1–P10 of [`INTEGRATION_COORDINATION.md`](../../../INTEGRATION_COORDINATION.md) §5: capabilities list and diagnostic catalog, diagnostic requests and events, fix referrals and events, remote launch, handoff notes, `Idempotency-Key`, device health summary. Acknowledged by ClientSt0r on 2026-11-11 as proposed (§9). No schema here yet: `contract_revision` stays 2 until rem0te ships them* |
-| *4 (proposed)* | *0.34, rem0te side only* | *P11: inference task `device_timeline_v1` (the device page's AI summary). P12: ClientSt0r's own capabilities document at the peers file's `capabilitiesUrl`. Not agreed; see `proposed/`* |
+| *3 (agreed, not built)* | *—* | *P1–P10 of [`INTEGRATION_COORDINATION.md`](../../../INTEGRATION_COORDINATION.md) §5: capabilities list and diagnostic catalog, diagnostic requests and events, fix referrals and events, remote launch, handoff notes, `Idempotency-Key`, device health summary. Acknowledged by Clientst0r on 2026-11-11 as proposed (§9). No schema here yet: `contract_revision` stays 2 until rem0te ships them* |
+| *4 (proposed)* | *0.34, rem0te side only* | *P11: inference task `device_timeline_v1` (the device page's AI summary). P12: Clientst0r's own capabilities document at the peers file's `capabilitiesUrl`. Not agreed; see `proposed/`* |
 
 ## Milestone status
 
 | Capability | State |
 |---|---|
-| Ticket-only analysis, optional device evidence, model comparison | **Fixture-tested** (`apps/api/scripts/e2e-integration.mjs`, simulated ClientSt0r) |
+| Ticket-only analysis, optional device evidence, model comparison | **Fixture-tested** (`apps/api/scripts/e2e-integration.mjs`, simulated Clientst0r) |
 | Full workflow (pair, analyse, alert → ticket → resolve, restart without duplicates, identical PC names, revoked technician, offline endpoint, paused business, suggestions authorize nothing) | **Proved against a contract-conformant reference peer**, with the real API, worker and approval signer (`apps/api/scripts/e2e-ticket-workflow.mjs`) |
-| Paired with a real ClientSt0r | **Measured: does not interoperate.** ClientSt0r 3.17.659 signs with HMAC and expects a different capabilities and job shape — four gaps, in `CLIENTST0R.md` (`apps/api/scripts/interop-clientst0r.mjs`) |
-| Alert events and ticket links (`features.alerts`, `/alerts/*`, rem0te ≥ 0.29) | **Fixture-tested** (`apps/api/scripts/e2e-monitoring.mjs`, simulated ClientSt0r events endpoint). Not yet run against a real ClientSt0r |
-| Action proposals (`features.actions`, `/action-proposals`, rem0te ≥ 0.26) | **Fixture-tested** (`apps/api/scripts/e2e-approved-action.mjs`, simulated ClientSt0r and agent). ClientSt0r proposes; it cannot approve or execute. Lists `windows.service.start@1` (Print Spooler) only while an approval signer is configured, otherwise empty |
+| Paired with a real Clientst0r | **Measured: does not interoperate.** Clientst0r 3.17.659 signs with HMAC and expects a different capabilities and job shape — four gaps, in `CLIENTST0R.md` (`apps/api/scripts/interop-clientst0r.mjs`) |
+| Alert events and ticket links (`features.alerts`, `/alerts/*`, rem0te ≥ 0.29) | **Fixture-tested** (`apps/api/scripts/e2e-monitoring.mjs`, simulated Clientst0r events endpoint). Not yet run against a real Clientst0r |
+| Action proposals (`features.actions`, `/action-proposals`, rem0te ≥ 0.26) | **Fixture-tested** (`apps/api/scripts/e2e-approved-action.mjs`, simulated Clientst0r and agent). Clientst0r proposes; it cannot approve or execute. Lists `windows.service.start@1` (Print Spooler) only while an approval signer is configured, otherwise empty |
 
 ## Trust
 
 - **Peers live in a root-owned file** (`INTEGRATION_PEERS_FILE`), not the database: keys, audiences, the two
-  ClientSt0r URLs, allowed model profiles, optional mTLS pins, and rem0te's own Ed25519 key. A database or
+  Clientst0r URLs, allowed model profiles, optional mTLS pins, and rem0te's own Ed25519 key. A database or
   portal-admin compromise cannot add a peer, swap a key or redirect the worker.
-- **Two ClientSt0r keys.** A *request* key signs service-to-service calls; a separate *delegation* key mints
+- **Two Clientst0r keys.** A *request* key signs service-to-service calls; a separate *delegation* key mints
   technician tokens. A stolen service credential alone cannot act as a technician.
 - **Explicit mapping.** `(peer, organization_id) → business` and `(peer, organization_id, technician_id) → user`
   are rows a Platform Admin creates (step-up required). Nothing is matched by name, e-mail or hostname.
@@ -59,14 +59,14 @@ implements.
 Both directions. Headers:
 
 ```
-rem0te-key-id:    {peer-id}/{kid}        (rem0te → ClientSt0r: rem0te/{kid})
+rem0te-key-id:    {peer-id}/{kid}        (rem0te → Clientst0r: rem0te/{kid})
 rem0te-timestamp: unix seconds            (±120 s)
 rem0te-nonce:     16–128 base64url chars  (single use, persisted, survives restart)
 rem0te-signature: base64url Ed25519 over
   rem0te-http-req-v1\n{audience}\n{METHOD}\n{path?query}\n{timestamp}\n{nonce}\n{sha256-hex(raw body)}
 ```
 
-`audience` names the receiver (`peers[].audience` for rem0te, `peers[].peerAudience` for ClientSt0r), so a
+`audience` names the receiver (`peers[].audience` for rem0te, `peers[].peerAudience` for Clientst0r), so a
 request signed for one instance is refused by every other.
 
 Inference responses are signed over `rem0te-http-resp-v1\n{the request's nonce}\n{sha256-hex(body)}` and must
@@ -84,7 +84,7 @@ Compact JWS, `alg: EdDSA`, `typ: rem0te-delegation+jwt`, `kid` = a delegation ke
 |---|---|
 | `iss` | peer id |
 | `aud` | `peers[].audience` |
-| `sub` / `org` | ClientSt0r technician / organization; must equal the body's `technician_id` / `organization_id` |
+| `sub` / `org` | Clientst0r technician / organization; must equal the body's `technician_id` / `organization_id` |
 | `scope` | `ticket_analysis:submit` or `ticket_analysis:read` |
 | `iat`, `exp` | `exp − iat ≤ 300` |
 | `jti` | single use, persisted |
@@ -122,7 +122,7 @@ an `approval_url`.
   own origin, by people on its roster, each with a user-verified passkey; never by the proposer, and in the number
   the catalog sets (one for a standard workstation, two for anything else) plus customer sign-off where that
   business's policy requires it. The agent on the computer verifies the signer's signature with a key it gets
-  from the offline-rooted update chain, so neither ClientSt0r nor rem0te's portal can substitute one.
+  from the offline-rooted update chain, so neither Clientst0r nor rem0te's portal can substitute one.
 - **`origin: ai_suggestion`** is shown to the approvers as an AI suggestion and gets no shortcut.
 - **The vocabulary is the catalog.** There is no command, script, path or URL field. Anything not in the catalog
   is `ACTION_NOT_IN_CATALOG`, and credential extraction, removing backups, disabling defenses, admin grants, disk
@@ -133,10 +133,10 @@ an `approval_url`.
 
 ## Alert events (0.29)
 
-rem0te tells ClientSt0r about monitoring alerts so it can open a ticket, and ClientSt0r says which ticket it
+rem0te tells Clientst0r about monitoring alerts so it can open a ticket, and Clientst0r says which ticket it
 opened. `features.alerts` is `true` from 0.29.
 
-- **Which alerts.** Only in a business whose notification policy has *Offer alerts to ClientSt0r* on, and at or
+- **Which alerts.** Only in a business whose notification policy has *Offer alerts to Clientst0r* on, and at or
   above that policy's severity floor. The first event for an alert is always `alert.raised`; `alert.updated`
   (acknowledged, escalated, ticket linked) and `alert.resolved` follow only for alerts the peer was sent a
   raise for. Every route below is limited to those alerts, in organizations mapped to the calling peer.
@@ -184,5 +184,5 @@ Job / run error codes: `ACTOR_REVOKED`, `PEER_REMOVED`, `EXPIRED`, `ENDPOINT_NOT
 
 ## Recovering a lost callback
 
-Events are retried with backoff for up to 7 days. ClientSt0r can always recover: `GET /jobs/{id}` for status
+Events are retried with backoff for up to 7 days. Clientst0r can always recover: `GET /jobs/{id}` for status
 and result, `GET /jobs/{id}/events?after={last sequence seen}` for anything missed.

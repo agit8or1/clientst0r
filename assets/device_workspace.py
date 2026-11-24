@@ -1,6 +1,6 @@
 """
-Device Workspace (ClientSt0r ↔ RMM Phase 3): one page per asset that gathers
-what every linked RMM reports about it, what ClientSt0r knows about it
+Device Workspace (Clientst0r ↔ RMM Phase 3): one page per asset that gathers
+what every linked RMM reports about it, what Clientst0r knows about it
 (tickets, docs, runbooks, credentials) and what a technician can do next.
 
 Rules this module keeps:
@@ -81,7 +81,7 @@ def support(device) -> Dict[str, Dict[str, str]]:
 
     `supported` — the integration supplies it (it may still be empty).
     `not_synced` — it could, but the connection doesn't sync it.
-    `unsupported` — this integration doesn't give it to ClientSt0r.
+    `unsupported` — this integration doesn't give it to Clientst0r.
     """
     from integrations import rmm_fields
     p = provider_of(device)
@@ -94,7 +94,7 @@ def support(device) -> Dict[str, Dict[str, str]]:
 
     # Installed software.
     if conn.provider_type == 'rem0te':
-        put('software', UNSUPPORTED, "Rem0te's inventory API doesn't share installed software with ClientSt0r.")
+        put('software', UNSUPPORTED, "Rem0te's inventory API doesn't share installed software with Clientst0r.")
     elif p is not None and getattr(p, 'supports_software', False):
         if conn.sync_software:
             put('software', SUPPORTED)
@@ -136,7 +136,7 @@ def support(device) -> Dict[str, Dict[str, str]]:
     elif conn.provider_type in rmm_fields.PATCH_SOURCE:
         put('patches', SUPPORTED, f'From {rmm_fields.PATCH_SOURCE[conn.provider_type]}.')
     else:
-        put('patches', UNSUPPORTED, f"{label}'s integration doesn't report patch status to ClientSt0r.")
+        put('patches', UNSUPPORTED, f"{label}'s integration doesn't report patch status to Clientst0r.")
     return out
 
 
@@ -389,7 +389,7 @@ def related_credentials(asset, user) -> dict:
 
 
 def remediation_history(devices, limit=30) -> list:
-    """ClientSt0r's requests to an RMM for these devices (handoffs,
+    """Clientst0r's requests to an RMM for these devices (handoffs,
     diagnostics, fix referrals / action proposals), newest first."""
     from psa_ai.models import RMMRequest
     if not devices:
@@ -400,9 +400,9 @@ def remediation_history(devices, limit=30) -> list:
 
 
 def launch_history(devices, limit=15) -> list:
-    """Remote launches ClientSt0r handed out for these devices (audit log).
+    """Remote launches Clientst0r handed out for these devices (audit log).
     A launch is a link the RMM issued; whether a session followed is the
-    RMM's to say, and no RMM tells ClientSt0r — so each is "not confirmed"."""
+    RMM's to say, and no RMM tells Clientst0r — so each is "not confirmed"."""
     from audit.models import AuditLog
     if not devices:
         return []
@@ -467,7 +467,7 @@ def toolbar(user, asset, primary: Optional[dict], ticket=None, psa_on=True, bloc
                             True, post={'url': reverse('ticket_rmm:launch', args=[ticket.ticket_number]),
                                         'device': primary['device'].pk, 'mode': mode},
                             icon='fa-desktop',
-                            note=f'{primary["connection"].name} authorizes the session. ClientSt0r records the '
+                            note=f'{primary["connection"].name} authorizes the session. Clientst0r records the '
                                  'launch only; it is not told whether a session started.'))
         elif primary['console_url']:
             out.append(_btn('connect', primary['console_label'], True, href=primary['console_url'], icon='fa-desktop',
@@ -478,10 +478,10 @@ def toolbar(user, asset, primary: Optional[dict], ticket=None, psa_on=True, bloc
     elif primary['console_url']:
         out.append(_btn('connect', primary['console_label'], True, href=primary['console_url'], icon='fa-desktop',
                         note=f'Opens {primary["provider"]}, which applies its own sign-in and launch policy. '
-                             'ClientSt0r is not told whether a session started.'))
+                             'Clientst0r is not told whether a session started.'))
     else:
         out.append(_btn('connect', 'Connect', False,
-                        f"{primary['provider']} gives ClientSt0r no console link for this device. " + need_ticket,
+                        f"{primary['provider']} gives Clientst0r no console link for this device. " + need_ticket,
                         icon='fa-desktop'))
 
     # DIAGNOSE
@@ -513,7 +513,7 @@ def toolbar(user, asset, primary: Optional[dict], ticket=None, psa_on=True, bloc
         out.append(_btn('action', 'Request approved action', ok or okh, reason or reasonh,
                         href=reverse('psa:ticket_detail', args=[ticket.ticket_number]) + '#ticket-rmm-panel',
                         icon='fa-shield-halved',
-                        note=f'Approval required in {primary["connection"].name}. ClientSt0r proposes; it never '
+                        note=f'Approval required in {primary["connection"].name}. Clientst0r proposes; it never '
                              'approves or runs anything.'))
 
     # PATCHES

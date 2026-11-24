@@ -313,7 +313,7 @@ FEATURES = [
         'default': 'Off: no role has "extension offline cache" unless you tick it.',
         'prerequisites': 'The extension role permission at the customer.',
         'detail': 'Entries that need approval, or that any active access rule applies to (on the entry, its '
-                  'customer, or the technician), sync without their secret and say "Connect to ClientSt0r to '
+                  'customer, or the technician), sync without their secret and say "Connect to Clientst0r to '
                   'reveal this password." The next complete sync replaces older local copies; a device that '
                   'stays offline keeps its copy until it reconnects.',
         'link': 'vault:access_rule_list',
@@ -361,9 +361,9 @@ FEATURES = [
         'protects': 'Customer devices and customer-facing replies from unreviewed AI output.',
         'default': 'On; cannot be switched off.',
         'prerequisites': 'None.',
-        'detail': 'ClientSt0r sends no endpoint commands. A draft, model vote, remote launch or callback '
+        'detail': 'Clientst0r sends no endpoint commands. A draft, model vote, remote launch or callback '
                   'cannot approve a fix, send a customer reply or close a ticket; only the composer\'s Send '
-                  'publishes. Endpoint access is decided by rem0te, not ClientSt0r.',
+                  'publishes. Endpoint access is decided by rem0te, not Clientst0r.',
         'link': '',
         'doc': 'docs/contracts/ticket-rmm-v1/README.md',
         'tests': ['psa_ai.tests_assist', 'tech_access.tests'],

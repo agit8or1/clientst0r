@@ -1,6 +1,6 @@
 # Payment processing (Stripe, GoCardless)
 
-ClientSt0r owns invoices and the billing schedule; the payment provider only
+Clientst0r owns invoices and the billing schedule; the payment provider only
 collects; the accounting system records. No invoices, subscriptions, prices
 or products are ever created at the provider, so a payment can never be
 billed twice by two systems.

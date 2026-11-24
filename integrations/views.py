@@ -733,7 +733,7 @@ def rmm_detail(request, pk):
 
 def _propose_pairing(request, form, connection):
     """A ticket integration pairing (any RMM provider) that widens what
-    ClientSt0r sends waits for a second administrator (tech_access.protected)."""
+    Clientst0r sends waits for a second administrator (tech_access.protected)."""
     req = getattr(form, 'pairing_request', None)
     if not req:
         return
@@ -780,7 +780,7 @@ def rmm_pairing_check(request, pk):
 @integration_access('admin')
 @require_POST
 def rmm_rem0te_identity(request, pk):
-    """ClientSt0r's own Rem0te identity (instance-wide: one peer entry in
+    """Clientst0r's own Rem0te identity (instance-wide: one peer entry in
     Rem0te's peers file serves every Rem0te connection): generate or rotate
     its Ed25519 keys, or set its peer id, audience and public address.
     Superusers only, because it affects every organization's pairing.
@@ -790,7 +790,7 @@ def rmm_rem0te_identity(request, pk):
     if connection.provider_type != 'rem0te':
         raise Http404
     if not request.user.is_superuser:
-        messages.error(request, "ClientSt0r's Rem0te identity serves every organization; only a superuser can "
+        messages.error(request, "Clientst0r's Rem0te identity serves every organization; only a superuser can "
                                 'change it.')
         return redirect('integrations:rmm_detail', pk=connection.pk)
     from integrations.rem0te import identity
@@ -798,17 +798,17 @@ def rmm_rem0te_identity(request, pk):
     try:
         if op in ('generate', 'rotate'):
             if op == 'generate' and identity.has_keys():
-                messages.info(request, 'ClientSt0r already has Rem0te keys; use Rotate to replace them.')
+                messages.info(request, 'Clientst0r already has Rem0te keys; use Rotate to replace them.')
             else:
                 identity.generate_keys(by=request.user, rotate=op == 'rotate')
                 messages.success(request, 'New Rem0te keys generated. Put the new public keys in Rem0te\'s peers '
                                           'file and restart Rem0te before pressing Check pairing.'
-                                 if op == 'rotate' else 'ClientSt0r\'s Rem0te keys were generated.')
+                                 if op == 'rotate' else 'Clientst0r\'s Rem0te keys were generated.')
         elif op == 'update':
             identity.update(identity.get(), peer_id=request.POST.get('peer_id', ''),
                             audience=request.POST.get('audience', ''),
                             public_base_url=request.POST.get('public_base_url', ''), by=request.user)
-            messages.success(request, 'ClientSt0r\'s Rem0te identity was saved.')
+            messages.success(request, 'Clientst0r\'s Rem0te identity was saved.')
         else:
             messages.error(request, 'Unknown action.')
     except identity.IdentityError as e:
@@ -1599,7 +1599,7 @@ def rmm_import_clients(request, pk):
 @integration_access('admin')
 def psa_organization_mapping(request, pk):
     """
-    Map PSA companies to existing Client St0r organizations.
+    Map PSA companies to existing Clientst0r organizations.
     Allows pre-sync mapping to prevent duplicate organizations.
     """
     from core.models import Organization
@@ -1738,7 +1738,7 @@ def psa_organization_mapping(request, pk):
 @integration_access('admin')
 def rmm_organization_mapping(request, pk):
     """
-    Map RMM sites to existing Client St0r organizations.
+    Map RMM sites to existing Clientst0r organizations.
     Note: RMM uses name-based matching instead of ExternalObjectMap.
     """
     from core.models import Organization

@@ -1,4 +1,4 @@
-# Client St0r fail2ban integration (v3.17.597)
+# Clientst0r fail2ban integration (v3.17.597)
 #
 # Intentionally has no rules. This file used to grant passwordless
 # `fail2ban-client` with any arguments, and fail2ban-client can set a jail's ban

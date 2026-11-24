@@ -378,7 +378,7 @@ def _rmm_requests(ticket, cutoff):
         if req.fix_risk:
             e['facts'].append(('Risk', req.get_fix_risk_display()))
         if req.kind == RMMRequest.KIND_FIX:
-            parts = [f'Approval happens in {req.connection.name}, by its approvers; ClientSt0r never approves '
+            parts = [f'Approval happens in {req.connection.name}, by its approvers; Clientst0r never approves '
                      'or runs anything.']
             if req.approvals_required:
                 parts.append(f'{req.approvals_required} approval(s) required.')

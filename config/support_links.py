@@ -37,7 +37,7 @@ _REPO = 'https://github.com/agit8or1/clientst0r'
 DEFAULTS = {
     # ---------------------------------------------------------------- project
     'PROJECT': {
-        'name': 'ClientSt0r',
+        'name': 'Clientst0r',
         # Kept to one accurate line — it ends up in the share message, which
         # people paste into their own feeds under their own name.
         # Length matters: the assembled share message has to clear X's 280

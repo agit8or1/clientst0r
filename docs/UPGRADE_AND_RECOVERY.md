@@ -1,4 +1,4 @@
-# Upgrading Client St0r, and recovering from a failed upgrade
+# Upgrading Clientst0r, and recovering from a failed upgrade
 
 This guide covers native installs (`bash install.sh`) and Docker installs
 (`docker compose up -d`). Native installs upgrade from the web UI first; the

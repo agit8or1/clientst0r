@@ -1,5 +1,5 @@
 #!/bin/bash
-# Fix log file permissions for Client St0r
+# Fix log file permissions for Clientst0r
 
 LOG_DIR="/var/log/itdocs"
 LOG_FILES=("vault.log" "django.log" "gunicorn-access.log" "gunicorn-error.log")

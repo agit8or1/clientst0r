@@ -10,7 +10,7 @@ trucks/vans):
   * Report damage (`VehicleDamageReport`)
 
 Vehicles are not per-organization in the data model — they're the
-company fleet that runs Client St0r — so no `accessible_org_ids` scope
+company fleet that runs Clientst0r — so no `accessible_org_ids` scope
 applies.
 
 v3.17.477 — dropped the "must have an active `VehicleAssignment`"

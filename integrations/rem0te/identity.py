@@ -1,9 +1,9 @@
 """
-ClientSt0r's Ed25519 identity towards Rem0te (integrations.Rem0teIdentity).
+Clientst0r's Ed25519 identity towards Rem0te (integrations.Rem0teIdentity).
 
 What an administrator copies into Rem0te's INTEGRATION_PEERS_FILE comes from
 `peer_entry()`: the peer id, both audiences, the two PUBLIC keys with their
-key ids, and the two ClientSt0r URLs. Private keys never leave this module
+key ids, and the two Clientst0r URLs. Private keys never leave this module
 except to sign.
 """
 from __future__ import annotations
@@ -69,8 +69,8 @@ def generate_keys(by=None, rotate=False):
         ident.next_staged_at = None
         ident.save()
     AuditLog.log(user=by, action='update', object_type='rem0te_identity', object_id=ident.pk,
-                 object_repr='ClientSt0r Rem0te identity',
-                 description=('Rotated' if rotate else 'Generated') + ' ClientSt0r\'s Rem0te request and delegation '
+                 object_repr='Clientst0r Rem0te identity',
+                 description=('Rotated' if rotate else 'Generated') + ' Clientst0r\'s Rem0te request and delegation '
                  f'keys (request {ident.request_kid}, delegation {ident.delegation_kid})',
                  extra_data={'request_kid': ident.request_kid, 'delegation_kid': ident.delegation_kid})
     return ident
@@ -101,7 +101,7 @@ def stage_next_keys(by=None):
         ident.next_staged_at = timezone.now()
         ident.save()
     AuditLog.log(user=by, action='update', object_type='rem0te_identity', object_id=ident.pk,
-                 object_repr='ClientSt0r Rem0te identity',
+                 object_repr='Clientst0r Rem0te identity',
                  description=f'Staged next Rem0te keys (request {ident.next_request_kid}, delegation '
                              f'{ident.next_delegation_kid}); the current keys still sign',
                  extra_data={'next_request_kid': ident.next_request_kid,
@@ -129,7 +129,7 @@ def promote_next_keys(by=None):
         ident.rotated_at = timezone.now()
         ident.save()
     AuditLog.log(user=by, action='update', object_type='rem0te_identity', object_id=ident.pk,
-                 object_repr='ClientSt0r Rem0te identity',
+                 object_repr='Clientst0r Rem0te identity',
                  description=f'Switched to the staged Rem0te keys (request {ident.request_kid}, delegation '
                              f'{ident.delegation_kid}); retired {old[0]}, {old[1]}',
                  extra_data={'request_kid': ident.request_kid, 'delegation_kid': ident.delegation_kid,
@@ -148,7 +148,7 @@ def discard_next_keys(by=None):
     ident.next_staged_at = None
     ident.save()
     AuditLog.log(user=by, action='update', object_type='rem0te_identity', object_id=ident.pk,
-                 object_repr='ClientSt0r Rem0te identity', description=f'Discarded staged Rem0te keys {kids[0]}, '
+                 object_repr='Clientst0r Rem0te identity', description=f'Discarded staged Rem0te keys {kids[0]}, '
                                                                         f'{kids[1]}')
     return ident
 
@@ -194,8 +194,8 @@ def update(ident, *, peer_id=None, audience=None, public_base_url=None, by=None)
     if changes:
         ident.save()
         AuditLog.log(user=by, action='update', object_type='rem0te_identity', object_id=ident.pk,
-                     object_repr='ClientSt0r Rem0te identity',
-                     description='ClientSt0r Rem0te identity changed: ' + ', '.join(sorted(changes)),
+                     object_repr='Clientst0r Rem0te identity',
+                     description='Clientst0r Rem0te identity changed: ' + ', '.join(sorted(changes)),
                      extra_data=changes)
     return ident
 
@@ -218,14 +218,14 @@ def request_key_id(ident) -> str:
 
 
 def configured(ident=None) -> str:
-    """'' when ClientSt0r's side is complete, else what is missing."""
+    """'' when Clientst0r's side is complete, else what is missing."""
     ident = ident or get(create=False)
     if ident is None or not has_keys(ident):
-        return "ClientSt0r's Rem0te keys have not been generated yet."
+        return "Clientst0r's Rem0te keys have not been generated yet."
     if not ident.audience:
-        return "ClientSt0r's audience (Rem0te's peerAudience) is not set."
+        return "Clientst0r's audience (Rem0te's peerAudience) is not set."
     if not ident.public_base_url:
-        return 'The address Rem0te reaches ClientSt0r at is not set.'
+        return 'The address Rem0te reaches Clientst0r at is not set.'
     return ''
 
 
@@ -253,8 +253,8 @@ def public_view(ident=None) -> Optional[dict]:
 
 
 def peer_entry(connection=None, model_profiles=None) -> Optional[dict]:
-    """ClientSt0r's entry for Rem0te's peers file (peers[]). `audience` is
-    Rem0te's own audience, from the connection; the rest is ClientSt0r's."""
+    """Clientst0r's entry for Rem0te's peers file (peers[]). `audience` is
+    Rem0te's own audience, from the connection; the rest is Clientst0r's."""
     view = public_view()
     if not view or not view['has_keys']:
         return None
@@ -287,12 +287,12 @@ def peer_entry_json(connection=None, model_profiles=None) -> str:
 def request_signer(ident=None):
     ident = ident or get(create=False)
     if not has_keys(ident):
-        raise IdentityError("ClientSt0r's Rem0te keys have not been generated yet.")
+        raise IdentityError("Clientst0r's Rem0te keys have not been generated yet.")
     return protocol.load_private_key(ident.request_private_key)
 
 
 def delegation_signer(ident=None):
     ident = ident or get(create=False)
     if not has_keys(ident):
-        raise IdentityError("ClientSt0r's Rem0te keys have not been generated yet.")
+        raise IdentityError("Clientst0r's Rem0te keys have not been generated yet.")
     return protocol.load_private_key(ident.delegation_private_key)

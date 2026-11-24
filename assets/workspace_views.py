@@ -1,5 +1,5 @@
 """
-Device Workspace page (ClientSt0r ↔ RMM Phase 3).
+Device Workspace page (Clientst0r ↔ RMM Phase 3).
 
     GET /assets/<pk>/workspace/[?device=<rmm device pk>][&ticket=<ticket number>]
     GET /assets/workspace/   the sidebar's entry point: recently opened

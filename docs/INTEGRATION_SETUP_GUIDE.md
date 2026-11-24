@@ -1,6 +1,6 @@
-# Client St0r Integration Setup Guide
+# Clientst0r Integration Setup Guide
 
-Complete guide for connecting PSA and RMM platforms to Client St0r with exact connection parameters and setup instructions.
+Complete guide for connecting PSA and RMM platforms to Clientst0r with exact connection parameters and setup instructions.
 
 ---
 
@@ -83,7 +83,7 @@ https://your-custom-url.connectwise.com
 5. Copy the **Public Key** and **Private Key** (save immediately - shown only once)
 6. Get your **Company ID** from System → Company settings
 7. Register at ConnectWise Developer Network to get **Client ID**
-8. In Client St0r, use full URL including region (na/eu/au)
+8. In Clientst0r, use full URL including region (na/eu/au)
 
 **API Documentation:** https://developer.connectwise.com/
 
@@ -184,7 +184,7 @@ https://yourdomain.syncromsp.com
 1. Log in to Syncro
 2. Go to **Admin → API Tokens**
 3. Click **New API Token**
-4. Enter **Name** (e.g., "Client St0r Integration")
+4. Enter **Name** (e.g., "Clientst0r Integration")
 5. Copy the **API Key** (shown only once)
 6. Extract subdomain from your Syncro URL
 7. Base URL: `https://[subdomain].syncromsp.com`
@@ -234,7 +234,7 @@ https://yoursubdomain.zendesk.com
 3. Navigate to **Zendesk API** tab
 4. Enable **Token Access**
 5. Click **Add API Token**
-6. Enter **Description** (e.g., "Client St0r")
+6. Enter **Description** (e.g., "Clientst0r")
 7. Copy the **API Token** (shown only once)
 8. Use admin email as username
 9. Base URL: `https://[subdomain].zendesk.com`
@@ -258,7 +258,7 @@ https://yourdomain.com/itflow
 1. Log in to ITFlow
 2. Go to **Settings → API Keys**
 3. Click **Create API Key**
-4. Enter **Name** (e.g., "Client St0r Integration")
+4. Enter **Name** (e.g., "Clientst0r Integration")
 5. Copy the **API Key**
 6. Use your ITFlow installation URL as base URL
 
@@ -282,7 +282,7 @@ https://your-server.com:8443/api/v1 (Self-Hosted)
 1. Log in to RangerMSP Admin Panel
 2. Go to **Setup → Security → API Access**
 3. Click **Generate New API Key**
-4. Enter **Application Name** (e.g., "Client St0r")
+4. Enter **Application Name** (e.g., "Clientst0r")
 5. Select **Permissions** (Companies, Contacts, Tickets, Contracts)
 6. Copy the **API Key**
 7. **Cloud URL:** Use `https://api.commitcrm.com/api/v1`
@@ -379,7 +379,7 @@ https://pinotage-api.centrastage.net
 1. Log in to Datto RMM
 2. Go to **Setup → Account Settings → API Credentials**
 3. Click **New**
-4. Enter **Name** (e.g., "Client St0r")
+4. Enter **Name** (e.g., "Clientst0r")
 5. Copy **API URL**, **API Key**, and **Secret Key**
 6. Use the provided API URL as base URL
 
@@ -449,7 +449,7 @@ https://your-tactical-instance.com
 1. Log in to Tactical RMM
 2. Go to **Settings → API Keys**
 3. Click **New**
-4. Enter **Name** (e.g., "Client St0r")
+4. Enter **Name** (e.g., "Clientst0r")
 5. Select **Permissions** (read agents, alerts, software)
 6. Copy the **API Key** (shown only once)
 7. Use your Tactical RMM API URL as the base URL (for example `https://api.yourdomain.com`)
@@ -475,7 +475,7 @@ https://remote.yourdomain.com
 1. In Rem0te, go to **Administration → API Keys**
 2. Create a key for the customer's business with the `computers:read` scope
 3. Copy the key (shown only once)
-4. In Client St0r, switch to that customer's organization and add an RMM integration with provider **Rem0te**
+4. In Clientst0r, switch to that customer's organization and add an RMM integration with provider **Rem0te**
 5. Use your Rem0te address as the base URL
 
 A Rem0te key belongs to exactly one business, so each connection is single
@@ -484,7 +484,7 @@ If the key on a connection is later replaced with a key for a different business
 the sync stops with an error instead of filing that business's computers here.
 
 The button opens the computer's page in Rem0te. The technician's own Rem0te
-account decides whether they can see it and connect. Client St0r never holds a
+account decides whether they can see it and connect. Clientst0r never holds a
 RustDesk password or a session credential. Customers don't see the button or any
 Rem0te details.
 

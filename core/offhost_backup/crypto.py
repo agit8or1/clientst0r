@@ -172,10 +172,10 @@ class EncryptingWriter:
 def read_header(f):
     head = f.read(HEADER_SIZE)
     if len(head) != HEADER_SIZE:
-        raise BackupCryptoError('Not a Client St0r off-host backup (file too short).')
+        raise BackupCryptoError('Not a Clientst0r off-host backup (file too short).')
     magic, version, kid, salt, prefix, seg = _HEADER.unpack(head)
     if magic != MAGIC:
-        raise BackupCryptoError('Not a Client St0r off-host backup (bad header).')
+        raise BackupCryptoError('Not a Clientst0r off-host backup (bad header).')
     if version != VERSION:
         raise BackupCryptoError(f'Unsupported backup format version {version}.')
     if not 1024 <= seg <= (64 << 20):

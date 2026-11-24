@@ -1,7 +1,7 @@
 """
 Payment processor adapters (Stripe, GoCardless), REST over `requests`.
 
-Collect-only: invoices and the billing schedule stay in ClientSt0r. The
+Collect-only: invoices and the billing schedule stay in Clientst0r. The
 `payments` app drives these adapters (portal checkout, autopay, webhooks,
 refunds).
 """

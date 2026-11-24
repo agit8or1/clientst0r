@@ -227,7 +227,7 @@ def format_bug_report_body(description, steps_to_reproduce, system_info, reporte
 
     # System Information
     body_parts.append("## System Information")
-    body_parts.append(f"- **Client St0r Version**: {system_info.get('version', 'Unknown')}")
+    body_parts.append(f"- **Clientst0r Version**: {system_info.get('version', 'Unknown')}")
     body_parts.append(f"- **Django Version**: {system_info.get('django_version', 'Unknown')}")
     body_parts.append(f"- **Python Version**: {system_info.get('python_version', 'Unknown')}")
     body_parts.append(f"- **Operating System**: {system_info.get('os', 'Unknown')}")
@@ -236,7 +236,7 @@ def format_bug_report_body(description, steps_to_reproduce, system_info, reporte
     body_parts.append("")
 
     body_parts.append("---")
-    body_parts.append("_This bug report was submitted via Client St0r's built-in bug reporting feature._")
+    body_parts.append("_This bug report was submitted via Clientst0r's built-in bug reporting feature._")
 
     return "\n".join(body_parts)
 

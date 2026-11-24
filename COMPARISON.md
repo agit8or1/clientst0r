@@ -1,7 +1,7 @@
-# Evaluating ClientSt0r
+# Evaluating Clientst0r
 
-This page is for teams deciding whether ClientSt0r fits next to, or instead of, the tools they
-already run. It is organized by **tool category**: for each, what ClientSt0r covers natively, what
+This page is for teams deciding whether Clientst0r fits next to, or instead of, the tools they
+already run. It is organized by **tool category**: for each, what Clientst0r covers natively, what
 it covers through integrations, what is planned, and where a dedicated tool is the better fit.
 
 Status labels follow [FEATURES.md](FEATURES.md): **Available**, **Limited** (works with a stated
@@ -12,7 +12,7 @@ component**. Planned work is tracked in the [roadmap](docs/ROADMAP.md).
 
 ## The basics
 
-| | ClientSt0r |
+| | Clientst0r |
 |---|---|
 | License | MIT; no license fee, seat or client limits, or paid tiers |
 | Deployment | Self-hosted: `docker compose up -d`, or `bash install.sh` on Ubuntu / Debian |
@@ -87,7 +87,7 @@ two-way PSA field mapping, or a service desk spread across several servers.
 
 ## RMM
 
-ClientSt0r is **not an RMM**. It stores and shows RMM data and works with a paired RMM from tickets.
+Clientst0r is **not an RMM**. It stores and shows RMM data and works with a paired RMM from tickets.
 
 | Capability | Status | Notes |
 |---|---|---|
@@ -95,7 +95,7 @@ ClientSt0r is **not an RMM**. It stores and shows RMM data and works with a pair
 | Device Workspace, ticket RMM panel, alert-to-ticket policy | Available | |
 | Rem0te pairing (signed contract, Ed25519) and Rem0te alerts as tickets with link back | Available | Tested with both real applications in CI. Rem0te is a separate application |
 | Diagnostics, remediation proposals and results from a ticket | Limited | In development; contract routes agreed but not yet built on the Rem0te side |
-| Running anything on a device | Not in ClientSt0r | Endpoint actions are approved and run in the RMM, never in ClientSt0r or by AI |
+| Running anything on a device | Not in Clientst0r | Endpoint actions are approved and run in the RMM, never in Clientst0r or by AI |
 
 **Planned:** Rem0te endpoint actions in security automation (Phase 86).
 
@@ -140,7 +140,7 @@ connectors in batches (Phase 84), Operations Center and correlation (Phase 85), 
 (Phase 86), posture scorecards (Phase 89).
 
 **When a dedicated tool fits better:** for log collection, retention and search, network
-monitoring by SNMP, or detection engineering. ClientSt0r receives and organizes alerts; it does not
+monitoring by SNMP, or detection engineering. Clientst0r receives and organizes alerts; it does not
 collect logs.
 
 ---

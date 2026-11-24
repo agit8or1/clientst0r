@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "ClientSt0r",
-  "short_name": "ClientSt0r",
-  "description": "Password vault, asset search, and autofill for ClientSt0r",
+  "name": "Clientst0r",
+  "short_name": "Clientst0r",
+  "description": "Password vault, asset search, and autofill for Clientst0r",
   "version": "1.0.0",
   "icons": {
     "16": "icons/icon16.png",

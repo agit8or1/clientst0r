@@ -1,5 +1,5 @@
 """
-ClientSt0r ↔ RMM Phase 3: the Device Workspace (assets/device_workspace.py,
+Clientst0r ↔ RMM Phase 3: the Device Workspace (assets/device_workspace.py,
 assets/workspace_views.py).
 """
 from datetime import timedelta

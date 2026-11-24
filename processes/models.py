@@ -293,7 +293,7 @@ class ProcessExecution(BaseModel):
     )
     subject_user = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name='offboarding_executions',
-        help_text="The departing person's ClientSt0r account, if they have one",
+        help_text="The departing person's Clientst0r account, if they have one",
     )
 
     objects = OrganizationManager()
@@ -523,7 +523,7 @@ class AccessRemovalCheck(BaseModel):
     Each run adds new rows; the latest per system is the current answer.
     """
     SYSTEM_CHOICES = [
-        ('clientst0r', 'ClientSt0r'),
+        ('clientst0r', 'Clientst0r'),
         ('m365', 'Microsoft 365'),
         ('rmm', 'RMM'),
     ]

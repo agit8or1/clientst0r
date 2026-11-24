@@ -18,7 +18,7 @@
 #   upgrade R1 [R2 ...]   install R1, seed, check; upgrade to each later Rn the way
 #                         that release's updater did (reset, pip, migrate,
 #                         collectstatic), check; then to the code under test the
-#                         way an older Client St0r does it (it downloads main's
+#                         way an older Clientst0r does it (it downloads main's
 #                         deploy/update_instructions.sh: "legacy mode"), check; then
 #                         a pinned, signed-release upgrade with `upgrade_apply`,
 #                         including the refusals (wrong sha, unsigned / untrusted
@@ -176,7 +176,7 @@ old_style_upgrade() {   # what the updater of releases before this one did
     manage collectstatic --noinput > /dev/null 2>&1 || die "collectstatic on $ref"
 }
 
-legacy_script() {   # the update script an older Client St0r downloads from main
+legacy_script() {   # the update script an older Clientst0r downloads from main
     local out="$WORK/update_instructions.legacy.sh"
     GIT --git-dir="$REMOTE" show "$HEAD_SHA:deploy/update_instructions.sh" > "$out"
     echo "$out"
@@ -250,7 +250,7 @@ make_signed_release() {   # sets REL_SHA, REL_TAG; also UNSIGNED/UNTRUSTED tags
     GIT -C "$src" checkout -q -B main "$HEAD_SHA"
     sed -i "s/^VERSION = .*/VERSION = '3.99.0'/" "$src/config/version.py"
     # Marker: proves the update script that runs is the target revision's copy.
-    sed -i 's/^log "Client St0r Update Instructions"$/log "Client St0r Update Instructions"\nlog "rehearsal-marker: update script from the v3.99.0 revision"/' \
+    sed -i 's/^log "Clientst0r Update Instructions"$/log "Clientst0r Update Instructions"\nlog "rehearsal-marker: update script from the v3.99.0 revision"/' \
         "$src/deploy/update_instructions.sh"
     GIT -C "$src" -c user.name=rehearsal -c user.email=rehearsal@example.invalid \
         commit -q -am "rehearsal release 3.99.0 (scratch only)"

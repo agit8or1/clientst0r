@@ -1,5 +1,5 @@
 /**
- * ClientSt0r Content Script — Autofill
+ * Clientst0r Content Script — Autofill
  *
  * Detects login forms and injects a credential suggestion bar.
  * The API key never touches this script; everything goes through
@@ -73,7 +73,7 @@
     const header = document.createElement('div');
     header.setAttribute('style', 'display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;');
     header.innerHTML = `
-      <span style="font-weight:700;color:#58a6ff;font-size:11px;">ClientSt0r — Select credential</span>
+      <span style="font-weight:700;color:#58a6ff;font-size:11px;">Clientst0r — Select credential</span>
       <button id="__cs_close" style="background:none;border:none;color:#8b949e;cursor:pointer;font-size:14px;line-height:1;padding:0 2px;">×</button>
     `;
     barEl.appendChild(header);
@@ -117,7 +117,7 @@
       setNativeValue(pwField, res.password);
       removeBar();
     } catch (err) {
-      console.warn('[ClientSt0r] Fill failed:', err.message);
+      console.warn('[Clientst0r] Fill failed:', err.message);
     }
   }
 

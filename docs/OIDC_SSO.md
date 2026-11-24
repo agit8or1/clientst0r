@@ -1,8 +1,8 @@
 # Single sign-on with OpenID Connect (OIDC)
 
-ClientSt0r can sign MSP staff in through any certified OpenID Connect
+Clientst0r can sign MSP staff in through any certified OpenID Connect
 provider (OP). The reference OP is Keycloak (the "Agit8or Identity" design),
-but nothing in ClientSt0r is Keycloak-specific except the default claim
+but nothing in Clientst0r is Keycloak-specific except the default claim
 paths, which are configurable.
 
 Status: **in progress** — the client side is built and unit-tested against a
@@ -22,7 +22,7 @@ fake OP; it has not yet been verified against a live Keycloak (see
 | | |
 |---|---|
 | Flow | Authorization code + PKCE (S256) + `state` + `nonce`. All three live only in the server-side session and are single use. |
-| Client authentication | `private_key_jwt` (recommended — ClientSt0r generates an RSA key pair, keeps the private key encrypted, and shows the public JWK) or `client_secret_basic` (secret stored encrypted, never shown again). |
+| Client authentication | `private_key_jwt` (recommended — Clientst0r generates an RSA key pair, keeps the private key encrypted, and shows the public JWK) or `client_secret_basic` (secret stored encrypted, never shown again). |
 | ID token checks | Signature with the OP's JWKS (unknown `kid` → one refetch, throttled); algorithm allowlist `RS256 PS256 ES256 EdDSA` (never `none`, never `HS*`); `iss` exact; `aud` contains the client id; `azp` equals it when present (required with several audiences); `exp`/`iat`/`nbf` with 60 s leeway; `nonce`; `auth_time` vs `max_age` for step-up; `at_hash` when present. |
 | Discovery | `<issuer>/.well-known/openid-configuration`; its `issuer` must equal the configured issuer exactly; every endpoint passes the outbound request guard. Cached per worker for an hour. |
 | Accounts | Found strictly by `(issuer, sub)`. **Never by e-mail.** An unknown `sub` whose e-mail matches a local account is refused with "sign in the usual way and link from your profile". |
@@ -50,7 +50,7 @@ local superuser with a strong password and TOTP, stored offline.
 Assumes a realm (e.g. `agit8or`) with the **Organizations** feature on and an
 organization for the MSP (e.g. alias `acme-msp`). Keycloak 26.x screen names.
 
-1. **Add the provider in ClientSt0r first.** Administration → Security →
+1. **Add the provider in Clientst0r first.** Administration → Security →
    Single sign-on (OIDC) → *Add provider* (e.g. name "Agit8or Identity",
    short name `agit8or`). It is created **disabled** with a fresh key pair.
    The page shows the redirect URI, back-channel logout URL, post-logout
@@ -60,27 +60,27 @@ organization for the MSP (e.g. alias `acme-msp`). Keycloak 26.x screen names.
    - Client type **OpenID Connect**, Client ID e.g. `clientst0r-acme-msp`.
    - **Client authentication: On**. Authentication flow: **Standard flow
      only** (no implicit, no direct access grants, no service accounts).
-   - Valid redirect URIs: the exact redirect URI shown in ClientSt0r
+   - Valid redirect URIs: the exact redirect URI shown in Clientst0r
      (`https://<host>/accounts/sso/oidc/<slug>/callback/`).
    - Valid post logout redirect URIs: `https://<host>/account/login/`.
    - Advanced → **Proof Key for Code Exchange Code Challenge Method: S256**.
 
 3. **Client authentication = Signed JWT.** Client → *Credentials* →
    Client Authenticator **Signed JWT**, signature algorithm **RS256**. Then
-   *Keys* tab → either **Use JWKS URL** with the JWKS URL shown in ClientSt0r
+   *Keys* tab → either **Use JWKS URL** with the JWKS URL shown in Clientst0r
    (served only while the provider is enabled), or *Import key* → JSON Web Key
    Set and paste the JWK shown. (To use a client secret instead, choose
-   "Client Id and Secret" and set ClientSt0r to `client_secret_basic`.)
+   "Client Id and Secret" and set Clientst0r to `client_secret_basic`.)
 
 4. **Back-channel logout.** Client → *Settings* → Logout settings:
    Front channel logout **Off**; **Backchannel logout URL** = the URL shown
-   in ClientSt0r (`https://<host>/accounts/sso/oidc/<slug>/backchannel-logout/`);
+   in Clientst0r (`https://<host>/accounts/sso/oidc/<slug>/backchannel-logout/`);
    **Backchannel logout session required: On** (so tokens carry `sid`).
 
 5. **Organization claim.** Client scopes → ensure the `organization` scope is
    assigned to the client (default or optional) and its *Organization
    Membership* mapper has **Add organization id** on, so the ID token carries
-   `"organization": {"acme-msp": {"id": "<uuid>"}}`. In ClientSt0r set
+   `"organization": {"acme-msp": {"id": "<uuid>"}}`. In Clientst0r set
    *Org claim* `organization`, *MSP org alias* `acme-msp`, *MSP org id* the
    organization's UUID.
 
@@ -92,14 +92,14 @@ organization for the MSP (e.g. alias `acme-msp`). Keycloak 26.x screen names.
    *Dedicated scope* includes the **client roles** mapper adding
    `resource_access.<client_id>.roles` to the **ID token**, and set
    **Full scope allowed: Off** so tokens carry only this client's roles.
-   The default ClientSt0r *Roles claim* is `resource_access.{client_id}.roles`.
+   The default Clientst0r *Roles claim* is `resource_access.{client_id}.roles`.
 
 7. **MFA (optional).** If the realm enforces MFA and maps `acr`
    (ACR-to-LoA mapping, e.g. `urn:agit8or:acr:mfa`) and `amr` (AMR protocol
-   mapper), list those values in ClientSt0r and switch on *Accept the IdP's
+   mapper), list those values in Clientst0r and switch on *Accept the IdP's
    MFA*. Leave it off to keep local TOTP.
 
-8. **Map roles and customers in ClientSt0r.** On the provider page add role
+8. **Map roles and customers in Clientst0r.** On the provider page add role
    mappings (`technician` → *MSP staff global role* → a global role;
    `technician` → *Customer membership role* → a role) and customer keys
    (`cust-0193` → the customer). Mapping a privileged role needs a superuser.

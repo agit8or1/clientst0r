@@ -106,7 +106,7 @@ def send_alerts(*, dry_run=False, today=None, qs=None):
                 lines.append(title)
                 lines += [f'  - {a.text}' for a in rows]
                 lines.append('')
-        lines.append('Open Licensing in Client St0r to review or reassign.')
+        lines.append('Open Licensing in Clientst0r to review or reassign.')
         try:
             send_mail(f'[{org.name}] {len(alerts)} software license notice(s)', '\n'.join(lines),
                       None, to, fail_silently=False)

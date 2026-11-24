@@ -132,7 +132,7 @@ class Command(BaseCommand):
         """Email all superusers about the findings. Returns number of emails sent."""
         from core.superuser_alerts import email_superusers
 
-        site_name = settings.site_name or 'Client St0r'
+        site_name = settings.site_name or 'Clientst0r'
         site_url = (settings.site_url or '').rstrip('/')
         dashboard_url = f"{site_url}/core/security/" if site_url else ''
 

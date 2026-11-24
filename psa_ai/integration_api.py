@@ -1,5 +1,5 @@
 """
-ClientSt0r's half of ticket-rmm-v1: the two routes the paired RMM calls
+Clientst0r's half of ticket-rmm-v1: the two routes the paired RMM calls
 (any provider that implements the contract; rem0te is the reference).
 
   POST /api/integration/v1/inference   run one model for one job
@@ -12,7 +12,7 @@ no session, cookie or API key works here, and CSRF does not apply because
 nothing here acts on a browser's ambient credentials.
 
 Inference answers with the run's status and token counts — never the
-provider key, and never the analysis text, which stays in ClientSt0r for
+provider key, and never the analysis text, which stays in Clientst0r for
 the technician. An identical retry of a claimed run returns that run's
 status instead of calling the model again.
 """

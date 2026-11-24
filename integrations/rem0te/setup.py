@@ -42,7 +42,7 @@ def technician_probe(connection, user) -> Dict:
     elif r.status == 403:
         out.update(status=FAIL, message=f'Rem0te refused {tech}: {r.message or "forbidden"}. Map the technician '
                                         '(Platform Admin → integration mappings) and grant "Ticket analysis '
-                                        '(ClientSt0r)".')
+                                        '(Clientst0r)".')
         health.note(connection, 'technician', out['message'], code='TECHNICIAN_NOT_MAPPED',
                     action='Map the technician in Rem0te and grant integration:ticket_analysis.')
     elif r.status == 401:
@@ -83,10 +83,10 @@ def checklist(connection) -> List[Dict]:
     doc = pairing.last_check(connection)
     code = doc.get('code', '')
     items = []
-    items.append(_item('keys', "ClientSt0r's Ed25519 keys", OK if identity.has_keys(ident) else FAIL,
+    items.append(_item('keys', "Clientst0r's Ed25519 keys", OK if identity.has_keys(ident) else FAIL,
                        '' if identity.has_keys(ident) else 'Not generated yet.', 'Generate keys (superuser).'))
     miss = identity.configured(ident) if identity.has_keys(ident) else ''
-    items.append(_item('identity', "ClientSt0r's peer id, audience and public address", FAIL if miss else
+    items.append(_item('identity', "Clientst0r's peer id, audience and public address", FAIL if miss else
                        (OK if ident else FAIL), miss, 'Save the identity (superuser).'))
     conn_missing = [m for m, bad in ((
         "Rem0te's audience", not s['rem0te_audience']), ("Rem0te's public signing key", not pairing.keyring(connection)),
@@ -120,7 +120,7 @@ def checklist(connection) -> List[Dict]:
     rev = doc.get('contract_revision')
     items.append(_item('contract', 'Contract ticket-rmm-v1 and version', OK if contract_ok else FAIL,
                        (f'Rem0te {doc.get("rem0te_version", "?")}, contract revision {rev or 1} '
-                        f'(ClientSt0r implements {pairing.IMPLEMENTED_REVISION}).') if contract_ok else doc.get('error', ''),
+                        f'(Clientst0r implements {pairing.IMPLEMENTED_REVISION}).') if contract_ok else doc.get('error', ''),
                        health.ACTIONS.get(code, '')))
     if not doc.get('compatible'):
         return items

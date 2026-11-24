@@ -8,7 +8,7 @@ Three kinds of entries:
                allowed   — available inside the assignment's scope
                request   — the technician may ask for time-limited access;
                            the grant itself comes from elsewhere (the paired RMM for
-                           endpoint access), never from ClientSt0r alone
+                           endpoint access), never from Clientst0r alone
   LOCKED     a mandatory safeguard. Shown as Locked; no preset, assignment
              or administrator can switch it on.
   (Unavailable is computed, not stored: an optional capability whose
@@ -68,9 +68,9 @@ OPTIONAL = {
 # Mandatory safeguards. Always enforced; shown as Locked.
 LOCKED = {
     'fix_approval': ('Approve an endpoint fix',
-                     'Only the paired RMM approves endpoint work, on its own approval page. ClientSt0r never approves.'),
-    'endpoint_commands': ('Run commands on a device from ClientSt0r',
-                          'ClientSt0r sends no endpoint commands. Device work is requested from the paired RMM.'),
+                     'Only the paired RMM approves endpoint work, on its own approval page. Clientst0r never approves.'),
+    'endpoint_commands': ('Run commands on a device from Clientst0r',
+                          'Clientst0r sends no endpoint commands. Device work is requested from the paired RMM.'),
     'vault_to_ai': ('Vault data in AI evidence',
                     'Vault entries, keys and backup credentials are never part of analysis evidence.'),
     'cross_customer': ('Cross-customer access from one assignment',
@@ -92,7 +92,7 @@ NEEDS_LIVE_REMOTE = {'remote_view', 'remote_control', 'elevation', 'unattended_a
 
 # What a paired RMM must advertise (ticket-rmm-v1 capabilities document)
 # before each RMM / Remote access / Fixes capability stops being Unavailable.
-# Fix capabilities all ride on signed_actions: ClientSt0r only refers a fix,
+# Fix capabilities all ride on signed_actions: Clientst0r only refers a fix,
 # the RMM approves and runs it.
 INTEGRATION_REQUIRES = {
     'rmm_handoff': 'rmm_handoff',

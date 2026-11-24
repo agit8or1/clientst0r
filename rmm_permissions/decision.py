@@ -14,7 +14,7 @@ The one answer to "may this person do this RMM action here, now?".
                   `decision.permitted_now`.
 
     record_remote_refusal(decision, user, organization, code, ...)
-        Rem0te (or another paired RMM) said no after ClientSt0r said yes.
+        Rem0te (or another paired RMM) said no after Clientst0r said yes.
         Returns a denying Decision and audits it. The RMM's refusal always
         wins; nothing here retries around it.
 
@@ -349,7 +349,7 @@ def can(user, organization, action, device=None, ticket=None, now=None) -> Decis
     # --- Rem0te route ---
     if conn is not None and getattr(conn, 'provider_type', '') == 'rem0te':
         if scope is None:
-            return no("Rem0te's ticket-rmm-v1 contract has no route for this from ClientSt0r; do it in Rem0te, "
+            return no("Rem0te's ticket-rmm-v1 contract has no route for this from Clientst0r; do it in Rem0te, "
                       'where its own approvals apply.', 'rem0te')
         steps.append(Step('rem0te', INFO, f'Rem0te decides too ({scope or "synced data, no delegation"}); its '
                                           'refusal always wins.'))
@@ -495,7 +495,7 @@ def audit_denial(user, organization, action, reason, device=None, request=None, 
 
 
 def record_remote_refusal(decision, user, organization, code='', message='', request=None) -> Decision:
-    """The paired RMM refused what ClientSt0r allowed. Its refusal wins."""
+    """The paired RMM refused what Clientst0r allowed. Its refusal wins."""
     text = ''
     try:
         from integrations.rem0te.actions import REFUSAL_TEXT

@@ -16,7 +16,7 @@ subject_user):
                 be read there yet: recorded as "not verifiable" and left to
                 the runbook's manual stages.
 
-Nothing here changes anything in ClientSt0r or in a connected system. Every
+Nothing here changes anything in Clientst0r or in a connected system. Every
 run writes one AccessRemovalCheck per system checked and an execution audit
 entry (which also lands in the main audit log).
 """
@@ -40,7 +40,7 @@ def _status(findings):
 
 
 def subject_users(execution):
-    """ClientSt0r accounts that belong to the departing person."""
+    """Clientst0r accounts that belong to the departing person."""
     users = {}
     if execution.subject_user_id:
         users[execution.subject_user_id] = execution.subject_user
@@ -63,11 +63,11 @@ def check_clientst0r(execution):
     subject = execution.subject_email or (execution.subject_user.username if execution.subject_user else '')
     if not users:
         if not subject:
-            return [dict(system='clientst0r', target='ClientSt0r', subject='', status='not_verifiable',
+            return [dict(system='clientst0r', target='Clientst0r', subject='', status='not_verifiable',
                          summary='Name the departing person (email or account) to check.', findings=[])]
-        return [dict(system='clientst0r', target='ClientSt0r', subject=subject, status='removed',
-                     summary='No ClientSt0r account with this email or user name.',
-                     findings=[_f('ClientSt0r account', 'removed', 'none found')])]
+        return [dict(system='clientst0r', target='Clientst0r', subject=subject, status='removed',
+                     summary='No Clientst0r account with this email or user name.',
+                     findings=[_f('Clientst0r account', 'removed', 'none found')])]
     now = timezone.now()
     results = []
     for u in users:
@@ -115,7 +115,7 @@ def check_clientst0r(execution):
                            + ('; has access to other customers' if other else '')))
         status = _status(findings)
         n = sum(1 for f in findings if f['state'] == 'active')
-        results.append(dict(system='clientst0r', target=f'ClientSt0r account {u.username}',
+        results.append(dict(system='clientst0r', target=f'Clientst0r account {u.username}',
                             subject=u.email or u.username, status=status, findings=findings,
                             summary=(f'{n} kind(s) of access remain' if n else 'No access to this customer remains')))
     return results

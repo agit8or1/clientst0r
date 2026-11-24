@@ -1,5 +1,5 @@
 """
-URL Configuration for Client St0r
+URL Configuration for Clientst0r
 """
 from django.contrib import admin
 from django.contrib.auth.views import LogoutView

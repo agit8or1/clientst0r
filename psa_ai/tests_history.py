@@ -39,7 +39,7 @@ def panel_of(html):
 
 
 def _no_remote_calls():
-    """Patches for every way ClientSt0r reaches an RMM or Rem0te: the Rem0te
+    """Patches for every way Clientst0r reaches an RMM or Rem0te: the Rem0te
     signed client (sessions, launches, action proposals, jobs), the generic
     ticket-rmm-v1 request, remote launch and fix referral entry points."""
     return [patch('integrations.rem0te.client.request'),

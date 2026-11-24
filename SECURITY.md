@@ -1,8 +1,8 @@
-# Client St0r Security Policy
+# Clientst0r Security Policy
 
 ## Reporting Security Vulnerabilities
 
-**We take security seriously.** If you discover a security vulnerability in Client St0r, please report it responsibly.
+**We take security seriously.** If you discover a security vulnerability in Clientst0r, please report it responsibly.
 
 ### How to Report
 
@@ -36,7 +36,7 @@ Please provide as much information as possible:
 | 3.17.x   | :white_check_mark: |
 | < 3.17   | :x:                |
 
-Security updates land on the current release line only. ClientSt0r ships continuously and
+Security updates land on the current release line only. Clientst0r ships continuously and
 upgrades in place from the web UI (**Settings → System → System Updates**), so the supported
 line is always the latest one — update rather than pinning an older release.
 
@@ -55,7 +55,7 @@ line is always the latest one — update rather than pinning an older release.
 **Last reviewed:** 2026-10-15
 **Architecture:** Django 6 + DRF + Gunicorn + MariaDB; AI providers optional
 
-Client St0r implements defense-in-depth security with multiple layers of protection based on OWASP best practices and Django security guidelines. Where a control is partial or not yet implemented, this document says so; [FEATURES.md](FEATURES.md#security) labels each capability Available / Limited / Planned.
+Clientst0r implements defense-in-depth security with multiple layers of protection based on OWASP best practices and Django security guidelines. Where a control is partial or not yet implemented, this document says so; [FEATURES.md](FEATURES.md#security) labels each capability Available / Limited / Planned.
 
 ---
 
@@ -426,7 +426,7 @@ REQUIRE_2FA=True
 
 ### Architecture
 
-Client St0r uses **single-database multi-tenancy** with `organization_id` filtering:
+Clientst0r uses **single-database multi-tenancy** with `organization_id` filtering:
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -794,7 +794,7 @@ backup archives already on disk — restore reads those while the old key is lis
 `APP_MASTER_KEY_PREVIOUS`.
 
 If the key may be compromised, rotate it as above and also rotate the credentials stored in
-ClientSt0r at their source (integration API keys, vault passwords).
+Clientst0r at their source (integration API keys, vault passwords).
 
 ### Validation
 
@@ -1153,15 +1153,15 @@ AZURE_AD_AUTO_CREATE_USERS=True  # Auto-create on first login
 1. User clicks "Login with Microsoft"
 2. Redirects to Azure AD
 3. User authenticates with Microsoft
-4. Callback to Client St0r with OAuth code
+4. Callback to Clientst0r with OAuth code
 5. Exchange code for access token
 6. Fetch user info from Microsoft Graph API
-7. Create/update user in Client St0r
+7. Create/update user in Clientst0r
 8. Log in user
 
 **Security:**
 - OAuth 2.0 / OpenID Connect
-- No passwords stored in Client St0r
+- No passwords stored in Clientst0r
 - Updates user info on each login
 - Audit logged
 
@@ -1507,7 +1507,7 @@ See separate section below for copy/paste implementation guide.
 
 **Last reviewed:** 2026-10-15
 **Applies to:** the current 3.17.x line
-**Maintainer:** Client St0r Security Team
+**Maintainer:** Clientst0r Security Team
 
 ---
 

@@ -1,4 +1,4 @@
-"""Which single sign-on sessions stand in for ClientSt0r's own 2FA.
+"""Which single sign-on sessions stand in for Clientst0r's own 2FA.
 
 One place for Enforce2FAMiddleware to ask, whatever signed the user in:
 

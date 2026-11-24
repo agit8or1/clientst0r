@@ -1,6 +1,6 @@
 {
   "name": "alert-event.raised-with-patch-summary",
-  "description": "rem0te → ClientSt0r: a signed alert event for a REBOOT_PENDING alert, carrying the redacted patch summary (revision 2). Verify over \"rem0te-alert-event-v1\\n\" + canonical JSON of `alert_event`.",
+  "description": "rem0te → Clientst0r: a signed alert event for a REBOOT_PENDING alert, carrying the redacted patch summary (revision 2). Verify over \"rem0te-alert-event-v1\\n\" + canonical JSON of `alert_event`.",
   "direction": "rem0te_to_clientst0r",
   "request": {
     "method": "POST",

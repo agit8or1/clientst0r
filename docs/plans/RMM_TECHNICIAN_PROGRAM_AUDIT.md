@@ -224,7 +224,7 @@ failing test before any fix.
 - Storm protection.
 
 **Build:**
-1. **P0** G2, or no Rem0te alert reaches ClientSt0r at all.
+1. **P0** G2, or no Rem0te alert reaches Clientst0r at all.
 2. **P1** An alert-intake policy model per customer/site/kind/severity: open a ticket / record only / suppress.
    - Route the opened ticket through `psa/routing` instead of `Queue.objects.first()`.
 3. **P1** Correlation:
@@ -280,7 +280,7 @@ failing test before any fix.
 - Approval requirements shown next to each action.
 
 **Build:**
-1. **P1** Show approval requirements on each RMM action: Rem0te's `approvals_required` and `customer_signoff` from the proposal, plus ClientSt0r's own capability decision. Reuse `explain.py`.
+1. **P1** Show approval requirements on each RMM action: Rem0te's `approvals_required` and `customer_signoff` from the proposal, plus Clientst0r's own capability decision. Reuse `explain.py`.
 2. **P1** Either wire the unchecked capabilities into the views they describe, or mark them "not enforced yet" in the catalog UI. Do not show a toggle that does nothing.
 3. **P2** Decide whether assignments should also narrow ordinary ticket and asset access (S6). That is a large change; plan it separately.
 

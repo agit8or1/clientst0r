@@ -209,7 +209,7 @@ class OfflineCacheRestrictionTests(_Customers):
         self.assertIsNone(row['encrypted_password'])
         self.assertTrue(row['online_only'])
         self.assertEqual(row['message'], ONLINE_ONLY_MESSAGE)
-        self.assertEqual(ONLINE_ONLY_MESSAGE, 'Connect to ClientSt0r to reveal this password.')
+        self.assertEqual(ONLINE_ONLY_MESSAGE, 'Connect to Clientst0r to reveal this password.')
         self.assertFalse(row['totp_available'])
         self.assertEqual(AuditLog.objects.filter(extra_data__event='vault_extension_sync').order_by('-pk')
                          .first().extra_data['online_only'], 2)

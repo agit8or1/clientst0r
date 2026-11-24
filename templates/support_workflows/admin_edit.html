@@ -50,7 +50,7 @@
         </div>{% endfor %}
     </div></div>
 
-    <div class="card mb-2"><div class="card-header py-1"><strong>Suggested actions</strong> <span class="text-muted">only Rem0te catalog actions ClientSt0r knows; offered only when the paired Rem0te advertises one and its approvers approve</span></div><div class="card-body py-2">
+    <div class="card mb-2"><div class="card-header py-1"><strong>Suggested actions</strong> <span class="text-muted">only Rem0te catalog actions Clientst0r knows; offered only when the paired Rem0te advertises one and its approvers approve</span></div><div class="card-body py-2">
         {% for r in rows.remediations %}
         <div class="border rounded p-2 mb-2" data-remediation-row>
             <div class="row g-2">
@@ -90,7 +90,7 @@
     <p>Facts: {% for f in facts %}<code>{{ f }}</code> {% endfor %}</p>
     <p>Ops: {% for o in ops %}<code>{{ o }}</code> {% endfor %}</p>
     <h6>Actions</h6>
-    <p>Only Rem0te catalog actions ClientSt0r knows; offered only when the paired Rem0te advertises them:</p>
+    <p>Only Rem0te catalog actions Clientst0r knows; offered only when the paired Rem0te advertises them:</p>
     <ul>{% for k, a in known_actions.items %}<li><code>{{ k }}</code> — {{ a.label }} ({{ a.risk }} risk)</li>{% endfor %}</ul>
     <p>Saving checks the whole definition; problems are listed above the form and nothing is stored until they are fixed.</p>
 </div>

@@ -47,7 +47,7 @@ class Command(BaseCommand):
         if s.recovery_email and s.recovery_verified_at:
             recipients.add(s.recovery_email)
         if recipients:
-            send_mail('[ClientSt0r] Superuser-grant approval turned off on the host',
+            send_mail('[Clientst0r] Superuser-grant approval turned off on the host',
                       f'The policy was turned off with manage.py superuser_policy --disable.\n\nReason: {reason}',
                       None, sorted(recipients), fail_silently=True)
         self.stdout.write(self.style.WARNING('Superuser-grant approval is now off. This was audited and announced.'))

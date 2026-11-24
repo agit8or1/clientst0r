@@ -1,5 +1,5 @@
 /**
- * ClientSt0r Popup — Passwords | Assets | Notifications
+ * Clientst0r Popup — Passwords | Assets | Notifications
  */
 
 // ─── Utilities ────────────────────────────────────────────────────────────────

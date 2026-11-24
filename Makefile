@@ -1,4 +1,4 @@
-# Client St0r — convenience targets.
+# Clientst0r — convenience targets.
 # Run `make help` for the full menu. All Docker targets thin-wrap
 # `docker compose` so you can always drop down to the underlying
 # command if a target doesn't fit.
@@ -20,7 +20,7 @@ docker-build: ## Build the production image locally
 docker-up: ## Start app + db in detached mode
 	$(COMPOSE) up -d
 	@echo ""
-	@echo "Client St0r is starting. Tail logs with: make docker-logs"
+	@echo "Clientst0r is starting. Tail logs with: make docker-logs"
 	@echo "App will be reachable at: http://localhost:$${WEB_PORT:-8000}"
 
 docker-up-full: ## Start app + db + nginx (proxy profile)

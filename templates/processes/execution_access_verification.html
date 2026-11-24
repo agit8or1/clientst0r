@@ -28,14 +28,14 @@
             </div>
             <div class="col-auto"><button class="btn btn-outline-primary">Save</button></div>
         </form>
-        {% if execution.subject_user %}<div class="small text-muted mt-1">ClientSt0r account: {{ execution.subject_user.username }}</div>{% endif %}
+        {% if execution.subject_user %}<div class="small text-muted mt-1">Clientst0r account: {{ execution.subject_user.username }}</div>{% endif %}
         <form method="post" class="mt-3">
             {% csrf_token %}
             <input type="hidden" name="action" value="verify">
             <button class="btn btn-primary" {% if not execution.subject_email and not execution.subject_user %}disabled{% endif %}>
                 <i class="fas fa-search"></i> Verify access removal
             </button>
-            <span class="small text-muted ms-2">Read-only: checks ClientSt0r, the customer's Microsoft 365 connection and its RMM connections. Nothing is changed.{% if last_run %} Last run {{ last_run|date:"Y-m-d H:i" }}.{% endif %}</span>
+            <span class="small text-muted ms-2">Read-only: checks Clientst0r, the customer's Microsoft 365 connection and its RMM connections. Nothing is changed.{% if last_run %} Last run {{ last_run|date:"Y-m-d H:i" }}.{% endif %}</span>
         </form>
     </div>
 </div>

@@ -14,7 +14,7 @@
 
 ## Organizations
 
-Organizations are the top-level containers for all data. ClientSt0r is **multi-tenant** — each client, department, or team has its own organization.
+Organizations are the top-level containers for all data. Clientst0r is **multi-tenant** — each client, department, or team has its own organization.
 
 | Action | Where |
 |--------|-------|

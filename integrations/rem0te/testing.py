@@ -1,5 +1,5 @@
 """
-Test helpers: an in-process Rem0te that checks ClientSt0r's requests the way
+Test helpers: an in-process Rem0te that checks Clientst0r's requests the way
 Rem0te does (Ed25519 request signature over rem0te-http-req-v1 with its
 audience, ±120 s, single-use nonce, delegation JWS with req_sha256 over the
 canonical body) and answers in the contract's shapes; and a Rem0te signing
@@ -67,7 +67,7 @@ def sign_event(event, alert=False, key=None, kid=KID):
 
 
 def signed_post(client, path, body, key=None, kid=KID, audience=CS_AUDIENCE, ts=None, nonce=None):
-    """POST to ClientSt0r as Rem0te does. Returns the Django test response."""
+    """POST to Clientst0r as Rem0te does. Returns the Django test response."""
     raw = protocol.canonical_json(body).encode() if not isinstance(body, bytes) else body
     h = protocol.request_headers(key or rem0te_key(), f'rem0te/{kid}', audience, 'POST', path, raw,
                                  timestamp=ts, nonce=nonce)
@@ -196,7 +196,7 @@ class FakeRem0te:
             return self._err(403, 'FORBIDDEN', 'Technician is not mapped')
         kind = {'/jobs': 'integration', '/action-proposals': 'actions'}.get(route) if method == 'POST' else None
         if kind and kind in self.paused.get(org, ()):
-            return self._err(423, 'CONTAINED', 'This business is suspended: ClientSt0r jobs are stopped. '
+            return self._err(423, 'CONTAINED', 'This business is suspended: Clientst0r jobs are stopped. '
                                                'Reason: under review (test)')
         return self._route(method, route, body, q, claims)
 

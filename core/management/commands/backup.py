@@ -1,5 +1,5 @@
 """
-Backup management command for Client St0r
+Backup management command for Clientst0r
 Creates encrypted backups of database and media files
 """
 

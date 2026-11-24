@@ -185,7 +185,7 @@ class OutcomeTests(WorkflowBase):
         engine.refresh(run, force=True)
         run.refresh_from_db()
         self.assertEqual(run.status, 'failed')
-        self.assertTrue(any('Nothing was changed by ClientSt0r' in b for b in self.notes(t)))
+        self.assertTrue(any('Nothing was changed by Clientst0r' in b for b in self.notes(t)))
         # Recovery later does not mark the failed run verified.
         self.resolve('cmsvc01', kind='SERVICE_STOPPED', title='SRV-01: service Spooler is Stopped')
         run.refresh_from_db()
@@ -242,7 +242,7 @@ class AccessAndDefinitionTests(WorkflowBase):
         ev = {i['key']: i for i in run.evidence}
         self.assertIn('Not read', ev['alert_now']['value']['note'])
         self.assertFalse(any(c[1] == '/alerts/cmdisk01' for c in self.fake.calls))
-        self.assertIn('disk', ev)  # what ClientSt0r already holds is still shown
+        self.assertIn('disk', ev)  # what Clientst0r already holds is still shown
 
     def _deny(self, action):
         from rmm_permissions import overrides

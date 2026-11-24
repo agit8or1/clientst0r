@@ -1,6 +1,6 @@
 # Sourced by the MariaDB image's entrypoint on the FIRST start of an empty
 # data volume (files in /docker-entrypoint-initdb.d). Grants the application
-# account a scratch database, <DB_NAME>_verify, that Client St0r restores
+# account a scratch database, <DB_NAME>_verify, that Clientst0r restores
 # each pre-upgrade backup into to prove it is complete before migrating.
 # Without it the backup is still taken and checked, but only structurally.
 #

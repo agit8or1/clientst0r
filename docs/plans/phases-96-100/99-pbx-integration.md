@@ -8,7 +8,7 @@ is specific to Phase 99.
 
 ## 1. Goals and business value
 
-- Connect ClientSt0r to the PBX an MSP already runs. ClientSt0r does not replace the PBX, does not carry media
+- Connect Clientst0r to the PBX an MSP already runs. Clientst0r does not replace the PBX, does not carry media
   and does not administer the PBX.
 - When a call rings: identify the caller (contact, customer, prospect, or unknown, including ambiguous
   matches), show a small popup with open tickets and permitted contract/SLA facts, and let the technician create
@@ -33,7 +33,7 @@ Research notes (items marked unverified there remain unverified here):
 - **ARI** is powerful but requires routing calls into a Stasis application, which is intrusive on an existing
   PBX. Not used for the MVP.
 - Push-native platforms (Yeastar P-Series signed webhooks, 3CX CRM templates or Call Control) can call
-  ClientSt0r directly; their licensing terms for API access are unverified.
+  Clientst0r directly; their licensing terms for API access are unverified.
 
 **MVP:** Asterisk 22 LTS and FreePBX 17 through AMI, with a small bridge process on the PBX host.
 
@@ -65,7 +65,7 @@ FusionPBX via the event socket using the same bridge contract; Grandstream UCM; 
 ### 4.1 Components
 
 ```
- PBX host (customer or MSP network)                ClientSt0r server
+ PBX host (customer or MSP network)                Clientst0r server
  ┌────────────────────────────┐   HTTPS (outbound only)   ┌────────────────────────────┐
  │ Asterisk 22 / FreePBX 17   │                           │ /telephony/bridge/events/  │
  │   AMI on 127.0.0.1:5038    │                           │ /telephony/bridge/commands/│
@@ -76,12 +76,12 @@ FusionPBX via the event socket using the same bridge contract; Grandstream UCM; 
  └────────────────────────────┘                           └────────────────────────────┘
 ```
 
-- **Media and routing stay on the PBX.** Calls never transit ClientSt0r.
+- **Media and routing stay on the PBX.** Calls never transit Clientst0r.
 - **The bridge** is a small long-running process installed on the PBX host (or a host on the same private
   network). It holds the AMI connection, translates events into the vendor-neutral contract, buffers events on
-  disk while ClientSt0r is unreachable, retries with backoff, and polls ClientSt0r for approved commands
+  disk while Clientst0r is unreachable, retries with backoff, and polls Clientst0r for approved commands
   (originate). All connections are outbound from the PBX side, so no PBX management port is exposed and
-  ClientSt0r never needs to reach into the PBX network.
+  Clientst0r never needs to reach into the PBX network.
 - **Push-native PBXs** (later adapters) post directly to a vendor-specific receiver that verifies the vendor's
   signature and converts to the same internal event shape.
 - **Failure isolation:** the receiver is a separate URL group, rate-limited and size-capped; processing is a short
@@ -135,9 +135,9 @@ DB-backed. Queries used by polling are indexed and bounded (active calls for one
 
 - Python 3, no Django dependency, small dependency set; AMI client with reconnect; config file with AMI
   credentials (read-only `call`, `cdr`, `agent` classes plus `originate` only when click-to-call is enabled),
-  ClientSt0r URL, token and HMAC secret; on-disk queue with size cap; structured logs without secrets.
+  Clientst0r URL, token and HMAC secret; on-disk queue with size cap; structured logs without secrets.
 - Distributed from this repository (`telephony/bridge/`), with a systemd unit and a container image; versioned
-  separately from the app and reporting its version in every batch, so ClientSt0r can warn about outdated
+  separately from the app and reporting its version in every batch, so Clientst0r can warn about outdated
   bridges.
 - Least privilege on the PBX: a dedicated AMI user bound to `127.0.0.1`, `permit` limited to localhost, write
   class limited to `originate` when enabled.
@@ -169,7 +169,7 @@ DB-backed. Queries used by polling are indexed and bounded (active calls for one
   new lead (unknown caller, when CRM is on), dismiss.
 - An "unverified caller" label is always shown: **a phone number alone never establishes identity or
   authorization**. The popup never offers password resets, vault reveals or account changes, and nothing in
-  ClientSt0r treats a matched number as verification.
+  Clientst0r treats a matched number as verification.
 
 ### 5.4 Click-to-call
 
@@ -179,7 +179,7 @@ DB-backed. Queries used by polling are indexed and bounded (active calls for one
 - Flow: the user clicks → a `CallCommand` (originate: ring the user's extension first, then dial the number) is
   created after permission and rate-limit checks → the bridge picks it up → result reported → the call appears
   through normal events. Commands expire after 30 seconds if not picked up.
-- Optional outbound destinations per user role (for example only domestic numbers) checked in ClientSt0r as well
+- Optional outbound destinations per user role (for example only domestic numbers) checked in Clientst0r as well
   as relying on PBX dial rules.
 
 ### 5.5 Call log and timelines
@@ -203,13 +203,13 @@ DB-backed. Queries used by polling are indexed and bounded (active calls for one
 ### 5.7 Queues and agent status
 
 - Where the adapter reports them: queue waiting counts and agent status in a compact Service Desk widget.
-- Queue selection and transfers from ClientSt0r only where the PBX supports them and only after the MVP; IVR,
+- Queue selection and transfers from Clientst0r only where the PBX supports them and only after the MVP; IVR,
   trunks, DIDs and routing stay in the PBX. DIDs can be labelled (sales, support, management) to choose the popup
   audience and the default action (new lead versus new ticket).
 
 ### 5.8 Recording and transcription
 
-- Off by default. ClientSt0r does not record calls. If the PBX records, ClientSt0r may store a link to the
+- Off by default. Clientst0r does not record calls. If the PBX records, Clientst0r may store a link to the
   recording (not the audio) on the call record, visible only with `telephony_listen_recordings`, each access
   audited.
 - Transcription, if ever enabled, is **OPTIONAL AI** gated by `psa_ai_enabled` and a separate telephony setting,
@@ -289,7 +289,7 @@ click-to-call from a connected PBX.')`), all `staff_only=True`:
 - No PBX management port is exposed: AMI stays on localhost; the bridge connects outbound over HTTPS.
 - Bridge requests require token and HMAC with timestamp; replay claims in the DB; IP allowlists through Phase 81;
   size, batch and rate caps; refusals logged.
-- PBX credentials never reach ClientSt0r in the MVP (they live in the bridge config on the PBX host). The HMAC
+- PBX credentials never reach Clientst0r in the MVP (they live in the bridge config on the PBX host). The HMAC
   secret is encrypted at rest and shown once; rotation supported with an overlap window.
 - Commands are limited to originate from a mapped extension of the requesting user to a parsed E.164 number;
   per-user and per-connection rate limits; optional destination restrictions; every command audited. No
@@ -337,7 +337,7 @@ grants on upgrade (granted when the module is first enabled, by the enable actio
 - **E2E against a real containerized Asterisk (CI):** a GitHub Actions job modelled on
   `.github/workflows/cross-peer-e2e.yml` builds a pinned Asterisk 22 LTS image (from a checksum-verified release
   tarball; base image choice to be fixed in 99.2), loads checked-in `manager.conf`, `pjsip.conf` and a test
-  dialplan with two PJSIP endpoints and one voicemail box, runs the bridge against AMI, starts ClientSt0r on SQLite,
+  dialplan with two PJSIP endpoints and one voicemail box, runs the bridge against AMI, starts Clientst0r on SQLite,
   places calls with SIPp (answered, missed, voicemail), and asserts call records, popups, matching and an
   originate round trip through the command queue. A FreePBX 17 run follows when a reproducible FreePBX test image
   is available; until then FreePBX is listed as "via Asterisk AMI, not separately verified".

@@ -469,7 +469,7 @@ def _describe(f: AlertFacts, why_lines=()):
     ]
     lines += _ticket_lines((f.evidence or {}).get('ticket_lines'))
     lines += [w for w in why_lines if w]
-    lines += ['', 'Nothing in ClientSt0r acts on the computer. Diagnostics and fixes go through the '
+    lines += ['', 'Nothing in Clientst0r acts on the computer. Diagnostics and fixes go through the '
                   'RMM, with its approval.']
     return '\n'.join(lines)
 

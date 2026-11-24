@@ -2,17 +2,17 @@
 
 ## General
 
-**Is ClientSt0r open source?**
-Yes. ClientSt0r is MIT-licensed. Every first-party feature works on a self-hosted install
+**Is Clientst0r open source?**
+Yes. Clientst0r is MIT-licensed. Every first-party feature works on a self-hosted install
 with no paid tier, seat limit or licence key.
 
-**Is ClientSt0r self-hosted?**
-Yes. ClientSt0r is self-hosted software that you run on infrastructure you control. There
+**Is Clientst0r self-hosted?**
+Yes. Clientst0r is self-hosted software that you run on infrastructure you control. There
 is no public demo instance. Optional managed hosting and commercial support are offered
 separately by [MSP Reboot](https://mspreboot.com) for teams that would rather not run it
 themselves; they are not required to use any feature.
 
-**Who should use ClientSt0r?**
+**Who should use Clientst0r?**
 Managed service providers and IT teams who want client documentation, credentials,
 assets and a service desk in one system, on their own server.
 
@@ -32,7 +32,7 @@ Either Docker Engine 24.0+ with the Compose v2 plugin, or Ubuntu 20.04+ / Debian
 2 GB RAM (4 GB recommended) and 10 GB free disk for the native installer, which sets up
 Python 3.12, MariaDB, Gunicorn and the systemd units.
 
-**How do I install ClientSt0r?**
+**How do I install Clientst0r?**
 
 Docker:
 ```bash
@@ -86,11 +86,11 @@ could open those pages; untick them afterwards to restrict a role.
 
 ## Features
 
-**Does ClientSt0r support multiple organizations?**
+**Does Clientst0r support multiple organizations?**
 Yes. Every asset, document, credential, location and ticket belongs to an organization,
 and customer users are limited to their own organizations.
 
-**Does ClientSt0r support SSO?**
+**Does Clientst0r support SSO?**
 Azure AD / Microsoft Entra ID single sign-on is supported, and so is LDAP / Active Directory
 sign-in (Settings → Users & Access → Directory Services, with a Test connection button). LDAP needs the optional
 `django-auth-ldap` and `python-ldap` packages from `requirements-optional.txt`. Local
@@ -117,7 +117,7 @@ key and `python manage.py check_secrets_storage` reports anything stored unprote
 
 **What PSA integrations are available?**
 ConnectWise Manage, Autotask, HaloPSA, Kaseya BMS, Syncro, Freshservice, Zendesk and
-ITFlow. ClientSt0r also has its own built-in service desk (off until an administrator turns
+ITFlow. Clientst0r also has its own built-in service desk (off until an administrator turns
 on `psa_enabled`).
 
 **Where does a technician start the day?**
@@ -131,7 +131,7 @@ answer a guided form, see knowledge-base articles that might already help, and s
 request becomes a ticket routed to the right queue, and can ask the customer's admin for
 approval. Mark catalog items as visible in the portal to offer them.
 
-**Does ClientSt0r alert me when a website goes down?**
+**Does Clientst0r alert me when a website goes down?**
 Yes. With "notify on down" on, a monitor emails superusers and the customer's admins once
 after two failed checks in a row and once when it recovers, and fires `monitor.down` /
 `monitor.up` webhooks.
@@ -156,13 +156,13 @@ Yes. The ticket's *Copied on replies (Cc)* card holds the list; people the custo
 on their e-mail are added automatically, and the reply box shows the Cc field whenever
 *Email this reply* is ticked.
 
-**Does ClientSt0r work with my RMM from a ticket?**
+**Does Clientst0r work with my RMM from a ticket?**
 The ticket's Asset card shows what each connected RMM last reported about the ticket's
 asset (technicians only), with a link to the device in the RMM's console where the
 connection has one. From v3.17.658, an RMM that implements the ticket-rmm-v1 contract can
 also be paired to a single-customer connection; technicians whose access preset allows it
 can then send the RMM a redacted handoff, run a read-only diagnostic it offers, launch a
-view or control session, or refer a fix for the RMM to approve and run. ClientSt0r never
+view or control session, or refer a fix for the RMM to approve and run. Clientst0r never
 sends commands to devices itself. See
 [CLIENT_DATA_PROTECTION.md](CLIENT_DATA_PROTECTION.md#rmm-pairing-and-ticket-actions).
 

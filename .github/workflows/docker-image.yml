@@ -1,4 +1,4 @@
-# Build + publish the Client St0r Docker image.
+# Build + publish the Clientst0r Docker image.
 #
 # • PR and push events build the image to verify the Dockerfile still works.
 # • Push to `main` or a `v*` tag publishes to ghcr.io/agit8or1/clientst0r

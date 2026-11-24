@@ -1,5 +1,5 @@
 [Unit]
-Description=Client St0r Auto-Update Service
+Description=Clientst0r Auto-Update Service
 After=network.target
 
 [Service]

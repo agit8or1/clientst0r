@@ -46,7 +46,7 @@ echo "New version: $NEW_VERSION"
 # Update config/version.py
 cat > config/version.py <<EOF
 """
-Version information for Client St0r
+Version information for Clientst0r
 """
 
 VERSION = '$NEW_VERSION'

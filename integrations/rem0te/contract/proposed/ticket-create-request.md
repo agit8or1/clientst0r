@@ -1,14 +1,14 @@
 # PROPOSED P16 — `ticket.create_request` (rem0te 0.48)
 
-**Not agreed by ClientSt0r.** rem0te ships its side behind a capability check, so
-against today's ClientSt0r nothing is sent and the ClientSt0r PSA connector is not
+**Not agreed by Clientst0r.** rem0te ships its side behind a capability check, so
+against today's Clientst0r nothing is sent and the Clientst0r PSA connector is not
 offered. See `INTEGRATION_COORDINATION.md` §5C.
 
 ## Why
 
 rem0te 0.48 adds **Create ticket** to a computer's Windows event-log entries and
 monitoring alerts. A business can send it to its PSA by email-to-ticket or a
-webhook. Where the PSA is ClientSt0r, rem0te proposes a signed event instead.
+webhook. Where the PSA is Clientst0r, rem0te proposes a signed event instead.
 
 ## The declaration
 

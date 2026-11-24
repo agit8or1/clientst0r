@@ -415,7 +415,7 @@ class ApplyTests(RehearsalTestBase):
         apply_plan(plan2, self.user)
         item = self.item(plan2, 'configuration', 'CFG1')
         self.assertEqual(item.outcome, 'failed')
-        self.assertIn('changed in ClientSt0r after review', item.outcome_message)
+        self.assertIn('changed in Clientst0r after review', item.outcome_message)
         self.assertEqual(Asset.objects.get(organization=self.org_a, serial_number='SN1').hostname,
                          'edited-now')
 

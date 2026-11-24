@@ -46,7 +46,7 @@ Each location can have one or more **WAN connections** — the internet links se
 
 ### WAN checks and alerts
 
-With monitoring enabled and a monitor target (IP or hostname) set, the ClientSt0r server pings the target at the WAN's check interval. After 2 checks in a row with no answer, the connection is marked **Down** and an email and the `wan.down` webhook go out. The first answer after that sends a recovery notice. **Check Status** on the WAN detail page runs a check immediately. See [Website & WAN Monitoring](wan-monitoring.md#wan-connection-checks) for the details.
+With monitoring enabled and a monitor target (IP or hostname) set, the Clientst0r server pings the target at the WAN's check interval. After 2 checks in a row with no answer, the connection is marked **Down** and an email and the `wan.down` webhook go out. The first answer after that sends a recovery notice. **Check Status** on the WAN detail page runs a check immediately. See [Website & WAN Monitoring](wan-monitoring.md#wan-connection-checks) for the details.
 
 ---
 

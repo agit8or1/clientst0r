@@ -77,7 +77,7 @@ class TaxJarProvider(BaseTaxProvider):
         for ln in req.lines:
             item = {'id': ln.number, 'quantity': 1,
                     # quantity 1 at the line total: the line total is the
-                    # amount ClientSt0r bills, already rounded.
+                    # amount Clientst0r bills, already rounded.
                     'unit_price': float(money(ln.amount) * sign)}
             code = ln.tax_code if ln.taxable else self.NON_TAXABLE_CODE
             if code:

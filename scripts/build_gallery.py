@@ -59,10 +59,10 @@ def main() -> int:
     out: list[str] = []
     w = out.append
 
-    w('# ClientSt0r — screenshot gallery')
+    w('# Clientst0r — screenshot gallery')
     w('')
     w(f'{len(shots)} views of the running application — {light} in the light theme '
-      f'(Default Blue), {dark} in Professional Dark, the default theme. Every one is a capture of ClientSt0r against an isolated '
+      f'(Default Blue), {dark} in Professional Dark, the default theme. Every one is a capture of Clientst0r against an isolated '
       'demo database; no mockups, no composites.')
     w('')
     w('All organizations, people, hostnames, addresses and credentials below are '
@@ -135,7 +135,7 @@ def main() -> int:
     w('---')
     w('')
     w('[← Back to the README](../README.md) · '
-      '[MSP Reboot](https://mspreboot.com) — the MSP consulting practice behind ClientSt0r')
+      '[MSP Reboot](https://mspreboot.com) — the MSP consulting practice behind Clientst0r')
     w('')
 
     OUT.write_text('\n'.join(out))
