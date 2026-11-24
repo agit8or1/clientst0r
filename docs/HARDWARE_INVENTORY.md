@@ -34,6 +34,30 @@ More views: [screenshot gallery → Hardware and cabling](screenshots.md#hardwar
 
 [![Cable trace from switch port 12 through patch panel PP-01 and wall jack Office 104 A to workstation XYZ-WS-104](images/github/hardware-trace-light.png)](images/github/hardware-trace-light.png)
 
+**Hardware & Ports → Cables** (`/hardware/cables/`) lists every cable documented at the client, with both ends:
+
+<!-- guide-figure: guide-infra-cable-list -->
+![Hardware & Ports → Cables for Client XYZ with numbered callouts on the search box, Export CSV, a cable ID, the A and B ends, and Print labels for selected cables](images/guides/guide-infra-cable-list.png "Assets & Network → Hardware & Ports → Cables.")
+
+1. Search by cable ID, description or device.
+2. Export this customer's cables as CSV.
+3. The cable ID opens the cable to edit its type, colour, length, end labels and status.
+4. The A and B ends: device and port, each linking to that port on the device page.
+5. Tick cables, then print their labels.
+<!-- /guide-figure -->
+
+**Hardware & Ports → VLAN Ports** (`/hardware/vlans/`) lists the client's VLANs and how many ports carry each one:
+
+<!-- guide-figure: guide-infra-vlan-ports -->
+![Hardware & Ports → VLAN Ports for Client XYZ with numbered callouts on a VLAN chip, its group or scope, the untagged and tagged port counts, the VLAN diagram link and the Add VLAN and Add VLAN group forms](images/guides/guide-infra-vlan-ports.png "Assets & Network → Hardware & Ports → VLAN Ports.")
+
+1. The VLAN number in its colour, the same colour the ports and diagrams use.
+2. Client-wide, or the VLAN group (switching domain) it belongs to.
+3. How many ports carry the VLAN untagged (native); the next column counts tagged ports.
+4. VLAN diagram opens Network Diagrams → VLAN View.
+5. Add a VLAN or a VLAN group. Shown only to people who can edit assets; saving also needs permission to create monitoring records.
+<!-- /guide-figure -->
+
 ## Patch panels and port mapping
 
 A patch panel, keystone wall plate or fibre cassette has **front ports** and

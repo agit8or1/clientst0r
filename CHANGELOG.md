@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.774] - 2026-11-25
+
+### Added
+- **Guides for Assets, Infrastructure, and Inventory and Vehicles, with annotated screenshots** (Clientst0r Docs):
+  - *Assets*: customer onboarding, the asset list and detail page, relationships, network scan import and IP
+    address management.
+  - *Infrastructure*: racks, network closets, patch panels and network diagrams.
+  - *Inventory and Vehicles*: stock items, adjustments, QR labels, the fleet, vehicle stock and service.
+  - Hardware Inventory and Backup Monitoring gain their figures.
+  - Documentation coverage now reaches 28 of 54 sections and 14 of 49 guides with a figure.
+
+### Fixed
+- Network scan import failed on every upload; it now imports, and the scanner script downloads from the import
+  page instead of a broken link.
+- The subnet list shows the VLAN number and name.
+- Asset relationships show the related item's name with a link, and the asset page has an "Add relationship"
+  button.
+- Creating a patch panel failed; it now saves. Changing patch panel ports needs edit rights on monitoring.
+- Technicians can open vehicle stock pages and take inventory; counts must be whole numbers of zero or more.
+- Inventory item QR codes are drawn by Clientst0r instead of an outside QR service.
+- The two-factor setup QR code is drawn by Clientst0r. It was previously loaded from an outside QR service,
+  which received the enrolment code.
+
 ## [3.17.773] - 2026-11-24
 
 ### Added

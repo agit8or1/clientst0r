@@ -85,6 +85,25 @@ def item_list(request):
 
 
 @login_required
+def item_qr_image(request, pk):
+    """The item's QR code (a link to its scan page), drawn here rather than by
+    an outside service so the host name and item code stay on this server."""
+    import io
+    import qrcode
+    from django.http import HttpResponse
+    from django.urls import reverse
+    org = get_request_organization(request)
+    item = get_org_object_or_404(InventoryItem, org, pk=pk)
+    url = request.build_absolute_uri(reverse('inventory:item_scan', args=[item.qr_code]))
+    img = qrcode.make(url, box_size=6, border=2)
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    resp = HttpResponse(buf.getvalue(), content_type='image/png')
+    resp['Cache-Control'] = 'private, max-age=3600'
+    return resp
+
+
+@login_required
 def item_detail(request, pk):
     """Show item details and transaction history."""
     org = get_request_organization(request)

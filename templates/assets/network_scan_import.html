@@ -85,7 +85,7 @@
                 </div>
                 <div class="card-body">
                     <p class="text-muted mb-3">Don't have the scanner script? Download it here:</p>
-                    <a href="/static/scripts/network_scanner.py" download class="btn btn-outline-primary" target="_blank">
+                    <a href="{% url 'assets:network_scanner_download' %}" class="btn btn-outline-primary">
                         <i class="fas fa-file-download"></i> Download network_scanner.py
                     </a>
                     <p class="text-muted mt-3 mb-0">

@@ -95,7 +95,6 @@ def patch_panel_create(request):
             serial_number=serial_number,
             port_count=port_count,
             rack_position=int(rack_position) if rack_position else None,
-            rack_units=rack_units,
             port_configuration={'ports': ports},
             notes=notes
         )
@@ -179,6 +178,7 @@ def patch_panel_delete(request, pk):
 
 
 @login_required
+@monitoring_perm({'POST': 'monitoring_edit'}, owner(RackResource, 'rack__organization_id'), json=True)
 def patch_panel_api_ports(request, pk):
     """API endpoint to get/update patch panel ports."""
     org = get_request_organization(request)
@@ -190,6 +190,10 @@ def patch_panel_api_ports(request, pk):
     )
 
     if request.method == 'POST':
+        # Read-only roles may view the ports but not change them.
+        denied = require_write(lambda r, *a, **k: None)(request, pk=pk)
+        if denied is not None:
+            return JsonResponse({'success': False, 'error': 'Read-only access.'}, status=403)
         try:
             data = json.loads(request.body)
             ports = data.get('ports', [])
@@ -248,8 +252,7 @@ def patch_panel_quick_create(request):
                 resource_type='patch_panel',
                 port_count=port_count,
                 rack_position=current_position,
-                rack_units=rack_units,
-                port_configuration={'ports': ports}
+                    port_configuration={'ports': ports}
             )
 
             current_position += rack_units

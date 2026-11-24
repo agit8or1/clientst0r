@@ -908,5 +908,13 @@ class RackResource(BaseModel):
             models.Index(fields=['ip_address']),
         ]
 
+    @property
+    def rack_units(self):
+        """Height in rack units. Not stored: a 48-port patch panel takes 2U,
+        anything else 1U."""
+        if self.resource_type == 'patch_panel' and (self.port_count or 0) > 24:
+            return 2
+        return 1
+
     def __str__(self):
         return f"{self.name} ({self.get_resource_type_display()})"

@@ -4,6 +4,20 @@ Backup Monitoring shows the health of your customers' backups in one place: whic
 
 This is not the platform's own pre-upgrade backup (that is separate and unchanged).
 
+The dashboard shows one row per customer, worst health first; it follows the client switcher until you click *Show every customer you can see*.
+
+<!-- guide-figure: guide-stock-backup-dashboard -->
+![The Backup Monitoring dashboard with numbered callouts on the tabs, a customer, its health, newest success, repository capacity, restore test state and open alerts](images/guides/guide-stock-backup-dashboard.png "Assets & Network → Backup Monitoring → Dashboard.")
+
+1. Dashboard, Alerts, Restore Tests and Connections (Connections needs permission to manage backup integrations).
+2. A customer. Click it for its jobs, systems, repositories and alert policy.
+3. Health on current evidence: Failed, Missed, Stale data, Warning, No data or Healthy. The worst customers sort first.
+4. How long ago the newest successful backup finished.
+5. Repository capacity; the bar turns amber and red as it fills.
+6. Restore test state, tracked apart from backup health. Never tested means no restore was recorded.
+7. Open alerts; the number opens the Alerts tab.
+<!-- /guide-figure -->
+
 ## What is supported
 
 | Source | How it works | Status |
@@ -104,6 +118,19 @@ Evaluated after each poll and each accepted report. Thresholds are per customer 
 | No recent data from a connection | polled: 2 hours |
 
 One live alert exists per (connection, rule key); re-evaluation updates it. Alerts clear themselves when the condition clears, but never on stale data. Lifecycle: open, acknowledged, resolved. **Create ticket** opens one PSA ticket per alert (never a second); with *Open a PSA ticket for each new alert* on in the policy, new alerts open a ticket automatically.
+
+The Alerts tab lists every live alert for the customers you can see, whichever customer is selected.
+
+<!-- guide-figure: guide-stock-backup-alerts -->
+![The backup alert list with numbered callouts on the Live and All filter, an alert's rule and title, its status, when it was last seen, its ticket and the Acknowledge, Create ticket and Resolve buttons](images/guides/guide-stock-backup-alerts.png "Assets & Network → Backup Monitoring → Alerts.")
+
+1. Live alerts only, or all alerts including resolved ones.
+2. The rule that fired (amber for warning, red for critical) and what it found.
+3. Status: open, acknowledged or resolved.
+4. When it was last seen, and how many times the check has found it.
+5. The ticket opened for this alert. An alert never gets a second one.
+6. Acknowledge, Create ticket or Resolve. Shown to people who may manage backup integrations for that customer.
+<!-- /guide-figure -->
 
 The alert-to-ticket policy engine used for RMM alerts is tied to RMM connections, so backup alerts use their own ticket path for now.
 

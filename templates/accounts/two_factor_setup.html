@@ -87,10 +87,8 @@
                 </div>
 
                 <div class="text-center my-4">
-                    <!-- Generate QR code using external service -->
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={{ totp_uri|urlencode }}"
-                         alt="2FA QR Code"
-                         class="border rounded p-2">
+                    <!-- Drawn on this server: the code carries the secret. -->
+                    <div class="d-inline-block border rounded p-2 bg-white totp-qr" role="img" aria-label="QR code for your authenticator app" style="width:216px">{{ totp_qr_svg|safe }}</div>
                 </div>
 
                 <div class="alert alert-secondary">

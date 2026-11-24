@@ -232,6 +232,9 @@ class TwoFactorFlowTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         secret = resp.context['secret']
         self.assertNotIn(secret, c.session['totp_secret'])  # sealed in the session
+        # The QR code is drawn here; the secret never goes to an outside service.
+        self.assertNotContains(resp, 'qrserver')
+        self.assertContains(resp, '<svg width="200" height="200"')
         resp = c.post('/accounts/profile/2fa/', {'action': 'verify',
                                                  'code': pyotp.TOTP(secret).now()})
         self.assertEqual(resp.status_code, 302)

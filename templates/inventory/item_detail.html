@@ -91,7 +91,7 @@
                 <h5 class="mb-0"><i class="fas fa-qrcode"></i> QR Code</h5>
             </div>
             <div class="card-body text-center">
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ request.scheme }}://{{ request.get_host }}{% url 'inventory:item_scan' item.qr_code %}" alt="QR Code" class="img-fluid mb-2">
+                <img src="{% url 'inventory:item_qr_image' item.pk %}" alt="QR code for {{ item.name }}" width="150" height="150" class="img-fluid mb-2">
                 <br>
                 <small class="text-muted font-monospace">{{ item.qr_code }}</small>
             </div>

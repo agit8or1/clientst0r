@@ -599,9 +599,9 @@ def subnet_list(request):
     org = get_request_organization(request)
     is_staff = getattr(request.user, 'is_staff', False)
     if not org and (request.user.is_superuser or is_staff):
-        subnets = _global_rows(request, Subnet.objects.all()).select_related('organization')
+        subnets = _global_rows(request, Subnet.objects.all()).select_related('organization', 'vlan')
     else:
-        subnets = Subnet.objects.filter(organization=org)
+        subnets = Subnet.objects.filter(organization=org).select_related('vlan')
 
     return render(request, 'monitoring/subnet_list.html', {
         'subnets': subnets,

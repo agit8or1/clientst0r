@@ -209,11 +209,16 @@ def asset_detail(request, pk):
         asset_org = org
 
     # Get relationships for this asset's organization
-    relationships = Relationship.objects.filter(
+    relationships = list(Relationship.objects.filter(
         organization=asset_org,
         source_type='asset',
         source_id=asset.id
-    )
+    ))
+    # Name and link each related record; one the viewer may not open (or that
+    # no longer exists) keeps its type and number.
+    from .relationship_views import get_node_data
+    for rel in relationships:
+        rel.target_node = get_node_data(asset_org, rel.target_type, rel.target_id, user=request.user)
 
     # Get asset images
     from files.models import Attachment
@@ -1404,6 +1409,18 @@ def network_scan_import(request):
 
 
 @login_required
+def network_scanner_download(request):
+    """The nmap scanner script (scripts/network_scanner.py) whose JSON output
+    Network Scan Import reads."""
+    from pathlib import Path
+    from django.conf import settings
+    from django.http import FileResponse
+    path = Path(settings.BASE_DIR) / 'scripts' / 'network_scanner.py'
+    return FileResponse(path.open('rb'), as_attachment=True, filename='network_scanner.py',
+                        content_type='text/x-python')
+
+
+@login_required
 @require_organization_context
 def network_scan_upload(request):
     """
@@ -1432,7 +1449,7 @@ def network_scan_upload(request):
         devices = scan_data['devices']
 
         # Batch-fetch all org assets once before the matching loop
-        org_assets_cache = list(Asset.objects.for_organization(org).select_related('asset_type'))
+        org_assets_cache = list(Asset.objects.for_organization(org))
 
         # Match devices against existing assets
         matched_devices = []
@@ -1458,6 +1475,8 @@ def network_scan_upload(request):
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON file'}, status=400)
     except Exception:
+        import logging
+        logging.getLogger(__name__).exception('Network scan upload failed')
         return JsonResponse({'error': 'An error occurred processing the file'}, status=500)
 
 

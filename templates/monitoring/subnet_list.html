@@ -32,9 +32,9 @@
                     <td><a href="{% url 'monitoring:subnet_detail' subnet.pk %}"><i class="fas fa-network-wired text-primary"></i> <strong>{{ subnet.name }}</strong></a></td>
                     <td><code>{{ subnet.network }}</code></td>
                     <td>
-                        {% if subnet.vlan_id %}
-                        <span class="badge bg-info">VLAN {{ subnet.vlan_id }}</span>
-                        {% if subnet.vlan_name %}<br><small>{{ subnet.vlan_name }}</small>{% endif %}
+                        {% if subnet.vlan %}
+                        <span class="badge bg-info">VLAN {{ subnet.vlan.vlan_id }}</span>
+                        {% if subnet.vlan.name %}<br><small>{{ subnet.vlan.name }}</small>{% endif %}
                         {% else %}—{% endif %}
                     </td>
                     <td>

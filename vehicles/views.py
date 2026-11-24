@@ -26,6 +26,13 @@ from .forms import (
 )
 
 
+def _may_use_fleet(user):
+    """Vehicles belong to the MSP, not to a customer: MSP staff (and Django
+    staff) may open them, as the Vehicles section itself allows."""
+    from psa.visibility import is_msp_staff
+    return bool(user.is_staff or user.is_superuser or is_msp_staff(user))
+
+
 def _files_perm_here(request, perm):
     """`perm` for the selected customer, which uploads are filed under."""
     from accounts.permission_utils import has_perm_for_org
@@ -903,7 +910,7 @@ def inventory_qr_image(request, pk):
     item = get_object_or_404(VehicleInventoryItem, pk=pk)
 
     # Check permissions
-    if not request.user.is_staff and item.vehicle.organization != request.user.current_organization:
+    if not _may_use_fleet(request.user):
         raise PermissionDenied
 
     # Generate QR code
@@ -947,7 +954,7 @@ def inventory_print_qr_codes(request, vehicle_id):
     vehicle = get_object_or_404(ServiceVehicle, pk=vehicle_id)
 
     # Check permissions
-    if not request.user.is_staff and vehicle.organization != request.user.current_organization:
+    if not _may_use_fleet(request.user):
         raise PermissionDenied
 
     # Get all inventory items for this vehicle
@@ -968,7 +975,7 @@ def inventory_scan(request, qr_code):
     item = get_object_or_404(VehicleInventoryItem, qr_code=qr_code)
 
     # Check permissions
-    if not request.user.is_staff and item.vehicle.organization != request.user.current_organization:
+    if not _may_use_fleet(request.user):
         raise PermissionDenied
 
     if request.method == 'POST':
@@ -1029,7 +1036,7 @@ def inventory_quick_update(request, pk):
     item = get_object_or_404(VehicleInventoryItem, pk=pk)
 
     # Check permissions
-    if not request.user.is_staff and item.vehicle.organization != request.user.current_organization:
+    if not _may_use_fleet(request.user):
         return JsonResponse({'error': 'Permission denied'}, status=403)
 
     try:
@@ -1113,12 +1120,20 @@ def inventory_scan_update(request, qr_code):
     Updates quantity and adds to session tracking.
     """
     item = get_object_or_404(VehicleInventoryItem, qr_code=qr_code)
-    
+    if not _may_use_fleet(request.user):
+        raise PermissionDenied
+
     if request.method == 'POST':
         action = request.POST.get('action')
         
         if action == 'set_quantity':
-            new_quantity = int(request.POST.get('quantity', item.quantity))
+            try:
+                new_quantity = int(request.POST.get('quantity', item.quantity))
+            except (TypeError, ValueError):
+                new_quantity = -1
+            if new_quantity < 0:
+                messages.error(request, 'Enter a whole number of 0 or more.')
+                return redirect('vehicles:take_inventory', vehicle_id=item.vehicle.id)
             old_quantity = item.quantity
             item.quantity = new_quantity
             item.save()

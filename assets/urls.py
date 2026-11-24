@@ -94,6 +94,7 @@ urlpatterns = [
 
     # Network Scan Import
     path('network-scan/', views.network_scan_import, name='network_scan_import'),
+    path('network-scan/scanner.py', views.network_scanner_download, name='network_scanner_download'),
     path('network-scan/upload/', views.network_scan_upload, name='network_scan_upload'),
     path('network-scan/preview/', views.network_scan_preview, name='network_scan_preview'),
     path('network-scan/apply/', views.network_scan_apply, name='network_scan_apply'),

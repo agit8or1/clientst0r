@@ -883,6 +883,699 @@
         }
       ],
       "caption": "Service Desk → Workflows → Support Workflows."
+    },
+    {
+      "name": "guide-assets-onboarding",
+      "guide": "docs/ASSETS.md",
+      "route": "/onboarding/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The customer onboarding page with numbered callouts on the In progress list, Onboard a customer, and the change form for an existing customer",
+      "annotate": [
+        {
+          "selector": "main .card:has-text('In progress')",
+          "note": "Sessions still open. Resume one from where it was left; recently closed sessions are listed below."
+        },
+        {
+          "selector": "main button:has-text('Onboard a customer')",
+          "note": "Start a new customer. Only the first step is required to create the customer."
+        },
+        {
+          "selector": "main select#client",
+          "note": "For a change to an existing customer, pick the customer..."
+        },
+        {
+          "selector": "main select#kind",
+          "note": "...and the change: plan change, users or devices added or removed, a location, renewal, price increase or offboarding."
+        }
+      ],
+      "caption": "Clients → Onboard Customer."
+    },
+    {
+      "name": "guide-assets-list",
+      "guide": "docs/ASSETS.md",
+      "route": "/assets/",
+      "theme": "light",
+      "max_h": 1300,
+      "alt": "The asset list with numbered callouts on Add Asset, the search box, the filter row, the Views bar, an asset name and the view and edit buttons",
+      "annotate": [
+        {
+          "selector": "main a.btn:has-text('Add Asset')",
+          "note": "Add an asset by hand."
+        },
+        {
+          "selector": "main input#q",
+          "note": "Search name, serial, asset tag, hostname, manufacturer and model."
+        },
+        {
+          "selector": "main select#type",
+          "note": "Filters: type, status, location, manufacturer, and for technicians RMM state and active alerts. Sort and page size sit at the end."
+        },
+        {
+          "selector": "main a.btn:has-text('Needs Reorder')",
+          "note": "Views: Needs reorder, and for technicians RMM offline, RMM alerts, RMM data stale and No RMM device. Save your own filter sets here too."
+        },
+        {
+          "selector": "main #assetTable tbody tr >> nth=0 >> td >> nth=0",
+          "note": "The picture and name. The name opens the asset; badges flag reorder, age, firmware and warranty when those checks are on."
+        },
+        {
+          "selector": "main #assetTable tbody tr >> nth=0 >> .btn-group",
+          "note": "View or edit the asset."
+        }
+      ],
+      "caption": "Assets & Network → All Assets."
+    },
+    {
+      "name": "guide-assets-detail",
+      "guide": "docs/ASSETS.md",
+      "route": "/assets/11/",
+      "theme": "light",
+      "max_h": 2000,
+      "alt": "An asset page with numbered callouts on the Device workspace button, Generate Profile, Edit, the tabs and the relationships",
+      "annotate": [
+        {
+          "selector": "main a[data-device-workspace-link]",
+          "note": "Device workspace: the technician's working view of this device."
+        },
+        {
+          "selector": "main form:has(button:has-text('Profile'))",
+          "note": "Generate Profile: write the asset's fields (and linked RMM data) into a document."
+        },
+        {
+          "selector": "main a.btn:has-text('Edit')",
+          "note": "Edit the asset, including its picture."
+        },
+        {
+          "selector": "main .card-header-tabs",
+          "note": "Details, Custom Fields, Ports, RMM, Serial history and Images. Ports and RMM appear only when there is something to show."
+        },
+        {
+          "selector": "main h6:has-text('Relationships')",
+          "note": "Relationships this asset starts, by kind (Depends On, Related and so on)."
+        }
+      ],
+      "caption": "Assets & Network → All Assets → an asset."
+    },
+    {
+      "name": "guide-assets-serials",
+      "guide": "docs/ASSETS.md",
+      "route": "/assets/serials/?q=NWL-8",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "Serial History search results with numbered callouts on the search box, a serial with its latest event, the asset it belongs to and its event table",
+      "annotate": [
+        {
+          "selector": "main input[name=q]",
+          "note": "A serial number, or part of one."
+        },
+        {
+          "selector": "main .card >> nth=0 >> .card-header code",
+          "note": "One serial, with its latest event."
+        },
+        {
+          "selector": "main .card >> nth=0 >> .card-header .small",
+          "note": "The asset (and any RMA) carrying this serial."
+        },
+        {
+          "selector": "main .card >> nth=0 >> table",
+          "note": "Every event for the serial, oldest first, with who recorded it."
+        },
+        {
+          "selector": "main a.btn:has-text('RMA returns')",
+          "note": "The RMA returns list."
+        }
+      ],
+      "caption": "Assets & Network → All Assets → Serial Search."
+    },
+    {
+      "name": "guide-assets-subnet",
+      "guide": "docs/ASSETS.md",
+      "route": "/monitoring/ipam/subnets/1/",
+      "theme": "light",
+      "max_h": 1200,
+      "alt": "A subnet page with numbered callouts on Add IP, the address counts, the VLAN badge, the status filter and an address linked to an asset",
+      "annotate": [
+        {
+          "selector": "main a.btn:has-text('Add IP')",
+          "note": "Record an address in this subnet."
+        },
+        {
+          "selector": "main .row.mb-4",
+          "note": "How many addresses are recorded, and how many are available, assigned or reserved."
+        },
+        {
+          "selector": "main .card-header .badge.bg-primary",
+          "note": "The VLAN the subnet is on."
+        },
+        {
+          "selector": "main .card-header .btn-group-sm",
+          "note": "Show only available, assigned or reserved addresses."
+        },
+        {
+          "selector": "main tbody tr:has(a[href*='/assets/']) >> nth=0 >> td >> nth=4",
+          "note": "The asset using the address. It opens the asset."
+        }
+      ],
+      "caption": "Assets & Network → IPAM → Subnets & IPs → a subnet."
+    },
+    {
+      "name": "guide-assets-vlans",
+      "guide": "docs/ASSETS.md",
+      "route": "/monitoring/vlans/",
+      "theme": "light",
+      "max_h": 900,
+      "alt": "The VLAN list with numbered callouts on Add VLAN, a VLAN number and name, its colour, its subnet count and the view and edit buttons",
+      "annotate": [
+        {
+          "selector": "main a.btn:has-text('Add VLAN')",
+          "note": "Add a VLAN: number (1 to 4094), name, description and colour."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=1",
+          "note": "The name opens the VLAN with the subnets on it."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=3",
+          "note": "The colour used to tell VLANs apart."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=4",
+          "note": "How many subnets are on the VLAN."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> .btn-group",
+          "note": "View or edit."
+        }
+      ],
+      "caption": "Assets & Network → IPAM → VLANs."
+    },
+    {
+      "name": "guide-infra-rack-list",
+      "guide": "docs/INFRASTRUCTURE.md",
+      "route": "/monitoring/racks/",
+      "organization": "Beacon Managed IT",
+      "theme": "light",
+      "max_h": 900,
+      "alt": "Infrastructure → Racks with numbered callouts on the Infrastructure tabs, Add Rack, a rack name, the type badge, the available units and the power bar",
+      "annotate": [
+        {
+          "selector": "nav.section-tabs",
+          "note": "The Infrastructure tabs: Racks, Network Closets, Patch Panels and Port Configurations."
+        },
+        {
+          "selector": "a.btn:has-text('Add Rack')",
+          "note": "Add Rack. A customer must be selected first."
+        },
+        {
+          "selector": "#rackTable tbody tr:first-child td:first-child a",
+          "note": "The rack name opens the rack page with its elevation."
+        },
+        {
+          "selector": "#rackTable tbody tr:first-child td:nth-child(2) .badge",
+          "note": "Rack type. Network and data closets also appear under Network Closets."
+        },
+        {
+          "selector": "#rackTable tbody tr:first-child td:nth-child(7) .badge",
+          "note": "Free units: the rack's size minus the units its placements take."
+        },
+        {
+          "selector": "#rackTable tbody tr:first-child td:nth-child(9) .progress",
+          "note": "Allocated against capacity power, shown only when the rack has a power capacity."
+        }
+      ],
+      "caption": "Assets & Network → Infrastructure → Racks."
+    },
+    {
+      "name": "guide-infra-rack-detail",
+      "guide": "docs/INFRASTRUCTURE.md",
+      "route": "/monitoring/racks/6/",
+      "theme": "light",
+      "max_h": 1150,
+      "alt": "The rack page for HQ Comms Room — Rack A with numbered callouts on the header buttons, the info card, the tabs, the Front and Rear switch and the rack elevation drawn from catalog artwork",
+      "annotate": [
+        {
+          "selector": "a.btn:has-text('Add Asset to Rack')",
+          "note": "Add Asset to Rack places an asset (or a named item with no asset) at a start unit; Create New Asset makes the asset first."
+        },
+        {
+          "selector": "button[data-print]",
+          "note": "Print a rack sheet."
+        },
+        {
+          "selector": ".col-lg-3 .card",
+          "note": "Location, size, free units and, when set, power allocated against capacity."
+        },
+        {
+          "selector": ".card-header-tabs",
+          "note": "Rack Visual, Mounted Assets (a table with edit and remove), Images and Wiring."
+        },
+        {
+          "selector": "[data-rack-face='front']",
+          "note": "Show the front or the rear of the rack."
+        },
+        {
+          "selector": "#rack-visual .rk-dev:has(img.rk-art)",
+          "note": "The elevation. A device with a catalog model is drawn from its artwork; anything else is a plain face with its saved name. Drag a device to another unit to move it; click it for details and Edit."
+        }
+      ],
+      "caption": "Assets & Network → Infrastructure → Racks → a rack."
+    },
+    {
+      "name": "guide-infra-rack-elevation",
+      "guide": "docs/INFRASTRUCTURE.md",
+      "route": "/hardware/racks/6/",
+      "theme": "light",
+      "max_h": 3000,
+      "alt": "The hardware rack elevation for HQ Comms Room — Rack A with numbered callouts on the rack picker, Rack label, Rack settings, the front and rear export buttons and the placement table",
+      "annotate": [
+        {
+          "selector": "#hw-rack-jump",
+          "note": "Jump to another rack at this customer."
+        },
+        {
+          "selector": "a.btn:has-text('Rack label')",
+          "note": "Rack label opens Labels with this rack selected."
+        },
+        {
+          "selector": "a.btn:has-text('Rack settings')",
+          "note": "Rack settings opens the rack page under Infrastructure, where placements are added and edited."
+        },
+        {
+          "selector": ".col-xl-6:first-child .btn-group",
+          "note": "Export the front as SVG, PNG or PDF. The rear has its own buttons."
+        },
+        {
+          "selector": "table.table-sm",
+          "note": "Every placement with its units, face, depth and hardware model. A name links to the hardware device when there is one."
+        }
+      ],
+      "caption": "Assets & Network → Hardware & Ports → a rack."
+    },
+    {
+      "name": "guide-infra-closet-detail",
+      "guide": "docs/INFRASTRUCTURE.md",
+      "route": "/monitoring/closets/3/",
+      "organization": "Beacon Managed IT",
+      "theme": "light",
+      "max_h": 1500,
+      "alt": "The network closet page for Floor 2 Network Closet with numbered callouts on the details card, the Rack View and Mounted Board switch, the asset sidebar, the mounted devices table, the visual layout and the patch panel port map",
+      "annotate": [
+        {
+          "selector": ".col-lg-4 .card",
+          "note": "Type, building, floor, room, location, size and free units."
+        },
+        {
+          "selector": ".closet-view-toggle",
+          "note": "Rack View shows the unit elevation; Mounted Board is a free-form wall board where items are placed and resized anywhere."
+        },
+        {
+          "selector": "#closet-rack-section .closet-asset-sidebar",
+          "note": "This customer's assets. Drag one onto the unit grid to mount it."
+        },
+        {
+          "selector": "#closet-rack-section h5:has-text('Mounted Devices')",
+          "note": "Mounted Devices: every placement with its units, with edit and delete."
+        },
+        {
+          "selector": "#closet-elevation .rk-dev >> nth=0",
+          "note": "The same elevation as a rack, with a Front and Rear switch. Click a device to edit it and its ports."
+        },
+        {
+          "selector": "h6:has-text('Patch Panel Port Map')",
+          "note": "Patch Panel Port Map: one grid for each placement whose name contains patch or panel. A port with a wiring connection is Patched; the rest are Empty."
+        }
+      ],
+      "caption": "Assets & Network → Infrastructure → Network Closets → a closet.",
+      "width": 1800
+    },
+    {
+      "name": "guide-infra-connectivity",
+      "guide": "docs/INFRASTRUCTURE.md",
+      "route": "/hardware/diagrams/connectivity/",
+      "organization": "Client XYZ",
+      "theme": "light",
+      "max_h": 1300,
+      "alt": "Network Diagrams → Physical Connectivity for Client XYZ with numbered callouts on the site, search and category filters, the zoom buttons, Save layout, the export buttons, a device node and the legend",
+      "annotate": [
+        {
+          "selector": "#dg-site",
+          "note": "Limit the diagram to one site, or All sites."
+        },
+        {
+          "selector": "#dg-search",
+          "note": "Find a device by name or model: matches are highlighted, the rest dimmed, and the view moves to the first match."
+        },
+        {
+          "selector": "#dg-filter",
+          "note": "Show one device category only (firewall, switch, patch panel and so on)."
+        },
+        {
+          "selector": "#dg-save",
+          "note": "Save layout keeps the positions you dragged, for you."
+        },
+        {
+          "selector": "#dg-export",
+          "note": "Export SVG, PNG or PDF with the title, customer, legend and date."
+        },
+        {
+          "selector": "#dg-legend",
+          "note": "A link is one or more documented cables; a red dashed mark is a path that continues but is not documented."
+        }
+      ],
+      "caption": "Assets & Network → Network Diagrams → Physical Connectivity.",
+      "actions": [
+        {
+          "wait_for": "#dg-legend span"
+        }
+      ],
+      "min_h": 1250
+    },
+    {
+      "name": "guide-infra-vlan-view",
+      "guide": "docs/INFRASTRUCTURE.md",
+      "route": "/hardware/diagrams/vlan/",
+      "organization": "Client XYZ",
+      "theme": "light",
+      "max_h": 1300,
+      "alt": "Network Diagrams → VLAN View for Client XYZ with numbered callouts on the diagram tabs, the drawing and the legend for untagged, tagged and voice membership",
+      "annotate": [
+        {
+          "selector": ".hw-subnav",
+          "note": "The hardware pages: the two diagrams sit between VLAN Ports and Labels."
+        },
+        {
+          "selector": "#dg text:text-is(\"XYZ-SW-01\")",
+          "note": "A device with ports in a VLAN is linked to that VLAN. The label counts its untagged, tagged and voice ports (U/T/V). Double-click a device to open it.",
+          "pad": 14
+        },
+        {
+          "selector": "#dg-legend",
+          "note": "A solid line is native or untagged membership, a dashed one tagged or voice; U/T/V count the ports of each kind."
+        }
+      ],
+      "caption": "Assets & Network → Network Diagrams → VLAN View.",
+      "actions": [
+        {
+          "wait_for": "#dg-legend span"
+        }
+      ],
+      "min_h": 1250
+    },
+    {
+      "name": "guide-infra-cable-list",
+      "guide": "docs/HARDWARE_INVENTORY.md",
+      "route": "/hardware/cables/",
+      "organization": "Client XYZ",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "Hardware & Ports → Cables for Client XYZ with numbered callouts on the search box, Export CSV, a cable ID, the A and B ends, and Print labels for selected cables",
+      "annotate": [
+        {
+          "selector": "input[placeholder='Cable ID, description or device']",
+          "note": "Search by cable ID, description or device."
+        },
+        {
+          "selector": "a.btn:has-text('Export CSV')",
+          "note": "Export this customer's cables as CSV."
+        },
+        {
+          "selector": "table tbody tr:first-child td:nth-child(2) a",
+          "note": "The cable ID opens the cable to edit its type, colour, length, end labels and status."
+        },
+        {
+          "selector": "table tbody tr:first-child td:nth-child(3)",
+          "note": "The A and B ends: device and port, each linking to that port on the device page."
+        },
+        {
+          "selector": "button:has-text('Print labels for selected cables')",
+          "note": "Tick cables, then print their labels."
+        }
+      ],
+      "caption": "Assets & Network → Hardware & Ports → Cables."
+    },
+    {
+      "name": "guide-infra-vlan-ports",
+      "guide": "docs/HARDWARE_INVENTORY.md",
+      "route": "/hardware/vlans/",
+      "organization": "Client XYZ",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "Hardware & Ports → VLAN Ports for Client XYZ with numbered callouts on a VLAN chip, its group or scope, the untagged and tagged port counts, the VLAN diagram link and the Add VLAN and Add VLAN group forms",
+      "annotate": [
+        {
+          "selector": ".col-lg-8 table tbody tr:first-child td:first-child .hw-vchip",
+          "note": "The VLAN number in its colour, the same colour the ports and diagrams use."
+        },
+        {
+          "selector": ".col-lg-8 table tbody tr:first-child td:nth-child(3)",
+          "note": "Client-wide, or the VLAN group (switching domain) it belongs to."
+        },
+        {
+          "selector": ".col-lg-8 table tbody tr:first-child td:nth-child(4)",
+          "note": "How many ports carry the VLAN untagged (native); the next column counts tagged ports."
+        },
+        {
+          "selector": "a.btn:has-text('VLAN diagram')",
+          "note": "VLAN diagram opens Network Diagrams → VLAN View."
+        },
+        {
+          "selector": "form.card:has(h6:has-text('Add VLAN'))",
+          "note": "Add a VLAN or a VLAN group. Shown only to people who can edit assets; saving also needs permission to create monitoring records."
+        }
+      ],
+      "caption": "Assets & Network → Hardware & Ports → VLAN Ports."
+    },
+    {
+      "name": "guide-stock-dashboard",
+      "guide": "docs/INVENTORY_AND_VEHICLES.md",
+      "route": "/inventory/",
+      "organization": "Beacon Managed IT",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "The inventory dashboard with numbered callouts on the item count, the low stock count, the categories and locations counts, the recent transactions and the Add Item button",
+      "annotate": [
+        {
+          "selector": "main .row.mb-4 .card >> nth=0",
+          "note": "How many items this customer's inventory holds. Click to open All Items."
+        },
+        {
+          "selector": "main .row.mb-4 .card >> nth=1",
+          "note": "Items at or below their minimum quantity. Click to open Low Stock."
+        },
+        {
+          "selector": "main .row.mb-4 .card >> nth=2",
+          "note": "Categories. Locations, next to it, works the same way: click either to add, rename or remove them."
+        },
+        {
+          "selector": "main .card:has-text('Recent Transactions') .card-header",
+          "note": "The last ten stock movements. View All opens the full transaction log."
+        },
+        {
+          "selector": "main a.btn:has-text('Add Item') >> nth=0",
+          "note": "Add an inventory item."
+        }
+      ],
+      "caption": "Assets & Network → Inventory → Dashboard."
+    },
+    {
+      "name": "guide-stock-items",
+      "guide": "docs/INVENTORY_AND_VEHICLES.md",
+      "route": "/inventory/items/",
+      "organization": "Beacon Managed IT",
+      "theme": "light",
+      "max_h": 1300,
+      "alt": "The inventory item list with numbered callouts on the filters, Low Stock Only, an item name, a red low-stock quantity and the row buttons",
+      "annotate": [
+        {
+          "selector": "main form .row.g-3",
+          "note": "Search by name, SKU or description, and filter by type and category."
+        },
+        {
+          "selector": "main a.btn:has-text('Low Stock Only')",
+          "note": "Show only items at or below their minimum."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=0",
+          "note": "The name opens the item, its QR code and its transaction history."
+        },
+        {
+          "selector": "main tbody td:has(span.badge.bg-danger) >> nth=0",
+          "note": "A red quantity means the item is at or below its minimum."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=7",
+          "note": "View, Adjust Stock, Edit and Delete."
+        }
+      ],
+      "caption": "Assets & Network → Inventory → All Items."
+    },
+    {
+      "name": "guide-stock-item",
+      "guide": "docs/INVENTORY_AND_VEHICLES.md",
+      "route": "/inventory/items/2/",
+      "organization": "Beacon Managed IT",
+      "theme": "light",
+      "max_h": 1300,
+      "alt": "An inventory item with numbered callouts on Adjust Stock, the quantity and minimum, and the transaction history",
+      "annotate": [
+        {
+          "selector": "main a.btn:has-text('Adjust Stock')",
+          "note": "Adjust Stock: record stock coming in, going out or a correction."
+        },
+        {
+          "selector": "main .card:has-text('Item Details') .card-body",
+          "note": "Quantity on hand, the minimum that triggers Low Stock, the reorder quantity and the stock value."
+        },
+        {
+          "selector": "main .card:has-text('Transaction History')",
+          "note": "Every recorded change: type, change, quantity after, reference (a PO or ticket), who and when."
+        }
+      ],
+      "caption": "An inventory item."
+    },
+    {
+      "name": "guide-stock-tools",
+      "guide": "docs/INVENTORY_AND_VEHICLES.md",
+      "route": "/inventory/tools/",
+      "organization": "Beacon Managed IT",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The tool list with numbered callouts on the search and Include retired switch, a tool code, where it is normally kept, its condition and Add tool",
+      "annotate": [
+        {
+          "selector": "main form.row",
+          "note": "Search by name or code. Include retired also lists tools you have taken out of use."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=0",
+          "note": "The tool's code, for example its asset tag."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=3",
+          "note": "Normally kept: the van it rides in, or else its storage location."
+        },
+        {
+          "selector": "main tbody tr:has-text('Needs service') >> td >> nth=4",
+          "note": "Condition: good, needs service, out of service or lost."
+        },
+        {
+          "selector": "main a.btn:has-text('Add tool')",
+          "note": "Add a tool."
+        }
+      ],
+      "caption": "Assets & Network → Inventory → Tools."
+    },
+    {
+      "name": "guide-stock-vehicle",
+      "guide": "docs/INVENTORY_AND_VEHICLES.md",
+      "route": "/vehicles/vehicles/1/",
+      "theme": "light",
+      "max_h": 1200,
+      "actions": [
+        {
+          "click": "#vehicle-detail-tabs a[href='#service']",
+          "wait_ms": 800
+        }
+      ],
+      "alt": "A vehicle page on its Service tab with numbered callouts on the health score, Take Inventory, the tabs, the service schedules and Add Schedule",
+      "annotate": [
+        {
+          "selector": "main .d-flex.align-items-center.gap-3 > .text-center",
+          "note": "Health score out of 100, from the vehicle's condition, open damage, overdue maintenance and pending service alerts."
+        },
+        {
+          "selector": "main a.btn:has-text('Take Inventory')",
+          "note": "Take Inventory: count the van's stock by scanning QR labels."
+        },
+        {
+          "selector": "main #vehicle-detail-tabs",
+          "note": "Overview, Inventory, Damage, Maintenance, Fuel, Service, Photos, Receipts and History."
+        },
+        {
+          "selector": "main #service .card:has-text('Service Schedules') table",
+          "note": "Service schedules: the interval, the last service and when the next is due, with OK, Due Soon or Overdue."
+        },
+        {
+          "selector": "main #service a.btn:has-text('Add Schedule')",
+          "note": "Add a schedule, such as an oil change every 5,000 miles or 180 days."
+        }
+      ],
+      "caption": "Assets & Network → Vehicles → All Vehicles → a vehicle, Service tab."
+    },
+    {
+      "name": "guide-stock-backup-dashboard",
+      "guide": "docs/BACKUP_MONITORING.md",
+      "route": "/backup-monitoring/?customer=all",
+      "theme": "light",
+      "max_h": 900,
+      "alt": "The Backup Monitoring dashboard with numbered callouts on the tabs, a customer, its health, newest success, repository capacity, restore test state and open alerts",
+      "annotate": [
+        {
+          "selector": "main ul.nav.nav-pills",
+          "note": "Dashboard, Alerts, Restore Tests and Connections (Connections needs permission to manage backup integrations)."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=0",
+          "note": "A customer. Click it for its jobs, systems, repositories and alert policy."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=1",
+          "note": "Health on current evidence: Failed, Missed, Stale data, Warning, No data or Healthy. The worst customers sort first."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=3",
+          "note": "How long ago the newest successful backup finished."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=5",
+          "note": "Repository capacity; the bar turns amber and red as it fills."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=6",
+          "note": "Restore test state, tracked apart from backup health. Never tested means no restore was recorded."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=7",
+          "note": "Open alerts; the number opens the Alerts tab."
+        }
+      ],
+      "caption": "Assets & Network → Backup Monitoring → Dashboard."
+    },
+    {
+      "name": "guide-stock-backup-alerts",
+      "guide": "docs/BACKUP_MONITORING.md",
+      "route": "/backup-monitoring/alerts/",
+      "theme": "light",
+      "max_h": 800,
+      "alt": "The backup alert list with numbered callouts on the Live and All filter, an alert's rule and title, its status, when it was last seen, its ticket and the Acknowledge, Create ticket and Resolve buttons",
+      "annotate": [
+        {
+          "selector": "main div.small:has-text('Live')",
+          "note": "Live alerts only, or all alerts including resolved ones."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=1",
+          "note": "The rule that fired (amber for warning, red for critical) and what it found."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=2",
+          "note": "Status: open, acknowledged or resolved."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=3",
+          "note": "When it was last seen, and how many times the check has found it."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=4",
+          "note": "The ticket opened for this alert. An alert never gets a second one."
+        },
+        {
+          "selector": "main tbody tr >> nth=1 >> td >> nth=5",
+          "note": "Acknowledge, Create ticket or Resolve. Shown to people who may manage backup integrations for that customer."
+        }
+      ],
+      "caption": "Assets & Network → Backup Monitoring → Alerts."
     }
   ]
 }

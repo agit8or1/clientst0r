@@ -83,3 +83,51 @@ class MonitoringFlagTests(TestCase):
         for url in (f'/monitoring/racks/{self.rack.pk}/', f'/monitoring/api/racks/{self.rack.pk}/devices/'):
             with self.subTest(url):
                 self.assertIn(self.c.get(url).status_code, (302, 403, 404))
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class PatchPanelTests(TestCase):
+    """Patch panels: creating one works again (it passed a removed field), and
+    only a role that may edit can rewrite a panel's ports."""
+
+    setUp = MonitoringFlagTests.setUp
+    _member = MonitoringFlagTests._member
+
+    def _panel(self):
+        from monitoring.models import RackResource
+        return RackResource.objects.create(rack=self.rack, name='PP-01', resource_type='patch_panel',
+                                           port_count=48, port_configuration={'ports': []})
+
+    def test_create_and_quick_create(self):
+        from monitoring.models import RackResource
+        self._member(Role.OWNER)
+        r = self.c.post('/monitoring/patch-panels/create/', {'rack': self.rack.pk, 'name': 'PP-A',
+                                                            'port_count': 24, 'rack_position': 40})
+        self.assertEqual(r.status_code, 302, r.content[:300])
+        r = self.c.post('/monitoring/patch-panels/quick-create/', {'rack': self.rack.pk, 'count': 2,
+                                                                  'port_count': 48, 'start_position': 30,
+                                                                  'name_prefix': 'PPQ'})
+        self.assertEqual(r.status_code, 302, r.content[:300])
+        self.assertEqual(RackResource.objects.filter(resource_type='patch_panel').count(), 3)
+        self.assertEqual(RackResource.objects.get(name='PPQ-01').rack_units, 2)
+
+    def test_readonly_can_read_but_not_rewrite_ports(self):
+        panel = self._panel()
+        self._member(Role.READONLY)
+        url = f'/monitoring/api/patch-panels/{panel.pk}/ports/'
+        self.assertEqual(self.c.get(url).status_code, 200)
+        r = self.c.post(url, json.dumps({'ports': [{'port_number': 1, 'label': 'x'}]}),
+                        content_type='application/json')
+        self.assertEqual(r.status_code, 403)
+        panel.refresh_from_db()
+        self.assertEqual(panel.port_configuration, {'ports': []})
+
+    def test_editor_can_rewrite_ports(self):
+        panel = self._panel()
+        self._member(Role.EDITOR)
+        r = self.c.post(f'/monitoring/api/patch-panels/{panel.pk}/ports/',
+                        json.dumps({'ports': [{'port_number': 1, 'label': 'Desk 1'}]}),
+                        content_type='application/json')
+        self.assertEqual(r.status_code, 200, r.content[:300])
+        panel.refresh_from_db()
+        self.assertEqual(panel.port_configuration['ports'][0]['label'], 'Desk 1')

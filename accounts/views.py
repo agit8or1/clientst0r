@@ -2,6 +2,7 @@
 Accounts views
 """
 import logging
+import re
 import datetime
 from django.db import transaction
 from django.shortcuts import render, redirect, get_object_or_404
@@ -550,10 +551,19 @@ def two_factor_setup(request):
                 issuer_name='Clientst0r'
             )
 
+            # Drawn here: the URI carries the secret, so it never goes to an
+            # outside QR service.
+            import qrcode
+            import qrcode.image.svg
+            qr_svg = qrcode.make(totp_uri, image_factory=qrcode.image.svg.SvgPathImage,
+                                 box_size=8).to_string().decode()
+            qr_svg = re.sub(r'^<svg width="[^"]+" height="[^"]+"', '<svg width="200" height="200"', qr_svg)
+
             return render(request, 'accounts/two_factor_setup.html', {
                 'profile': profile,
                 'secret': secret,
                 'totp_uri': totp_uri,
+                'totp_qr_svg': qr_svg,
                 'step': 'verify',
             })
 

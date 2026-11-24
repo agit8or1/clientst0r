@@ -24,6 +24,13 @@ FIGURE_RE = re.compile(r'<!-- guide-figure: [\w-]+ -->')
 
 # Navigation section key -> slug of the guide (core.guides.GUIDES) that documents it.
 SECTION_GUIDES = {
+    'clients_onboarding': 'assets',
+    'assets_all': 'assets',
+    'assets_ipam': 'assets',
+    'assets_infra': 'infrastructure',
+    'assets_diagrams': 'infrastructure',
+    'ops_inventory': 'inventory-and-vehicles',
+    'ops_vehicles': 'inventory-and-vehicles',
     'psa_my_work': 'my-work',
     'psa_shifts': 'my-work',
     'ops_scheduling': 'my-work',
@@ -49,9 +56,6 @@ SECTION_GUIDES = {
 
 # Sections without a guide yet, by roadmap batch.
 PENDING_SECTIONS = frozenset({
-    # 112.3 Clients, assets and network
-    'clients_onboarding', 'assets_all', 'assets_diagrams', 'assets_infra', 'assets_ipam', 'ops_inventory',
-    'ops_vehicles',
     # 112.4 Business
     'mod_crm', 'mod_licensing', 'psa_quotes', 'psa_procurement', 'psa_vendors', 'mod_health',
     # 112.5 Knowledge and vault
@@ -71,8 +75,8 @@ PENDING_SECTIONS = frozenset({
 # Guides (by slug) without an annotated figure yet (112.10 and the batches above).
 GUIDES_WITHOUT_FIGURE = frozenset({
     'what-is-clientst0r', 'features', 'admin-guide', 'screenshots', 'faq',
-    'ticket-routing', 'msp-documentation', 'hardware-inventory', 'office-documents',
-    'pulse-checks', 'backup-monitoring', 'ai-troubleshoot',
+    'ticket-routing', 'msp-documentation', 'office-documents',
+    'pulse-checks', 'ai-troubleshoot',
     'payments', 'tax',
     'technician-access', 'client-data-protection', 'azure-sso', 'oidc-sso', 'security-policy',
     'integrations', 'api-access', 'api-multi-org', 'graphql-api', 'browser-extension-api',

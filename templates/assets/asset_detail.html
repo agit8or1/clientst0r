@@ -294,15 +294,18 @@
                         <p class="mb-0">{{ asset.notes }}</p>
                         {% endif %}
 
-                        {% if relationships %}
                         <hr class="my-2">
                         <h6 class="text-muted text-uppercase small mb-2"><i class="fas fa-link me-1"></i>Relationships</h6>
-                        <ul class="mb-0">
+                        {% if relationships %}
+                        <ul class="mb-2">
                             {% for rel in relationships %}
-                            <li>{{ rel.get_relation_type_display }}: {{ rel.target_type }}:{{ rel.target_id }}</li>
+                            <li>{{ rel.get_relation_type_display }}:
+                                {% if rel.target_node %}<a href="{{ rel.target_node.url }}"><i class="fas fa-{{ rel.target_node.icon }} me-1"></i>{{ rel.target_node.label }}</a>
+                                {% else %}{{ rel.target_type }} #{{ rel.target_id }}{% endif %}</li>
                             {% endfor %}
                         </ul>
                         {% endif %}
+                        <a class="btn btn-sm btn-outline-secondary" href="{% url 'assets:relationship_create' %}?source_type=asset&amp;source_id={{ asset.pk }}"><i class="fas fa-plus me-1"></i>Add relationship</a>
                     </div>
 
                     <!-- Custom Fields Tab -->

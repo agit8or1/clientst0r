@@ -58,6 +58,7 @@ class _Base(TestCase):
             reverse('inventory:item_list'),
             reverse('inventory:item_create'),
             reverse('inventory:item_detail', args=[i]),
+            reverse('inventory:item_qr_image', args=[i]),
             reverse('inventory:item_edit', args=[i]),
             reverse('inventory:item_delete', args=[i]),
             reverse('inventory:item_adjust', args=[i]),
@@ -201,3 +202,23 @@ class InventoryNavTests(_Base):
     def test_staff_sidebar_keeps_inventory(self):
         href = f'href="{reverse("inventory:inventory_dashboard")}"'
         self.assertIn(href, self.sidebar(self.tech()))
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class ItemQrCodeTests(_Base):
+    """The item page's QR code is drawn here; it used to be fetched from an
+    outside service with this server's host name and the item code in the URL."""
+
+    def test_qr_code_is_local(self):
+        c = self.login(self.tech())
+        page = c.get(reverse('inventory:item_detail', args=[self.item.pk]))
+        self.assertEqual(page.status_code, 200)
+        self.assertNotContains(page, 'qrserver')
+        self.assertContains(page, reverse('inventory:item_qr_image', args=[self.item.pk]))
+        img = c.get(reverse('inventory:item_qr_image', args=[self.item.pk]))
+        self.assertEqual(img.status_code, 200)
+        self.assertEqual(img['Content-Type'], 'image/png')
+
+    def test_customer_user_is_refused(self):
+        c = self.login(self.customer(Role.OWNER))
+        self.assertEqual(c.get(reverse('inventory:item_qr_image', args=[self.item.pk])).status_code, 403)

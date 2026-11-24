@@ -11,6 +11,7 @@ urlpatterns = [
     path('items/', msp_staff_only(views.item_list), name='item_list'),
     path('items/create/', msp_staff_only(views.item_create), name='item_create'),
     path('items/<int:pk>/', msp_staff_only(views.item_detail), name='item_detail'),
+    path('items/<int:pk>/qr.png', msp_staff_only(views.item_qr_image), name='item_qr_image'),
     path('items/<int:pk>/edit/', msp_staff_only(views.item_edit), name='item_edit'),
     path('items/<int:pk>/delete/', msp_staff_only(views.item_delete), name='item_delete'),
     path('items/<int:pk>/adjust/', msp_staff_only(views.item_adjust), name='item_adjust'),
