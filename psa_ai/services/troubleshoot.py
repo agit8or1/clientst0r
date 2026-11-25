@@ -506,7 +506,7 @@ def build_observations(user, *, ticket=None, device=None, policy=None) -> dict:
         if ticket is not None:
             for m, a in enumerate(Rem0teAlertTicket.objects.filter(ticket=ticket).select_related('connection')
                                   .order_by('-created_at')[:MAX_ALERTS], start=n + 1):
-                add(f'L{m}', f'rem0te.alert ({a.severity or "?"}, {a.state or "?"})', a.connection.name,
+                add(f'L{m}', f'rem0te.alert ({a.severity or "?"}, {a.state or "?"})', a.connection_label,
                     a.updated_at, f'{a.kind or "alert"}: {a.title}', 400)
         diags = RMMRequest.objects.filter(kind=RMMRequest.KIND_DIAGNOSTIC, status='completed',
                                           organization=org, device__in=devices).select_related('ticket')

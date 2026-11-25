@@ -894,9 +894,12 @@ def tick(now=None, limit=500) -> dict:
         return stats
     due = list(AlertTicketLink.objects.filter(
         Q(disposition=DISP_HELD, hold_reason='offline', hold_until__lte=now)
-        | Q(disposition=DISP_SUPPRESSED, hold_until__lte=now))
+        | Q(disposition=DISP_SUPPRESSED, hold_until__lte=now),
+        # A held alert of a deleted RMM connection stays as history only.
+        connection__isnull=False)
         .exclude(state='resolved').order_by('created_at').values_list('pk', flat=True)[:limit])
-    for link in (AlertTicketLink.objects.filter(disposition=DISP_HELD, hold_reason='after_hours')
+    for link in (AlertTicketLink.objects.filter(disposition=DISP_HELD, hold_reason='after_hours',
+                                                connection__isnull=False)
                  .exclude(state='resolved').select_related('organization').order_by('created_at')[:limit]):
         if in_business_hours(now, link.organization):
             due.append(link.pk)

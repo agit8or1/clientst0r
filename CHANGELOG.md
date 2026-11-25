@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.783] - 2026-11-25
+
+### Changed
+- **With no RMM connected, RMM-only parts of the interface are gone.** RMM Devices and RMM Alerts leave the sidebar and
+  Ctrl+K; the RMM dashboard cards, the customer RMM tab and "RMM offline" figure, the "Connect an RMM" and remote-session
+  cards on My Work, and the RMM views on the asset list no longer appear. Saved dashboard layouts are left as they are,
+  so the cards come back once an RMM is connected. Any RMM counts, and a disabled connection counts as none.
+- **RMM connections can be disabled.** A Disable / Enable button on the connection page (audited). The delete page now
+  lists what would go, recommends Disable, and explains in plain words when tickets or requests went through the
+  connection and it cannot be deleted, instead of showing an error page.
+- **Test connection and RMM console links give up after at most 15 seconds** (one retry) instead of up to about two
+  minutes. Background syncs keep their longer limits.
+- The customer page's "Open in RMM" button is now "All RMM devices", which is what it opens.
+
+### Fixed
+- **Deleting an RMM connection could delete a customer it had imported, including one with tickets.** Imported customers
+  with tickets are never removed now, and the delete runs as one step, so a refused delete leaves nothing half-removed.
+- Alert-to-ticket links and Rem0te alert-ticket records are kept when their RMM connection is deleted, with the
+  connection's name.
+- Roles → "Why" (why a member has or lacks a permission) showed an error page for superusers and group managers.
+- Two release-tool calls to GitHub had no timeout.
+
+### Tests
+- Every navigation page is opened with outbound network blocked (technician, superuser, portal user); key pages with
+  Rem0te, the RMM and Connect unreachable; a lint fails on any outbound call without a timeout; a backup is restored
+  with no network and pages still open. Two pages still contact GitHub while loading (Settings → Updates and the
+  Security dashboard, cached and safe when GitHub is down); moving that off page load is planned.
+- Roadmap: 113.6 shipped.
+
 ## [3.17.782] - 2026-11-25
 
 ### Fixed

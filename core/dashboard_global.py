@@ -90,6 +90,7 @@ def gate_g_rmm(request):
     dw = _dw()
     return (gate_global(request)
             and dw.path_ok(request, dw.url('integrations:rmm_alerts') or '/integrations/rmm/alerts/')
+            and dw.rmm_configured(request)
             and org_ids_for(request, 'integrations_view') != set())
 
 
@@ -252,7 +253,7 @@ def build_g_rmm_alerts(request, org):
                   .order_by('-triggered_at')[:40])
     alerts.sort(key=lambda a: (order.get(a.severity, 9), -a.triggered_at.timestamp()))
     return {'alerts': alerts[:LIST_ROWS], 'more_url': _dw().url('integrations:rmm_alerts'),
-            'rmm_configured': bool(alerts) or _dw().rmm_configured()}
+            'rmm_configured': bool(alerts) or _dw().rmm_configured(request)}
 
 
 def build_g_audit(request, org):

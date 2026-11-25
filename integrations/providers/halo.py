@@ -58,7 +58,7 @@ class HaloPSAProvider(BaseProvider):
             if tenant:
                 data['tenant'] = tenant
 
-            response = self.session.post(auth_url, data=data, timeout=30)
+            response = self.session.post(auth_url, data=data, timeout=self._timeout(30))
             response.raise_for_status()
 
             token_data = response.json()

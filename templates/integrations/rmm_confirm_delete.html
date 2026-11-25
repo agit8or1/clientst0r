@@ -13,39 +13,58 @@
 </nav>
 
 <div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card border-danger">
-            <div class="card-header bg-danger text-white">
-                <h3 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Confirm Deletion</h3>
-            </div>
+    <div class="col-lg-8">
+        <h1 class="h3 mb-3">Remove {{ connection.name }}?</h1>
+
+        {% if impact.blockers %}
+        <div class="alert alert-warning" role="alert" data-rmm-delete-blocked>
+            <h2 class="h6"><i class="fas fa-lock me-1" aria-hidden="true"></i>{% if refused %}The connection was not deleted{% else %}This connection can't be deleted{% endif %}</h2>
+            <ul class="mb-1">{% for why in impact.blockers %}<li>{{ why }}</li>{% endfor %}</ul>
+            <p class="mb-0">Disable it instead: syncing and RMM actions stop, and every record stays readable.</p>
+        </div>
+        {% endif %}
+
+        <div class="card mb-3" data-rmm-recommended="disable">
             <div class="card-body">
-                <div class="alert alert-danger">
-                    <h5><i class="fas fa-exclamation-triangle"></i> Warning!</h5>
-                    <p>You are about to delete the RMM integration <strong>{{ connection.name }}</strong>.</p>
-                </div>
-
-                <h5>This will:</h5>
-                <ul>
-                    <li>Remove the RMM connection configuration</li>
-                    <li>Delete all synced device records ({{ connection.devices.count }} devices)</li>
-                    <li>Remove asset mapping links (if any)</li>
-                    <li>Delete sync history and logs</li>
-                </ul>
-
-                <div class="alert alert-warning">
-                    <i class="fas fa-info-circle"></i> <strong>Note:</strong> This action cannot be undone. Assets will not be deleted, only the RMM device links will be removed.
-                </div>
-
-                <form method="post" class="mt-4">
+                <h2 class="h5">Recommended: disable the connection</h2>
+                <p class="mb-2">Disabling stops syncing and every RMM action through {{ connection.name }}. Devices, alerts, tickets
+                    and history all stay, and you can enable it again at any time.</p>
+                {% if connection.is_active %}
+                <form method="post" action="{% url 'integrations:rmm_set_active' connection.pk %}">
                     {% csrf_token %}
-                    <div class="d-flex justify-content-end gap-2">
-                        <a href="{% url 'integrations:rmm_detail' connection.pk %}" class="btn btn-secondary">
-                            <i class="fas fa-times"></i> Cancel
-                        </a>
-                        <button type="submit" class="btn btn-danger">
-                            <i class="fas fa-trash"></i> Delete Integration
-                        </button>
-                    </div>
+                    <input type="hidden" name="active" value="0">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-pause" aria-hidden="true"></i> Disable connection</button>
+                </form>
+                {% else %}
+                <p class="text-muted mb-0">This connection is already disabled.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card border-danger">
+            <div class="card-body">
+                <h2 class="h5">What deleting does</h2>
+                <dl class="row small mb-2" data-rmm-impact>
+                    <dt class="col-sm-6">Synced devices (removed)</dt><dd class="col-sm-6" data-count="devices">{{ impact.devices }}</dd>
+                    <dt class="col-sm-6">Synced alerts (removed)</dt><dd class="col-sm-6" data-count="alerts">{{ impact.alerts }}</dd>
+                    <dt class="col-sm-6">Alert-to-ticket links (kept)</dt><dd class="col-sm-6" data-count="ticket_links">{{ impact.ticket_links }}{% if impact.linked_tickets %} on {{ impact.linked_tickets }} ticket{{ impact.linked_tickets|pluralize }}{% endif %}</dd>
+                    <dt class="col-sm-6">Ticket requests (diagnostics, fixes, hand-offs)</dt><dd class="col-sm-6" data-count="fix_requests">{{ impact.fix_requests }}</dd>
+                    {% if impact.analysis_jobs %}<dt class="col-sm-6">Ticket analyses</dt><dd class="col-sm-6" data-count="analysis_jobs">{{ impact.analysis_jobs }}</dd>{% endif %}
+                </dl>
+                <ul class="small">
+                    <li>The connection's settings and credentials are removed.</li>
+                    <li>Synced device, alert, software and service records from this RMM are removed. Assets are kept; only their link to the RMM device goes.</li>
+                    <li>Tickets are never removed. The record of which alert opened or joined which ticket is kept, with this connection's name.</li>
+                    {% if impact.imported_organizations %}
+                    <li>Customers this connection imported that hold nothing else are removed too: {{ impact.imported_organizations|join:", " }}.</li>
+                    {% endif %}
+                </ul>
+                <form method="post" class="d-flex justify-content-end gap-2">
+                    {% csrf_token %}
+                    <a href="{% url 'integrations:rmm_detail' connection.pk %}" class="btn btn-secondary">Cancel</a>
+                    {% if impact.can_delete %}
+                    <button type="submit" class="btn btn-outline-danger" data-rmm-delete><i class="fas fa-trash" aria-hidden="true"></i> Delete connection</button>
+                    {% endif %}
                 </form>
             </div>
         </div>

@@ -136,7 +136,7 @@ class Rem0teAdapter(Adapter):
     def envelope(self, r):
         return {
             'organization_id': r.organization_id,
-            'connection_label': r.connection.name[:160],
+            'connection_label': r.connection_label[:160],
             'vendor_event_id': r.alert_id[:200],
             'event_type': r.kind[:120],
             'title': r.title[:300] or r.kind or 'Rem0te alert',

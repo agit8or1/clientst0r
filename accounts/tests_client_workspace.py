@@ -121,6 +121,11 @@ class ClientWorkspaceTests(TestCase):
         self.assertIn('data-cw="msp-wide"', html)          # every-client technician
 
     def test_msp_staff_sees_module_tabs(self):
+        # The RMM tab needs an enabled RMM serving the client (standalone
+        # installs get none: core/tests/test_standalone_ui.py).
+        from integrations.models import RMMConnection
+        RMMConnection.objects.create(organization=self.a, name='WS RMM', provider_type='tactical_rmm',
+                                     base_url='https://rmm.example.com')
         tabs = _tabs(self._get(self.su, self.a).content.decode())
         for key in ('overview', 'tickets', 'assets', 'rmm', 'contacts', 'documents', 'passwords',
                     'contracts', 'billing', 'projects', 'activity', 'members'):
@@ -189,6 +194,7 @@ class ClientWorkspaceTests(TestCase):
         self.assertNotIn('id="cw-invoices"', html)
         self.assertNotIn('Acme printer jam', html)
         self.assertNotIn('Open RMM', html)
+        self.assertNotIn('RMM devices', html)
 
     def test_unknown_tab_is_404(self):
         self.assertEqual(self._get(self.su, self.a, 'nope').status_code, 404)

@@ -549,7 +549,10 @@ def saved_view_bar(request):
                       'active': v.query == current, 'is_default': v.is_default})
     preset_specs = tuple(spec['presets'])
     if spec.get('staff_presets') and _is_staff(request.user):
-        preset_specs += tuple(spec['staff_presets'])
+        # The staff presets are the RMM filters: only while an RMM is connected.
+        from integrations.presence import rmm_configured
+        if rmm_configured(request=request):
+            preset_specs += tuple(spec['staff_presets'])
     presets = [{'name': n, 'url': f'{base}?{q}', 'active': q == current} for n, q in preset_specs
                if not any(v['name'] == n for v in views)]
     return {
@@ -886,8 +889,10 @@ def my_work_panels(request, base_tickets, scope_all=False):
     """Everything My Work adds on top of its ticket queues, for MSP staff.
 
     Returns {} for customer users. Each panel is None when its module is not
-    there at all (no RMM connection, AI off, no remote-session source); the
-    'setup' list then tells the technician what would fill it."""
+    there at all (no enabled RMM connection, AI off, no remote-session
+    source) and is then simply left out: standalone installs get no
+    peer-only cards or "connect an RMM" prompts. 'setup' stays for future
+    local-only guidance and is empty today."""
     if not _is_staff(request.user):
         return {}
     customer_ids = work_customer_ids(request, scope_all=scope_all)
@@ -901,20 +906,14 @@ def my_work_panels(request, base_tickets, scope_all=False):
         logger.exception('My Work: SLA panel failed')
         panels['sla'] = None
 
-    has_rmm = False
-    try:
-        from integrations.models import RMMConnection
-        has_rmm = RMMConnection.objects.exists()
-    except Exception:
-        pass
-    if has_rmm:
+    # Device health only while an enabled RMM is connected. Standalone: no
+    # panel and no "connect an RMM" card (Administration → Integrations is
+    # where integrations are found).
+    from integrations.presence import rmm_configured
+    if rmm_configured(request=request):
         panels['devices'] = _device_health_panel(request, customer_ids, next_url)
     else:
         panels['devices'] = None
-        setup.append({'title': 'Device health and RMM alerts',
-                      'text': 'Connect an RMM to see offline and alerting devices for your customers here.',
-                      'url': _url('integrations:integration_list') if request.user.is_superuser else '',
-                      'action': 'Connect an RMM'})
     panels['alerts'] = _alert_panel(request, customer_ids, next_url)
     try:
         panels['maintenance'] = _maintenance_panel(request, customer_ids)
@@ -923,10 +922,6 @@ def my_work_panels(request, base_tickets, scope_all=False):
         panels['maintenance'] = None
     panels['recent_devices'] = recent_devices(request, next_url=next_url)
     panels['remote_sessions'] = _from_source('remote_sessions', request, customer_ids)
-    if panels['remote_sessions'] is None:
-        setup.append({'title': 'Active remote sessions',
-                      'text': 'Remote sessions appear here once remote access is connected for your customers.',
-                      'url': '', 'action': ''})
     panels['review'] = _review_panel(request, customer_ids)
     panels['ai'] = _ai_panel(request)
     panels['setup'] = setup

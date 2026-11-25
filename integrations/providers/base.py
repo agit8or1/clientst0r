@@ -2,7 +2,10 @@
 Base provider class for PSA integrations.
 All providers must implement this interface.
 """
+import contextlib
+import functools
 import logging
+import time
 import requests
 from urllib3.util.retry import Retry
 from typing import List, Dict, Optional
@@ -30,11 +33,67 @@ class RateLimitError(ProviderError):
     pass
 
 
+# A user who clicked "Test connection" or a console link is waiting on the
+# page: connect <= 5 s, read <= 10 s per request, one retry, 15 s in total
+# (docs/ux/STANDALONE_REQUIREMENTS.md F1, F11). Background syncs keep the
+# 30 s / 3 retries budget below.
+INTERACTIVE_TIMEOUT = (5, 10)
+INTERACTIVE_RETRIES = 1
+INTERACTIVE_TOTAL_SECONDS = 15
+
+# Provider methods that only run because somebody asked for them in a request
+# (or as a cheap pre-check): wrapped with BaseProvider.interactive().
+INTERACTIVE_METHODS = ('test_connection', 'fetch_console_url')
+
+
+def _interactive_method(fn):
+    @functools.wraps(fn)
+    def wrapper(self, *args, **kwargs):
+        with self.interactive():
+            return fn(self, *args, **kwargs)
+    wrapper._interactive_wrapped = True
+    return wrapper
+
+
 class BaseProvider:
     """
     Base provider class with common HTTP client and interface.
     All PSA providers must inherit from this and implement the abstract methods.
     """
+
+    _interactive_deadline = None
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        for name in INTERACTIVE_METHODS:
+            fn = cls.__dict__.get(name)
+            if callable(fn) and not getattr(fn, '_interactive_wrapped', False):
+                setattr(cls, name, _interactive_method(fn))
+
+    @contextlib.contextmanager
+    def interactive(self, total=INTERACTIVE_TOTAL_SECONDS):
+        """Short budget for a call a person is waiting on: bounded connect and
+        read timeouts, at most one retry and a total deadline. Nested use
+        keeps the outer deadline."""
+        if self._interactive_deadline is not None:
+            yield self
+            return
+        try:
+            adapter = self.session.get_adapter(self.base_url)
+            saved = adapter.max_retries
+        except Exception:   # a session without adapters (a test double): budget only
+            adapter = saved = None
+        if adapter is not None:
+            adapter.max_retries = Retry(total=INTERACTIVE_RETRIES, backoff_factor=0.5,
+                                        status_forcelist=[429, 500, 502, 503, 504],
+                                        allowed_methods=["HEAD", "GET", "OPTIONS"])
+        self._interactive_deadline = time.monotonic() + total
+        try:
+            yield self
+        finally:
+            self._interactive_deadline = None
+            if adapter is not None:
+                adapter.max_retries = saved
 
     # Provider metadata
     provider_name = "Base Provider"
@@ -97,6 +156,13 @@ class BaseProvider:
 
         return guard_session(session, configured_service_policy(), max_retries=retry_strategy)
 
+    def _timeout(self, default=30):
+        """The timeout for a request made outside _make_request."""
+        if self._interactive_deadline is None:
+            return default
+        remaining = max(self._interactive_deadline - time.monotonic(), 0.1)
+        return (min(INTERACTIVE_TIMEOUT[0], remaining), min(INTERACTIVE_TIMEOUT[1], remaining))
+
     def _make_request(self, method, endpoint, **kwargs):
         """
         Make HTTP request with error handling and logging.
@@ -106,6 +172,13 @@ class BaseProvider:
 
         # Set default timeout if not provided
         kwargs.setdefault('timeout', 30)
+        if self._interactive_deadline is not None:
+            remaining = self._interactive_deadline - time.monotonic()
+            if remaining <= 0:
+                logger.error(f"Interactive time budget used up for {self.provider_name}")
+                raise ProviderError("Request timeout")
+            connect, read = INTERACTIVE_TIMEOUT
+            kwargs['timeout'] = (min(connect, remaining), min(read, remaining))
 
         # Add authentication headers (implemented by subclass). Caller-supplied
         # headers are applied last and win: a provider that has to post a

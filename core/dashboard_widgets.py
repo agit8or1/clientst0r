@@ -260,9 +260,13 @@ def gate_monitoring(request):
 
 def gate_rmm(request):
     # integrations.views.rmm_staff_only + the /integrations/rmm/ staff-only
-    # prefix + the integrations_view section flag.
+    # prefix + the integrations_view section flag. With no enabled RMM
+    # connection the RMM widgets are left out of every layout (built-in and
+    # saved alike; a saved layout keeps them and they come back once an RMM
+    # is connected).
     return (gate_org(request) and is_staff(request)
-            and path_ok(request, url('integrations:rmm_alerts') or '/integrations/rmm/alerts/'))
+            and path_ok(request, url('integrations:rmm_alerts') or '/integrations/rmm/alerts/')
+            and rmm_configured(request))
 
 
 def gate_psa_integration(request):
@@ -456,7 +460,7 @@ def build_monitors(request, org):
 def build_map(request, org):
     from core.models import SystemSetting
     s = SystemSetting.get_settings_for_request()
-    devices = is_staff(request) and path_ok(
+    devices = is_staff(request) and rmm_configured(request) and path_ok(
         request, url('integrations:rmm_device_map_data') or '/integrations/rmm/')
     return {
         'map_default_zoom': s.map_default_zoom,
@@ -603,15 +607,16 @@ def build_rmm_alerts(request, org):
                   .order_by('-triggered_at')[:40])
     alerts.sort(key=lambda a: (order.get(a.severity, 9), -a.triggered_at.timestamp()))
     return {'alerts': alerts[:12], 'more_url': url('integrations:rmm_alerts'),
-            'rmm_configured': bool(alerts) or rmm_configured()}
+            'rmm_configured': bool(alerts) or rmm_configured(request)}
 
 
-def rmm_configured() -> bool:
-    """Any RMM connection at all (the RMM alerts page's own empty-state
-    test). Without one an empty alert list means "nothing is collected",
-    not "nothing is wrong", and the RMM panels must not read as healthy."""
-    from integrations.models import RMMConnection
-    return RMMConnection.objects.exists()
+def rmm_configured(request=None) -> bool:
+    """An enabled RMM connection exists (integrations.presence, cached).
+    Without one an empty alert list means "nothing is collected", not
+    "nothing is wrong": the RMM widgets are not offered at all (gate_rmm),
+    and the panels' own text says so should one be drawn anyway."""
+    from integrations.presence import rmm_configured as present
+    return present(request=request)
 
 
 def build_2fa_warning(request, org):

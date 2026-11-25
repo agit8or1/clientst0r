@@ -567,7 +567,15 @@ class AlertTicketLink(models.Model):
     SOURCE_REM0TE = 'rem0te'
     SOURCE_RMM = 'rmm'
     source = models.CharField(max_length=10, choices=[(SOURCE_REM0TE, 'Rem0te'), (SOURCE_RMM, 'RMM sync')])
-    connection = models.ForeignKey('integrations.RMMConnection', on_delete=models.CASCADE, related_name='+')
+    # Cleared when the RMM connection is deleted: the link (which alert opened
+    # or joined which ticket) is history and stays. The connection's name and
+    # provider are written onto the row first (integrations.signals).
+    connection = models.ForeignKey('integrations.RMMConnection', on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='+')
+    connection_name = models.CharField(max_length=255, blank=True, default='',
+                                       help_text='The RMM connection\'s name, kept after it is deleted.')
+    provider_type = models.CharField(max_length=50, blank=True, default='',
+                                     help_text='The RMM provider, kept after the connection is deleted.')
     external_id = models.CharField(max_length=255)
     organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, null=True, blank=True,
                                      related_name='+')
@@ -619,6 +627,13 @@ class AlertTicketLink(models.Model):
 
     def __str__(self):
         return f'{self.get_source_display()} alert {self.external_id} ({self.get_disposition_display()})'
+
+    @property
+    def connection_label(self):
+        """The connection's name, also after the connection was deleted."""
+        if self.connection_id and self.connection is not None:
+            return self.connection.name
+        return self.connection_name or 'Removed RMM connection'
 
     @property
     def is_open(self):

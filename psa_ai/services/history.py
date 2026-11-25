@@ -414,7 +414,7 @@ def _alerts(ticket, cutoff):
         qs = qs.filter(created_at__gte=cutoff)
     out = []
     for a in qs.order_by('-created_at')[:MAX_ENTRIES]:
-        e = _entry(a.created_at, 'alert', f'Opened from a {a.connection.name} alert: {a.title}'[:300],
+        e = _entry(a.created_at, 'alert', f'Opened from a {a.connection_label} alert: {a.title}'[:300],
                    icon='fa-bell')
         e['facts'] = [('Computer', a.computer_name or a.rem0te_endpoint_id or '—'), ('Kind', a.kind or '—'),
                       ('Severity', a.severity or '—'), ('Alert state', a.state or '—'),

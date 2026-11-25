@@ -645,7 +645,13 @@ class Rem0teAlertTicket(models.Model):
     LINK_PENDING, LINK_LINKED, LINK_CONFLICT, LINK_FAILED = 'pending', 'linked', 'conflict', 'failed'
     LINK_CHOICES = [(LINK_PENDING, 'Not linked in Rem0te yet'), (LINK_LINKED, 'Linked in Rem0te'),
                     (LINK_CONFLICT, 'Rem0te has another ticket for this alert'), (LINK_FAILED, 'Link failed')]
-    connection = models.ForeignKey('integrations.RMMConnection', on_delete=models.CASCADE, related_name='+')
+    # Cleared when the RMM connection is deleted; the record of which alert
+    # opened which ticket stays, with the connection's name written onto it
+    # first (integrations.signals).
+    connection = models.ForeignKey('integrations.RMMConnection', on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='+')
+    connection_name = models.CharField(max_length=255, blank=True, default='',
+                                       help_text='The RMM connection\'s name, kept after it is deleted.')
     organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, related_name='+')
     alert_id = models.CharField(max_length=64)
     ticket = models.ForeignKey('psa.Ticket', null=True, blank=True, on_delete=models.SET_NULL,
@@ -674,6 +680,13 @@ class Rem0teAlertTicket(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['connection', 'alert_id'], name='psa_ai_rem0te_alert_one_ticket'),
         ]
+
+    @property
+    def connection_label(self):
+        """The connection's name, also after the connection was deleted."""
+        if self.connection_id and self.connection is not None:
+            return self.connection.name
+        return self.connection_name or 'Removed RMM connection'
 
 
 # ===========================================================================

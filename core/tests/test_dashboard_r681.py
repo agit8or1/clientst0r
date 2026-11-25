@@ -656,6 +656,11 @@ class GlobalViewTests(_Base):
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
+        # An enabled RMM, so the RMM widgets are offered (standalone: none,
+        # core/tests/test_standalone_ui.py).
+        from integrations.models import RMMConnection
+        RMMConnection.objects.get_or_create(organization=None, name='Global RMM', defaults={
+            'provider_type': 'tactical_rmm', 'base_url': 'https://rmm.global.test'})
         from monitoring.models import WebsiteMonitor
         for i in range(2):
             _ticket(cls.org_a, f'Alpha open {i}')

@@ -50,7 +50,7 @@
 <thead><tr><th>When</th><th>Customer</th><th>Alert</th><th>Category</th><th>Outcome</th><th>Ticket</th></tr></thead><tbody>
 {% for l in recent %}<tr>
     <td class="text-nowrap">{{ l.created_at|date:"Y-m-d H:i" }}</td><td>{{ l.organization.name|default:"—" }}</td>
-    <td>{{ l.title|truncatechars:80 }}<div class="text-muted">{{ l.connection.name }} · {{ l.state }}</div></td>
+    <td>{{ l.title|truncatechars:80 }}<div class="text-muted">{{ l.connection_label }} · {{ l.state }}</div></td>
     <td>{{ l.get_category_display }}</td>
     <td>{{ l.get_disposition_display }}<div class="text-muted">{{ l.reason|truncatechars:140 }}</div></td>
     <td>{% if l.ticket %}<a href="{% url 'psa:ticket_detail' l.ticket.ticket_number %}">{{ l.ticket.ticket_number }}</a>{% else %}—{% endif %}</td>

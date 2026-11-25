@@ -34,6 +34,11 @@ class _Base(TestCase):
         _enable_psa_global()
         cls.org_a = Organization.objects.create(name='Dash Alpha', slug='dash-alpha')
         cls.org_b = Organization.objects.create(name='Dash Bravo', slug='dash-bravo')
+        # An enabled RMM, so the RMM widgets are offered (without one they are
+        # left out: core/tests/test_standalone_ui.py).
+        from integrations.models import RMMConnection
+        RMMConnection.objects.create(organization=None, name='Dash RMM', provider_type='tactical_rmm',
+                                     base_url='https://rmm.dash.test')
         cls.root = User.objects.create_superuser('dash_root', 'r@x.com', 'pw')
         cls.tech = _make_msp_tech(User.objects.create_user('dash_tech', 't@x.com', 'pw'))
         # A customer user (non-portal, on base.html) with the simple

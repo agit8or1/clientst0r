@@ -688,12 +688,9 @@
                 {% if ticket_asset_foreign %}
                 <p class="text-danger mb-2">The asset previously on this ticket belongs to a different customer and is hidden. Choose one of this customer's assets.</p>
                 {% endif %}
-                {% if ticket_asset %}
-                {% if ticket_rmm %}
+                {# Nothing is said when no RMM reports the asset: that is the normal case without an RMM. #}
+                {% if ticket_asset and ticket_rmm %}
                 {% include "integrations/_rmm_device_summary.html" with rmm_summaries=ticket_rmm compact=True %}
-                {% else %}
-                <p class="text-muted mb-2">No RMM reports this asset.</p>
-                {% endif %}
                 {% endif %}
                 {% if ticket_rmm_panel %}{% include "psa/_ticket_rmm_panel.html" with p=ticket_rmm_panel %}{% endif %}
                 <form method="post" action="{% url 'psa:ticket_quick_action' ticket.ticket_number %}" class="d-flex gap-2 mt-2">

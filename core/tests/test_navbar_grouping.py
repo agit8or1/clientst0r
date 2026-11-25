@@ -108,10 +108,18 @@ def menu(html, dropdown_id):
 
 
 class NavbarTestBase(TestCase):
+    # An enabled RMM connection exists, so the RMM-only entries (RMM Devices,
+    # RMM Alerts) are drawn. Standalone installs without one:
+    # core/tests/test_standalone_ui.py.
+    with_rmm = True
 
     def setUp(self):
         self.flags(**{f: True for f in ALL_FLAGS})
         self.org = Organization.objects.create(name='Nav Co', slug='nav-co')
+        if self.with_rmm:
+            from integrations.models import RMMConnection
+            self.rmm = RMMConnection.objects.create(organization=None, name='Nav RMM', provider_type='tactical_rmm',
+                                                    base_url='https://rmm.nav.test')
 
     def flags(self, **values):
         row = SystemSetting.get_settings()

@@ -493,14 +493,14 @@ def access_explain(request):
     if not _can_view_roles(request.user, org):
         return _deny(request, 'roles_manage', org)
     from core.utils import descendant_org_ids
-    members = (User.objects.filter(memberships__organization_id__in=descendant_org_ids(org) | {org.pk})
-               .distinct().order_by('username'))
+    from django.db.models import Q
+    scope = Q(memberships__organization_id__in=descendant_org_ids(org) | {org.pk})
     if request.user.is_superuser:
-        members = (members | User.objects.filter(profile__user_type='staff')).distinct().order_by('username')
+        scope |= Q(profile__user_type='staff')
     elif _can_manage_groups(request.user):
         # Staff holding a role here through an access group.
-        members = (members | User.objects.filter(technician_groups__role_template__isnull=False)
-                   ).distinct().order_by('username')
+        scope |= Q(technician_groups__role_template__isnull=False)
+    members = User.objects.filter(scope).distinct().order_by('username')
     target = None
     result = None
     perm_key = request.GET.get('perm', '')

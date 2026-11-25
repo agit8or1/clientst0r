@@ -359,6 +359,17 @@ _digest_reader = _perm('security_alerts_view')
 _security_reader = _perm('security_alerts_view')
 _aging_reader = _view_check(_check_aging_reader)
 _rmm_policy_reader = _view_check(_check_rmm_policy_reader)
+
+
+def _check_rmm_present(u, ctx):
+    """An enabled RMM connection exists (integrations.presence). Standalone
+    installs get no RMM-only entries; the pages keep their own checks and
+    empty states, and Administration → Integrations stays the way in."""
+    from integrations.presence import rmm_configured
+    return rmm_configured(request=ctx.get('request'))
+
+
+_rmm_present = _view_check(_check_rmm_present)
 _members_admin = _view_check(_check_members)
 _roles_reader = _view_check(_check_roles)
 _access_group_manager = _view_check(lambda u, ctx: _can_manage_access_groups(u))
@@ -1399,7 +1410,7 @@ PRIMARY = (
         Entry(_('All Assets'), section='assets_all', icon='fa-box',
               keywords='devices inventory serial relationships'),
         Entry(_('RMM Devices'), url_name='integrations:rmm_devices', icon='fa-desktop',
-              gate=_msp_staff, keywords='agents endpoints online offline'),
+              gate=_all(_msp_staff, _rmm_present), keywords='agents endpoints online offline'),
         Entry(_('Device Workspace'), url_name='assets:device_workspace_home', icon='fa-laptop-medical',
               gate=_msp_staff, keywords='workspace connect diagnose patches recent devices'),
         Entry(_('Hardware & Ports'), section='assets_hardware', icon='fa-network-wired',
@@ -1469,7 +1480,7 @@ PRIMARY = (
         Entry(_('Security Incidents'), section='mod_security_ops', icon='fa-fire',
               keywords='incidents playbooks threats mtta response'),
         Entry(_('RMM Alerts'), url_name='integrations:rmm_alerts', icon='fa-bell',
-              gate=_msp_staff, keywords='monitoring rmm alerts'),
+              gate=_all(_msp_staff, _rmm_present), keywords='monitoring rmm alerts'),
         # Which RMM / monitoring alerts open tickets, and maintenance windows.
         Entry(_('Alert Policies'), url_name='ticket_routing:alerts', icon='fa-sliders',
               gate=_all(_psa, _routing_manager),

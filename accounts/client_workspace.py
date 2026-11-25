@@ -218,8 +218,14 @@ class Workspace:
         if key == 'assets':
             return self.allows('assets:asset_list')
         if key == 'rmm':
-            # integrations.views.rmm_staff_only + the /integrations/rmm/ gates.
-            return self.staff and self.allows('integrations:rmm_devices')
+            # integrations.views.rmm_staff_only + the /integrations/rmm/ gates,
+            # and only while an enabled RMM serves this customer (its own
+            # connection, or devices of it synced by one): no empty RMM tab or
+            # "RMM offline 0" figure on a standalone install.
+            if not (self.staff and self.allows('integrations:rmm_devices')):
+                return False
+            from integrations.presence import rmm_configured
+            return rmm_configured(self.org, request=self.request)
         if key == 'contacts':
             return self.allows('assets:contact_list')
         if key == 'documents':
@@ -560,7 +566,8 @@ class Workspace:
         if can_write and self.has('assets_create') and self.allows('assets:asset_create'):
             out.append(('Add asset', _url('assets:asset_create'), 'fa-box'))
         if self.visible.get('rmm'):
-            out.append(('Open RMM', _url('integrations:rmm_devices'), 'fa-desktop'))
+            # Clientst0r's own device list, labelled as such (not the RMM console).
+            out.append(('RMM devices', _url('integrations:rmm_devices'), 'fa-desktop'))
         if self.psa_on and can_write and self.allows('psa:project_create'):
             out.append(('Create project', _url('psa:project_create'), 'fa-diagram-project'))
         if can_write and self.allows('docs:document_create'):

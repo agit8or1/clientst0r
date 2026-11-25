@@ -24,6 +24,16 @@
         <a href="{% url 'integrations:rmm_edit' connection.pk %}" class="btn btn-primary">
             <i class="fas fa-edit"></i> Edit
         </a>
+        <form method="post" action="{% url 'integrations:rmm_set_active' connection.pk %}" style="display: inline;">
+            {% csrf_token %}
+            {% if connection.is_active %}
+            <input type="hidden" name="active" value="0">
+            <button type="submit" class="btn btn-outline-secondary" data-rmm-disable><i class="fas fa-pause" aria-hidden="true"></i> Disable</button>
+            {% else %}
+            <input type="hidden" name="active" value="1">
+            <button type="submit" class="btn btn-outline-success" data-rmm-enable><i class="fas fa-play" aria-hidden="true"></i> Enable</button>
+            {% endif %}
+        </form>
         <a href="{% url 'integrations:rmm_delete' connection.pk %}" class="btn btn-danger">
             <i class="fas fa-trash"></i> Delete
         </a>

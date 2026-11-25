@@ -38,6 +38,7 @@ urlpatterns = [
     path('rmm/<int:pk>/', views.rmm_detail, name='rmm_detail'),
     path('rmm/<int:pk>/edit/', views.rmm_edit, name='rmm_edit'),
     path('rmm/<int:pk>/delete/', views.rmm_delete, name='rmm_delete'),
+    path('rmm/<int:pk>/active/', views.rmm_set_active, name='rmm_set_active'),
     path('rmm/<int:pk>/sync/', views.rmm_trigger_sync, name='rmm_trigger_sync'),
     path('rmm/<int:pk>/pairing/check/', views.rmm_pairing_check, name='rmm_pairing_check'),
     path('rmm/<int:pk>/pairing/rem0te-identity/', views.rmm_rem0te_identity, name='rmm_rem0te_identity'),

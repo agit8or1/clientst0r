@@ -458,73 +458,71 @@ class RMMConnection(ConnectionOwnership, BaseModel):
         return self._meta.get_field('encrypted_credentials').unseal_json(
             self.encrypted_credentials)
 
-    def delete(self, *args, **kwargs):
-        """
-        Override delete to clean up imported organizations.
-        When an RMM connection is deleted, automatically delete organizations
-        that were auto-created from RMM sites (identified by name prefix and device ownership).
-        """
-        from audit.models import AuditLog
-
-        # Find organizations that match the import criteria. A platform-owned
-        # connection's customers are the platform's, never deleted with it.
-        imported_orgs = []
-
+    def imported_organizations(self):
+        """Customers this connection created from RMM sites that hold nothing
+        but its RMM data; deleting the connection removes them. Never one with
+        tickets or any other local record, and never the connection's owner. A
+        platform-owned connection's customers are the platform's, never
+        deleted with it."""
         if self.organization_id is None:
-            potential_orgs = Organization.objects.none()
-        elif self.org_name_prefix:
-            # Find orgs with the RMM prefix
+            return []
+        if self.org_name_prefix:
             potential_orgs = Organization.objects.filter(name__startswith=self.org_name_prefix)
         else:
             # No prefix - look for orgs that only have RMM devices and nothing else
-            potential_orgs = Organization.objects.filter(
-                rmm_devices__connection=self,
-            ).distinct()
-
-        # For each potential org, check if it should be deleted
+            potential_orgs = Organization.objects.filter(rmm_devices__connection=self).distinct()
+        out = []
         for org in potential_orgs:
-            # Skip the parent organization (the one that owns this connection)
             if org.id == self.organization_id:
                 continue
-
-            # Check if org only has RMM devices and no other data
             has_other_data = (
                 org.passwords.exists() or
                 org.assets.exists() or
                 org.documents.exists() or
                 org.processes.exists() or
                 org.contacts.exists() or
-                org.website_monitors.exists()
+                org.website_monitors.exists() or
+                org.native_psa_tickets.exists()
             )
-
-            # Only delete if it has no other data (pure RMM import)
             if not has_other_data:
-                imported_orgs.append(org)
+                out.append(org)
+        return out
 
-        # Log the cleanup
-        if imported_orgs:
-            org_names = [org.name for org in imported_orgs]
-            AuditLog.objects.create(
-                action='delete',
-                object_type='RMMConnection',
-                object_id=self.id,
-                object_repr=self.name,
-                description=f'Deleted RMM connection "{self.name}" and {len(imported_orgs)} imported organizations: {", ".join(org_names)}',
-                organization=self.organization,
-                extra_data={
-                    'connection_name': self.name,
-                    'provider_type': self.provider_type,
-                    'imported_org_count': len(imported_orgs),
-                    'imported_org_names': org_names,
-                }
-            )
+    def delete(self, *args, **kwargs):
+        """
+        Delete the connection and its mirrored RMM data (devices, alerts,
+        software, snapshots), plus organizations it imported that hold
+        nothing else (`imported_organizations`). Tickets, assets and the
+        alert-to-ticket history are kept (integrations.signals). Ticket RMM
+        requests and analysis jobs protect the connection: ProtectedError,
+        and nothing is removed (one transaction).
+        """
+        from django.db import transaction
 
-        # Delete imported organizations (this will cascade delete their RMM devices)
-        for org in imported_orgs:
-            org.delete()
+        from audit.models import AuditLog
 
-        # Now delete the connection
-        super().delete(*args, **kwargs)
+        with transaction.atomic():
+            imported_orgs = self.imported_organizations()
+            if imported_orgs:
+                org_names = [org.name for org in imported_orgs]
+                AuditLog.objects.create(
+                    action='delete',
+                    object_type='RMMConnection',
+                    object_id=self.id,
+                    object_repr=self.name,
+                    description=f'Deleted RMM connection "{self.name}" and {len(imported_orgs)} imported organizations: {", ".join(org_names)}',
+                    organization=self.organization,
+                    extra_data={
+                        'connection_name': self.name,
+                        'provider_type': self.provider_type,
+                        'imported_org_count': len(imported_orgs),
+                        'imported_org_names': org_names,
+                    }
+                )
+            # Delete imported organizations (this will cascade delete their RMM devices)
+            for org in imported_orgs:
+                org.delete()
+            return super().delete(*args, **kwargs)
 
 
 class RMMDevice(BaseModel):

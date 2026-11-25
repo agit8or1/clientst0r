@@ -243,6 +243,8 @@ def _rem0te_alert_now(link):
     """Rem0te's current state of the alert (read only). (dict or None, note)."""
     from integrations.rem0te import client, pairing, schema
     conn = link.connection
+    if conn is None:
+        return None, 'The RMM connection this alert came from was removed.'
     if conn.provider_type != 'rem0te' or not pairing.is_processor(conn):
         return None, 'Rem0te is not paired for this customer.'
     try:
@@ -285,7 +287,7 @@ def gather(run, user, ticket, link, now=None, request=None):
                 'title': link.title, 'severity': link.severity, 'state': link.state,
                 'occurrences': link.occurrences, 'first_seen': link.first_seen_at.isoformat()
                 if link.first_seen_at else ''}, link.last_seen_at or link.updated_at, now, fresh,
-                f'{link.get_source_display()} ({link.connection.name})'))
+                f'{link.get_source_display()} ({link.connection_label})'))
         nums = _metrics_from_text(link.title, link.category)
         facts.update(nums)
         if 'disk' in wanted and link.category == 'disk':

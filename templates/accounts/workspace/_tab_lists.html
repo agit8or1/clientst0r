@@ -47,7 +47,8 @@ detail page, which applies its own checks again.
         <h2 class="h6 mb-0">RMM devices <span class="cw-count">{{ ws.total }}</span>
             <span class="ui-badge ui-badge--active">{{ ws.online }} online</span>
             <a href="{{ ws.offline_url }}"><span class="ui-badge {% if ws.offline %}ui-badge--danger{% else %}ui-badge--neutral{% endif %}">{{ ws.offline }} offline</span></a></h2>
-        <a class="btn btn-sm btn-outline-secondary" href="{{ ws.list_url }}">Open in RMM</a>
+        {# Clientst0r's own device list (not the RMM's console), labelled as such. #}
+        <a class="btn btn-sm btn-outline-secondary" href="{{ ws.list_url }}">All RMM devices</a>
     </div>
     {% if ws.rows %}
     <div class="ui-table-wrap"><table class="table table-sm table-hover mb-0 align-middle">

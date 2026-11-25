@@ -824,10 +824,15 @@ def rmm_edit(request, pk):
     connection = get_connection_or_404(request, RMMConnection, pk, 'admin')
 
     if request.method == 'POST':
+        was_active = connection.is_active
         form = RMMConnectionForm(request.POST, instance=connection, organization=org)
         if form.is_valid():
             try:
                 connection = form.save()
+                if connection.is_active != was_active:
+                    _audit_rmm(request, connection, 'update',
+                               f'{"Enabled" if connection.is_active else "Disabled"} RMM connection '
+                               f'"{connection.name}"', {'is_active': connection.is_active})
                 messages.success(request, f"RMM connection '{connection.name}' updated successfully.")
                 _propose_pairing(request, form, connection)
                 return redirect('integrations:rmm_detail', pk=connection.pk)
@@ -861,43 +866,84 @@ def rmm_edit(request, pk):
     })
 
 
+def _audit_rmm(request, connection, action, description, extra=None):
+    from audit.models import AuditLog
+    try:
+        AuditLog.log(user=request.user, action=action, organization=connection.organization,
+                     object_type='rmm_connection', object_id=connection.pk, object_repr=connection.name[:255],
+                     description=description[:1000], ip_address=request.META.get('REMOTE_ADDR') or None,
+                     path=request.path, extra_data=dict({'provider_type': connection.provider_type}, **(extra or {})))
+    except Exception:  # pragma: no cover - the audit trail never blocks the change itself
+        logger.exception('audit log for RMM connection %s failed', connection.pk)
+
+
+@login_required
+@rmm_staff_only
+@integration_access('admin')
+@require_POST
+def rmm_set_active(request, pk):
+    """Disable (or enable again) an RMM connection. Disabling stops syncing
+    and every RMM action through it and hides RMM-only pages' entries once
+    no enabled RMM is left; devices, alerts, tickets and history all stay."""
+    connection = get_connection_or_404(request, RMMConnection, pk, 'admin')
+    enable = request.POST.get('active') == '1'
+    if connection.is_active != enable:
+        connection.is_active = enable
+        connection.save(update_fields=['is_active', 'updated_at'])
+        _audit_rmm(request, connection, 'update',
+                   f'{"Enabled" if enable else "Disabled"} RMM connection "{connection.name}"',
+                   {'is_active': enable})
+    if enable:
+        messages.success(request, f"RMM connection '{connection.name}' is enabled.")
+    else:
+        messages.success(request, f"RMM connection '{connection.name}' is disabled. Nothing was deleted: "
+                                  'its devices, alerts, tickets and history stay, and you can enable it again.')
+    return redirect('integrations:rmm_detail', pk=connection.pk)
+
+
 @login_required
 @rmm_staff_only
 @integration_access('admin')
 def rmm_delete(request, pk):
-    """Delete RMM connection."""
-    org = get_request_organization(request)
+    """Delete an RMM connection, after saying what that does. Disable is
+    offered as the recommended action. Tickets and the alert-to-ticket
+    history are never removed (integrations.removal); a connection that
+    ticket requests or analyses went through can only be disabled, and the
+    page says why instead of failing on the database's refusal."""
+    from django.db.models import ProtectedError, RestrictedError
+
+    from .removal import explain_refusal, impact
     connection = get_connection_or_404(request, RMMConnection, pk, 'admin')
+    counts = impact(connection)
 
     if request.method == 'POST':
         name = connection.name
-        try:
-            # Check for related devices before deletion
-            device_count = connection.devices.count()
-            if device_count > 0:
-                logger.info(f"Deleting RMM connection '{name}' with {device_count} related devices (will cascade)")
-
-            connection.delete()
-            messages.success(request, f"✓ RMM connection '{name}' deleted successfully.")
-            logger.info(f"RMM connection '{name}' (pk={pk}) deleted successfully")
-        except IntegrityError as e:
-            error_msg = str(e)
-            logger.error(f"IntegrityError deleting RMM connection '{name}': {error_msg}")
-            messages.error(request, f"❌ Cannot delete RMM connection: Database integrity error. Related records may exist.")
-            return redirect('integrations:integration_list')
-        except Exception as e:
-            logger.error(f"Error deleting RMM connection '{name}': {e}")
-            messages.error(request, f"❌ Error deleting RMM connection: {str(e)[:100]}")
-            return redirect('integrations:integration_list')
-
+        refusal = counts['blockers']
+        if not refusal:
+            try:
+                connection.delete()
+            except (ProtectedError, RestrictedError) as e:
+                refusal = explain_refusal(e)
+            except IntegrityError:
+                logger.exception('Deleting RMM connection %s failed', pk)
+                refusal = ['Other records still refer to this connection.']
+        if refusal:
+            return render(request, 'integrations/rmm_confirm_delete.html', {
+                'connection': connection, 'impact': dict(counts, blockers=refusal, can_delete=False),
+                'refused': True,
+            }, status=409)
+        connection.pk = pk  # for the audit row (delete() clears it)
+        _audit_rmm(request, connection, 'delete', f'Deleted RMM connection "{name}"', {
+            k: counts[k] for k in ('devices', 'alerts', 'ticket_links', 'linked_tickets')})
+        messages.success(request, f"RMM connection '{name}' was deleted. Its synced devices and alerts were "
+                                  'removed; tickets and the record of which alerts opened them were kept.')
+        logger.info("RMM connection '%s' (pk=%s) deleted", name, pk)
         return redirect('integrations:integration_list')
-
-    # Get device count for display in confirmation
-    device_count = connection.devices.count()
 
     return render(request, 'integrations/rmm_confirm_delete.html', {
         'connection': connection,
-        'device_count': device_count,
+        'impact': counts,
+        'device_count': counts['devices'],
     })
 
 

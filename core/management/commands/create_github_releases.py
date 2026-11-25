@@ -939,7 +939,7 @@ Both fixes ensure:
 
             # Check if release already exists
             check_url = f'https://api.github.com/repos/{repo}/releases/tags/{tag}'
-            check_response = requests.get(check_url, headers=headers)
+            check_response = requests.get(check_url, headers=headers, timeout=(5, 20))
 
             if check_response.status_code == 200:
                 self.stdout.write(self.style.WARNING(f'  ⚠ Release {tag} already exists, skipping'))
@@ -956,7 +956,7 @@ Both fixes ensure:
                 'prerelease': False
             }
 
-            response = requests.post(api_url, json=data, headers=headers)
+            response = requests.post(api_url, json=data, headers=headers, timeout=(5, 30))
 
             if response.status_code == 201:
                 release_data = response.json()

@@ -128,14 +128,16 @@ class MyWorkScopingTests(_Fixture):
         s.save()
         self.assertContains(self.client.get(reverse('psa:my_work')), 'id="mw-ai"')
 
-    def test_setup_guidance_without_an_rmm(self):
+    def test_no_rmm_panels_or_setup_nags_without_an_rmm(self):
+        # Standalone (docs/ux/STANDALONE_REQUIREMENTS.md S4/S6): no device
+        # health panel, no "connect an RMM" card.
         from integrations.models import RMMConnection
         RMMConnection.objects.all().delete()
         _login(self.client, self.tech, self.a)
         r = self.client.get(reverse('psa:my_work'))
         self.assertNotContains(r, 'id="mw-devices"')
-        self.assertContains(r, 'id="mw-setup"')
-        self.assertContains(r, 'Connect an RMM')
+        self.assertNotContains(r, 'Connect an RMM')
+        self.assertNotContains(r, 'once remote access is connected')
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
@@ -510,7 +512,8 @@ class RemoteSourceTests(_Fixture):
         with self._remote(caps=('rmm_handoff',)):
             r = self.client.get(reverse('psa:my_work'))
         self.assertNotContains(r, 'id="mw-remote"')
-        self.assertContains(r, 'Remote sessions appear here once remote access is connected')
+        # No placeholder card for the peer-only panel either (standalone rule S4).
+        self.assertNotContains(r, 'Remote sessions appear here once remote access is connected')
 
     def test_launches_are_listed_as_unconfirmed_and_customer_scoped(self):
         self._launch(self.tech, self.dev_a)
