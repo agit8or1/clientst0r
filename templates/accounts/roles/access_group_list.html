@@ -32,7 +32,8 @@
                         {% if row.group.description %}<div class="small text-muted">{{ row.group.description }}</div>{% endif %}</td>
                     <td>{% if row.group.role_template %}<a href="{% url 'accounts:role_detail' row.group.role_template.pk %}">{{ row.group.role_template.name }}</a>
                         {% if row.group.role_template.is_privileged %}<span class="badge bg-warning text-dark ms-1">privileged</span>{% endif %}
-                        {% else %}<span class="text-muted">No role</span>{% endif %}</td>
+                        {% else %}<span class="text-muted">No role</span>{% endif %}
+                        {% if row.features %}<div class="small text-muted">+ {{ row.features }} per-feature permission{{ row.features|pluralize }}</div>{% endif %}</td>
                     <td>{{ row.group.scope_label }}</td>
                     <td>{{ row.members }}</td>
                     <td>{{ row.presets }}</td>

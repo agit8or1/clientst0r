@@ -93,6 +93,8 @@ urlpatterns = [
     path('roles/access-groups/', access_group_views.access_group_list, name='access_group_list'),
     path('roles/access-groups/new/', access_group_views.access_group_edit, name='access_group_create'),
     path('roles/access-groups/<int:pk>/', access_group_views.access_group_edit, name='access_group_edit'),
+    path('roles/access-groups/<int:pk>/reset-defaults/', access_group_views.access_group_reset_defaults,
+         name='access_group_reset_defaults'),
     path('roles/access-groups/<int:pk>/delete/', access_group_views.access_group_delete,
          name='access_group_delete'),
     path('members/', views.member_list, name='member_list'),

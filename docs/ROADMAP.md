@@ -3939,6 +3939,9 @@ Today: read-only tenant inventory with manual sync, not verified against a real 
   gives them that access, removing them revokes it; enforced on the server, audit-logged, owner-level groups
   managed only by owner-level staff. Built-in roles get plain names and the older roles fold under "Legacy roles";
   nobody's existing access changes.
+- **111.7 Per-feature permissions on access groups** *(shipped v3.17.777)* — a None/View/Edit/Full level per feature
+  area plus single permissions, default levels for the built-in groups within their roles, reset to defaults; never
+  critical or portal permissions; same editing rules and audit trail as the group itself.
 
 </details>
 

@@ -123,6 +123,19 @@ class WhyTests(TestCase):
         self.assertIn('Night shift', src.detail)
         self.assertIn('leaves the group', ex.expiry_note)
 
+    def test_access_group_per_feature_permissions_are_listed(self):
+        group = TechnicianGroup.objects.create(name='Fleet desk', all_customers=False,
+                                               feature_permissions=['vehicles_view', 'vehicles_manage'])
+        group.customers.set([self.a])
+        group.members.add(self.tech)
+        ex = explain(self.tech, self.a, 'ai_compare')
+        src = next(s for s in ex.sources if s.kind == 'access_group')
+        self.assertIn('Fleet desk', src.label)
+        self.assertIn('per-feature permissions', src.detail)
+        self.assertIn('Operations: Edit', src.detail)
+        ex = explain(self.tech, self.b, 'ai_compare')  # not one of the group's customers
+        self.assertFalse(any(s.kind == 'access_group' for s in ex.sources))
+
     def test_locked_capability_names_the_safeguard(self):
         grant(self.tech, self.a, 'l3')
         ex = explain(self.tech, self.a, 'fix_approval')

@@ -3,12 +3,15 @@ Access groups: named groups of MSP staff that carry one internal role at a
 customer scope (tech_access.TechnicianGroup, shown as "Access groups").
 
 What a group grants
-  Each member holds the group's role (`role_template`) at the group's
-  customers - every customer (`all_customers`), or the chosen customers and
-  their subsidiaries - in addition to their own access: their global role
-  inside their client scope, and their memberships. Effective access is the
-  union; a group never takes anything away. A group without a role, a group
-  with no customers and an empty group grant nothing.
+  Each member holds the group's role (`role_template`) and the group's
+  per-feature permissions (`feature_permissions`, accounts.group_features)
+  at the group's customers - every customer (`all_customers`), or the chosen
+  customers and their subsidiaries - in addition to their own access: their
+  global role inside their client scope, and their memberships. Effective
+  access is the union; a group never takes anything away. A group without a
+  role or per-feature permissions, a group with no customers and an empty
+  group grant nothing. Per-feature permissions never include critical,
+  ownership or customer-portal keys (filtered again here when read).
 
 How it is enforced
   Permissions are resolved in one place, accounts.permission_utils
@@ -47,8 +50,10 @@ Who manages groups
   `roles_manage` held MSP-wide (superusers always). A group whose role is
   privileged (ownership, critical permissions, an RMM tier) also needs that
   level: `org_owner` for an owner role, `org_manage_privileged` for the rest.
-  Nobody but a superuser may manage a group with a role holding permissions
-  they do not hold MSP-wide themselves, or a group they are a member of.
+  Nobody but a superuser may manage a group with a role or per-feature
+  permissions holding permissions they do not hold MSP-wide themselves, or
+  a group they are a member of. The same rule decides who may change a
+  group's per-feature permissions (group_features.refusal).
 """
 from __future__ import annotations
 
@@ -62,8 +67,9 @@ from . import authz_cache
 class GroupGrant:
     group_id: int
     group_name: str
-    role: object                      # accounts.RoleTemplate
+    role: object                      # accounts.RoleTemplate, or None
     org_ids: Optional[FrozenSet[int]]  # None = every customer
+    feature_keys: FrozenSet[str] = frozenset()  # per-feature permissions
 
     def covers(self, org_id) -> bool:
         if self.org_ids is None:
@@ -71,7 +77,15 @@ class GroupGrant:
         return org_id is not None and org_id in self.org_ids
 
     def holds(self, perm_name) -> bool:
-        return bool(getattr(self.role, perm_name, False))
+        return self.holds_by_role(perm_name) or perm_name in self.feature_keys
+
+    def holds_by_role(self, perm_name) -> bool:
+        return self.role is not None and bool(getattr(self.role, perm_name, False))
+
+    def via(self, perm_name) -> str:
+        """How the group grants `perm_name`: 'role', 'feature', 'both' or ''."""
+        r, f = self.holds_by_role(perm_name), perm_name in self.feature_keys
+        return 'both' if r and f else 'role' if r else 'feature' if f else ''
 
     @property
     def scope_label(self) -> str:
@@ -88,7 +102,8 @@ def _eligible(user) -> bool:
 
 
 def group_grants(user) -> List[GroupGrant]:
-    """The role grants `user` holds through access groups (MSP staff only)."""
+    """The grants `user` holds through access groups (MSP staff only): one
+    per group with a role or per-feature permissions."""
     if not _eligible(user):
         return []
 
@@ -98,10 +113,14 @@ def group_grants(user) -> List[GroupGrant]:
         except Exception:  # pragma: no cover - app not installed
             return []
         from core.utils import descendant_org_ids
+        from .group_features import clean
         out = []
-        groups = (TechnicianGroup.objects.filter(members=user, role_template__isnull=False)
+        groups = (TechnicianGroup.objects.filter(members=user)
                   .select_related('role_template').prefetch_related('customers').distinct().order_by('name'))
         for g in groups:
+            features = frozenset(clean(g.feature_permissions or ()))
+            if g.role_template_id is None and not features:
+                continue
             if g.all_customers:
                 ids = None
             else:
@@ -110,7 +129,7 @@ def group_grants(user) -> List[GroupGrant]:
                     if org.is_active:
                         ids |= set(descendant_org_ids(org.pk))
                 ids = frozenset(ids)
-            out.append(GroupGrant(g.pk, g.name, g.role_template, ids))
+            out.append(GroupGrant(g.pk, g.name, g.role_template, ids, features))
         return out
     return authz_cache.memo(('access_groups', user.pk), compute)
 
@@ -152,6 +171,12 @@ def reach(user) -> Optional[Set[int]]:
     return out
 
 
+def group_features_summary(keys) -> str:
+    """'Tickets & queues: Edit, Assets & inventory: View' for explanations."""
+    from .group_features import summary
+    return ', '.join(f'{label}: {level}' for label, level in summary(keys).items())
+
+
 def sources_at(user, org_id, perm_name=None) -> List[dict]:
     """For "why does this person have access": one row per group covering
     `org_id` (and holding `perm_name`, when given)."""
@@ -159,9 +184,22 @@ def sources_at(user, org_id, perm_name=None) -> List[dict]:
     for g in group_grants(user):
         if not g.covers(org_id):
             continue
-        rows.append({'label': f'Access group: {g.group_name} (role {g.role.name})',
+        parts = []
+        if g.role is not None:
+            parts.append(f'role {g.role.name}')
+        if g.feature_keys:
+            parts.append(f'{len(g.feature_keys)} per-feature permission(s)')
+        via = g.via(perm_name) if perm_name else ''
+        note = 'Adds to the global role and memberships.'
+        if via == 'feature':
+            note = "Granted by the group's per-feature permissions. " + note
+        elif via == 'both':
+            note = "Granted by the group's role and its per-feature permissions. " + note
+        elif via == 'role':
+            note = "Granted by the group's role. " + note
+        rows.append({'label': f'Access group: {g.group_name} ({", ".join(parts)})',
                      'grants': g.holds(perm_name) if perm_name else True,
-                     'scope': g.scope_label, 'note': 'Adds to the global role and memberships.',
+                     'scope': g.scope_label, 'note': note, 'via': via,
                      'group_id': g.group_id})
     return rows
 
@@ -210,6 +248,10 @@ def group_refusal(user, group) -> str:
     reason = role_refusal(user, getattr(group, 'role_template', None))
     if reason:
         return reason
+    from .group_features import refusal as feature_refusal
+    reason = feature_refusal(user, getattr(group, 'feature_permissions', None) or (), check_grantable=False)
+    if reason:
+        return reason
     if not user.is_superuser and group.pk and group.members.filter(pk=user.pk).exists():
         return 'You can not change a group you are a member of.'
     return ''
@@ -231,6 +273,7 @@ def snapshot(group) -> dict:
     """Small before/after representation for the audit trail."""
     return {'name': group.name, 'role': getattr(group.role_template, 'name', None),
             'role_id': group.role_template_id, 'all_customers': bool(group.all_customers),
+            'feature_permissions': sorted(group.feature_permissions or []),
             'customers': sorted(group.customers.values_list('pk', flat=True)) if group.pk else [],
             'members': sorted(group.members.values_list('username', flat=True)) if group.pk else []}
 

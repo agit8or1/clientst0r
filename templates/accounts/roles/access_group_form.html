@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{% if group %}{{ group.name }}{% else %}New access group{% endif %} - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Clientst0r" }}{% endblock %}
 
@@ -69,11 +70,67 @@
             </div></div>
         </div>
     </div>
+    <div class="card mt-4" id="feature-permissions"><div class="card-body">
+        <input type="hidden" name="features_present" value="1">
+        <h5 class="card-title mb-1"><i class="fas fa-sliders"></i> Permissions by feature</h5>
+        <p class="text-muted small mb-3">Members hold these at the customers above, in addition to the group's role.
+            <strong>View</strong> lets them see a feature, <strong>Edit</strong> adds creating and changing,
+            <strong>Full</strong> adds deleting, approving, sending, exporting and settings. Use <em>Advanced</em> to pick single permissions.
+            Ownership, user and role administration, security and platform settings are never given through a group's features (only through its role).
+            You can only give permissions you hold yourself across every customer.</p>
+        {% if has_defaults %}
+        <p class="small mb-3">{% if at_defaults %}<span class="badge bg-success">Defaults</span> This default group uses its default permissions.{% else %}<span class="badge bg-secondary">Changed</span> These differ from this default group's defaults{% if default_summary %} ({% for label, lv in default_summary.items %}{{ label }}: {{ lv }}{% if not forloop.last %}, {% endif %}{% endfor %}){% endif %}.{% endif %}</p>
+        {% endif %}
+        <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead><tr><th scope="col">Feature</th><th scope="col" style="width: 11rem">Access</th><th scope="col">From the role</th></tr></thead>
+            <tbody>
+            {% for row in feature_rows %}
+            <tr class="feat-row">
+                <td>
+                    <div class="fw-semibold">{{ row.label }}</div>
+                    <div class="small text-muted">{{ row.description }}</div>
+                    <details class="mt-1">
+                        <summary class="small">Advanced <span class="feat-count text-muted ms-1"></span></summary>
+                        <div class="row g-1 mt-1">
+                        {% for p in row.perms %}
+                            <div class="col-md-6"><div class="form-check small">
+                                <input class="form-check-input" type="checkbox" name="feat_key" value="{{ p.key }}" id="fk-{{ p.key }}" {% if p.checked %}checked{% endif %}>
+                                <label class="form-check-label" for="fk-{{ p.key }}">{{ p.label }}
+                                    <span class="text-muted">({{ p.level_label }}{% if p.pending %}; not enforced yet{% endif %})</span>
+                                    {% if p.from_role %}<span class="badge bg-light text-dark border">role</span>{% endif %}
+                                </label>
+                            </div></div>
+                        {% endfor %}
+                        </div>
+                    </details>
+                </td>
+                <td>
+                    <select class="form-select form-select-sm feat-level" name="feat_level_{{ row.module }}" aria-label="Access to {{ row.label }}"
+                            data-level-none="" data-level-view="{{ row.level_keys.view|join:' ' }}" data-level-edit="{{ row.level_keys.edit|join:' ' }}" data-level-full="{{ row.level_keys.full|join:' ' }}">
+                        {% for value, label in level_choices %}<option value="{{ value }}" {% if value == row.level %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                    </select>
+                </td>
+                <td class="small text-muted">{% if row.role_count %}{{ row.role_count }} of {{ row.perms|length }}{% else %}-{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div></div>
     <div class="d-flex gap-2 mt-3">
         <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save</button>
     </div>
     </fieldset>
 </form>
+
+{% if group and not refusal and has_defaults and not at_defaults %}
+<form method="post" action="{% url 'accounts:access_group_reset_defaults' group.pk %}" class="mt-4"
+      data-confirm="Replace this group's per-feature permissions with the defaults for {{ group.name }}?">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-outline-secondary"><i class="fas fa-rotate-left"></i> Reset to defaults</button>
+</form>
+{% endif %}
 
 {% if group and not refusal %}
 <form method="post" action="{% url 'accounts:access_group_delete' group.pk %}" class="mt-4"
@@ -83,3 +140,5 @@
 </form>
 {% endif %}
 {% endblock %}
+
+{% block extra_js %}<script src="{% static 'js/access_group_features.js' %}" defer></script>{% endblock %}

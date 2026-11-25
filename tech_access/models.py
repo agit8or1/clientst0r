@@ -72,6 +72,10 @@ class TechnicianGroup(models.Model):
         every member holds that role's permissions there, in addition to
         their own access (accounts.access_groups, read by
         accounts.permission_utils - the one place permissions are resolved);
+      * per-feature permissions (`feature_permissions`, accounts.group_features):
+        individual permission keys picked per feature module, held at the
+        same customer scope as the role, in addition to it. Never critical,
+        ownership or customer-portal permissions;
       * technician access presets, through AccessAssignment rows that name the
         group (unchanged).
 
@@ -90,6 +94,10 @@ class TechnicianGroup(models.Model):
     customers = models.ManyToManyField(
         'core.Organization', blank=True, related_name='access_groups',
         help_text='With "all customers" off: the customers (and their subsidiaries) the role applies at.')
+    feature_permissions = models.JSONField(
+        default=list, blank=True,
+        help_text='Permission keys every member holds at the customers below, in addition to the role '
+                  '(accounts.group_features).')
     seed_key = models.SlugField(max_length=40, blank=True, default='',
                                 help_text='Set on the default groups only.')
     created_at = models.DateTimeField(auto_now_add=True)

@@ -21,8 +21,9 @@ Who holds what, at one organization:
     at a parent organization (a parent's members see its subsidiaries). A
     membership's additional roles add to its primary role.
   * MSP staff in access groups (accounts.access_groups): each group's role
-    at the group's customers, added to the above (union). One group's role
-    never combines with another grant's customers.
+    and per-feature permissions (accounts.group_features) at the group's
+    customers, added to the above (union). One group's grant never combines
+    with another grant's customers.
   * Staff-only permissions (permission_registry.STAFF_ONLY_KEYS: internal
     notes, CRM, financial reports, AI...) are never effective for a customer
     user, whatever their role says.

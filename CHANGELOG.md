@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.777] - 2026-11-25
+
+### Added
+- **Per-feature permissions on access groups** (Administration → Users & Access → Access groups): each group has a
+  *Permissions by feature* table with an access level per feature area (None, View, Edit, Full) and an *Advanced*
+  list to tick single permissions, so a group can say "edit Operations, view Procurement, nothing in Sales" without
+  a role made for that combination. Members get the group's role plus these permissions at the group's customers
+  only; a group never removes access.
+  - The built-in groups (L1/L2/L3 Tech, Managers, Sales, Sales Managers, Owners, Administrators, Billing, Auditors)
+    come with sensible per-feature defaults that stay within their role, and *Reset to defaults* puts them back.
+    On upgrade a built-in group gets its defaults only when that widens nobody's access.
+  - Critical permissions (user, role and ownership administration, security and platform settings, API keys) and
+    customer-portal permissions can't be given this way; they stay with roles.
+  - Editing follows the existing rule for groups: *Manage roles* across every customer, never a group you belong
+    to, and no granting a permission you don't hold yourself. Every change is in the audit trail.
+  - "Why does this person have access" names the group and whether its role or its per-feature permissions gave it.
+  - Run `python manage.py collectstatic` if you update from the command line (new page script).
+
 ## [3.17.776] - 2026-11-25
 
 ### Added

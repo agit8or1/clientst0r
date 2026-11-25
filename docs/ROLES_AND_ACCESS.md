@@ -44,10 +44,11 @@ server; hiding a button is never the check.
 
 ## Access groups
 
-An access group (Users & Access → Access groups) is a named group of MSP staff that carries one internal role
-and a customer scope: every customer, or chosen customers and their subsidiaries. Each member holds the group's
-role at those customers **in addition to** their own access (global role inside their client scope, and their
-memberships). Effective access is the union; a group never removes anything.
+An access group (Users & Access → Access groups) is a named group of MSP staff that carries an optional internal
+role, optional **per-feature permissions**, and a customer scope: every customer, or chosen customers and their
+subsidiaries. Each member holds the group's role and its per-feature permissions at those customers **in addition
+to** their own access (global role inside their client scope, and their memberships). Effective access is the
+union; a group never removes anything.
 
 - Resolved where every other permission is: `user_has_org_perm`, `user_has_perm`, `orgs_with_perm` and the row
   scoping in `accounts.scope` add one grant per group, each with the group's own customers. Pages, the API,
@@ -69,6 +70,68 @@ memberships). Effective access is the union; a group never removes anything.
 - The same groups receive technician access presets on the Technician Access page.
 - Default groups, created once and empty: L1 Tech, L2 Tech, L3 Tech, Managers, Sales, Sales Managers, Owners,
   Administrators, Billing, Auditors — each with the matching built-in role, scope all customers.
+
+### Per-feature permissions
+
+The group page has a **Permissions by feature** table: one row per feature module (Tickets & queues, Assets &
+inventory, Billing & finance, Operations, ...) with an access level, and an **Advanced** list per module to tick
+single permissions. This lets a group say, for example, "edit Operations (vehicles), view Procurement, nothing in
+Sales & CRM" without creating a role for that combination. A group can use a role, per-feature permissions, or
+both; a member holds the union, at the group's customers only.
+
+| Level | What it gives in the module |
+|-------|-----------------------------|
+| None | Nothing. |
+| View | Permissions whose action is view or download. |
+| Edit | View, plus create and edit. |
+| Full | Edit, plus everything else: assign, delete, approve, send, export, reveal, run, settings, audit history, sign. |
+| Custom | Shown when the ticked permissions match no level exactly (set under Advanced). |
+
+- The mapping lives in one place, `accounts/group_features.py` (`ACTION_LEVEL`, with `KEY_LEVEL` moving a few
+  permissions up a level: viewing tickets of every customer, the ticket routing tools, financial and margin
+  figures, signed agreements, connected applications and raw synced data are Full; running a monitor check now is
+  Edit; viewing the audit trail is View). Member and invitation management belong to no level and can only be
+  ticked under Advanced.
+- What is stored is the list of permissions, not the level: a permission added to Clientst0r later is not given
+  to a group until an administrator picks it.
+- A group's per-feature permissions never include critical permissions (user, role and ownership
+  administration, security and platform settings, API keys), ownership, or customer-portal permissions. Those
+  are refused on save and ignored if present. A group's role is still the only way a group carries critical
+  permissions, under the rules for privileged roles below.
+- Each row shows how many of the module's permissions the group's role already gives ("From the role"), and the
+  Advanced list marks them; lowering a level never takes away what the role gives.
+- "Why does this person have access" (Roles → Why) names the group and says whether its role or its per-feature
+  permissions gave the permission; the Technician Access "why" page lists the group's per-feature permissions.
+
+**Who can edit them.** The same rule as for the group itself: `roles_manage` across every customer (superusers
+always), never a group you are a member of, and nobody but a superuser can give a permission they do not hold
+themselves across every customer, or change a group whose role or per-feature permissions hold one. Like a change
+of the group's role, a change of its per-feature permissions applies on save (no second approval); adding a member
+who would gain technician access presets still waits for a second administrator. Every change is in the audit
+trail with the group before and after and the permissions added and removed (`access_group.updated`,
+`access_group.features_reset`).
+
+**Defaults.** Custom groups start with none (they hold only their role). Each default group starts with the
+per-feature permissions below, which are always within its built-in role, so they show its purpose and keep it
+working if the role is later removed. **Reset to defaults** on a default group's page puts them back.
+
+| Group | Default per-feature permissions |
+|-------|----------------------------------|
+| L1 Tech | Tickets Edit; Assets, Documentation, Knowledge base, Files, Passwords (list only), Monitoring, Backup, Security alerts, Procurement, Operations View; Service management view plus filing changes and problems; dashboards; AI suggestions view (OPTIONAL AI). Billing, Sales, Contracts, Pricing: None. |
+| L2 Tech | As L1, plus Documentation and Files Edit, assets and KB articles edit, run monitor checks, acknowledge security alerts and link events, propose catalog changes, export reports. |
+| L3 Tech | As L2, plus ticket assignment, Assets, Knowledge base (no publishing) and Monitoring Edit, implement changes, assign and resolve problems. |
+| Managers | Service management Full; tickets including assignment, every customer's tickets, sharing and routing; Assets, Files and Monitoring Edit; documentation and KB including publishing; requisitions including approval; SLA, capacity and dashboard reports; leave approval; low-risk AI actions and approvals (OPTIONAL AI); vehicles, wallboard, workflow rules, timesheets. |
+| Sales | Leads, pipeline and draft quotes; contract drafts with pricing and submission for approval; view and file tickets; Files Edit; dashboards. |
+| Sales Managers | As Sales, plus campaigns, forecast, sending quotes, discount and commission approval, signed agreements, dashboard editing and report export, pricing discount approval. |
+| Owners | Everything the Owner role holds that a group may give (critical and ownership permissions stay with the role). |
+| Administrators | Service management, Documentation, Knowledge base, Files, Monitoring, Backup, Security alerts (not connections) and Operations Full; tickets and routing; assets; integration view and sync; licensing; reports and health score settings; API access; audit view. Member and role administration stay with the role. |
+| Billing | Billing (invoices, payments, approvals, credits, charges, tax settings), Pricing & rate cards Full; financial and profitability reports, scheduled reports, pricing recommendations; contracts with pricing and signed agreements; quotes, tickets, Procurement View; payroll export. |
+| Auditors | View across tickets (including every customer's and internal notes), service management, assets, documentation, KB, monitoring, backup, security alerts, integrations, CRM and quotes, contracts, procurement, reports, audit trail and vehicles. Nothing else. |
+
+On upgrade, a default group gets these defaults only if that widens nothing: every default permission must already
+be given by the role the group carries now, and the group must have no per-feature permissions yet. A default group
+whose role an administrator changed or removed is left empty; its page shows that it differs from the defaults and
+offers **Reset to defaults**, which follows the editing rule above.
 
 ## Helpers for application code
 
