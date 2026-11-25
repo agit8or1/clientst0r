@@ -165,7 +165,7 @@ autoescaped text; diagnostic output is shown in <pre>, never as HTML.
             {% elif r.status == 'failed' or r.status == 'rejected' or r.status == 'unavailable' or r.status == 'expired' %}<span class="badge bg-danger">{{ r.get_status_display }}</span>
             {% elif r.status == 'approved' %}<span class="badge bg-info text-dark">{{ r.get_status_display }}</span>
             {% else %}<span class="badge bg-warning text-dark">{{ r.get_status_display }}</span>{% endif %}
-            <div class="text-muted">{{ r.device_name }} · {{ r.actor.username }} · {{ r.created_at|date:"Y-m-d H:i" }}</div>
+            <div class="text-muted">{{ r.device_name }} · {{ r.actor.username }} · {{ r.created_at|date:"Y-m-d H:i" }}{% if r.status not in r.TERMINAL and r.updated_at %} · <span data-rmm-status-as-of title="{{ r.updated_at|date:'Y-m-d H:i:s' }}">status as of {{ r.updated_at|date:"Y-m-d H:i" }}</span>{% endif %}</div>
             {% if r.error %}<div class="text-danger">{{ r.error }}</div>{% elif r.status_note %}<div class="text-muted">{{ r.status_note }}</div>{% endif %}
             {% if r.approval_url and r.status == 'received' %}<div><a href="{{ r.approval_url }}" target="_blank" rel="noopener noreferrer" data-rmm-approval>Approval page in Rem0te</a> <span class="text-muted">(approvers approve there; nothing here approves)</span></div>{% endif %}
             {% if r.kind == 'diagnostic' and r.result_text %}

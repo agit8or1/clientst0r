@@ -274,8 +274,11 @@ def panel(user, ticket) -> dict:
         else:
             no_target_reason = ('No paired RMM manages the devices on this ticket for this customer, so handoffs, '
                                 'diagnostics, remote sessions and fix referrals are not available.')
+    # Stored state only. Rem0te proposals are re-sent and their status read
+    # by the scheduler (integrations.rem0te.reconcile -> actions.poll_open,
+    # every minute), never while this page renders: an unreachable Rem0te
+    # must not hold the ticket page for (5 s + 20 s) per open request.
     requests = list(RMMRequest.objects.filter(ticket=ticket).select_related('actor', 'connection')[:20])
-    _refresh_rem0te(requests)
     suggestions = analysis_suggestions(ticket) if any(r['actions']['fix_low']['ok'] or r['actions']['fix_high']['ok']
                                                       for r in rows) else []
     data = {'targets': rows, 'requests': requests, 'no_target_reason': no_target_reason,
@@ -291,17 +294,6 @@ def _catalog(target: Target) -> List[dict]:
         return []
     from integrations.rem0te import pairing
     return pairing.proposable_actions(target.connection)
-
-
-def _refresh_rem0te(requests):
-    """Rem0te proposals have no status callbacks: read open ones (rate-limited)."""
-    from integrations.rem0te import actions as rem0te_actions
-    for r in requests:
-        if r.connection.provider_type == 'rem0te' and r.kind == 'fix_referral' and r.status not in r.TERMINAL:
-            try:
-                rem0te_actions.refresh(r)
-            except Exception:
-                pass
 
 
 def analysis_suggestions(ticket) -> List[dict]:

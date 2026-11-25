@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.779] - 2026-11-25
+
+### Added
+- **Usability and design-system program (roadmap Phase 113), first batch** — groundwork only; the look of the app is
+  unchanged in this release:
+  - *Audit* of the current interface in light and dark themes at phone, tablet, laptop and wide-screen sizes, with an
+    inventory of every interface component and where they disagree (`docs/ux/UX_AUDIT.md`,
+    `docs/ux/COMPONENT_INVENTORY.md`).
+  - *Baselines* for common technician and billing tasks (clicks and time) and for page speed and database queries,
+    with scripts that re-run them (`docs/ux/WORKFLOW_BENCHMARKS.md`, `scripts/ux/`).
+  - *Shared design specification 1.0.0*: colours for light and dark themes checked against WCAG 2.2 AA contrast,
+    type, spacing, density, breakpoints, an icon map and component specifications
+    (`docs/ux/SHARED_DESIGN_SYSTEM.md`, `docs/ux/design-tokens.json`), with a checker and a test.
+  - *Standalone requirements*: Clientst0r stays complete without Rem0te, another RMM or any peer application, with
+    the gaps found and the plan to close them (`docs/ux/STANDALONE_REQUIREMENTS.md`), plus the cross-application
+    contract and hand-off for Rem0te (`docs/ux/CROSS_APP_UX_CONTRACT.md`, `docs/ux/REM0TE_HANDOFF.md`).
+  - Plan and acceptance criteria: `docs/ux/UX_ROADMAP.md`, `docs/ux/UX_ACCEPTANCE_CRITERIA.md`.
+
+### Fixed
+- **The ticket page no longer contacts Rem0te while it loads.** With Rem0te unreachable the RMM panel could keep
+  the page waiting long enough to time out. Fix requests are re-sent and their status refreshed by the scheduled task
+  every minute instead, and open requests show when their status was last updated.
+- **Dashboard RMM alert panels with no RMM connected** now say "No RMM is connected, so no RMM alerts are collected"
+  instead of showing a green "No active RMM alerts".
+
 ## [3.17.778] - 2026-11-25
 
 ### Added

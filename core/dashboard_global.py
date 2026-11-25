@@ -251,7 +251,8 @@ def build_g_rmm_alerts(request, org):
     alerts = list(_rmm_alerts(request).select_related('device', 'device__organization')
                   .order_by('-triggered_at')[:40])
     alerts.sort(key=lambda a: (order.get(a.severity, 9), -a.triggered_at.timestamp()))
-    return {'alerts': alerts[:LIST_ROWS], 'more_url': _dw().url('integrations:rmm_alerts')}
+    return {'alerts': alerts[:LIST_ROWS], 'more_url': _dw().url('integrations:rmm_alerts'),
+            'rmm_configured': bool(alerts) or _dw().rmm_configured()}
 
 
 def build_g_audit(request, org):

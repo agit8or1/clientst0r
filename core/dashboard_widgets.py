@@ -593,7 +593,16 @@ def build_rmm_alerts(request, org):
     alerts = list(_rmm_alerts_qs(request, org).select_related('device')
                   .order_by('-triggered_at')[:40])
     alerts.sort(key=lambda a: (order.get(a.severity, 9), -a.triggered_at.timestamp()))
-    return {'alerts': alerts[:12], 'more_url': url('integrations:rmm_alerts')}
+    return {'alerts': alerts[:12], 'more_url': url('integrations:rmm_alerts'),
+            'rmm_configured': bool(alerts) or rmm_configured()}
+
+
+def rmm_configured() -> bool:
+    """Any RMM connection at all (the RMM alerts page's own empty-state
+    test). Without one an empty alert list means "nothing is collected",
+    not "nothing is wrong", and the RMM panels must not read as healthy."""
+    from integrations.models import RMMConnection
+    return RMMConnection.objects.exists()
 
 
 def build_2fa_warning(request, org):

@@ -13,6 +13,8 @@
     </li>
     {% endfor %}
 </ul>
+{% elif not w.rmm_configured %}
+<div class="dash-w-state text-body-secondary" data-rmm-not-configured><i class="fas fa-plug" aria-hidden="true"></i> No RMM is connected, so no RMM alerts are collected.</div>
 {% else %}
 <div class="dash-w-state"><i class="fas fa-check-circle" aria-hidden="true"></i> No active RMM alerts</div>
 {% endif %}

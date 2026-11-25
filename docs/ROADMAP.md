@@ -21,9 +21,9 @@ IT documentation and assets, a password vault, monitoring, a customer portal and
 | Latest release | ![Latest release](https://img.shields.io/github/v/release/agit8or1/clientst0r?label=release) — see the [changelog](../CHANGELOG.md) |
 | Last roadmap audit | 2026-11-20 |
 | Active stage | Stage 1 — core completion (P0) |
-| Phases | **109** in total |
+| Phases | **110** in total |
 | ✅ Complete | 52 (of which 2 marked for verification) |
-| 🔵 In progress | 29 |
+| 🔵 In progress | 30 |
 | 🟡 Partial | 4 |
 | ⬜ Planned | 23 |
 | 🔴 Blocked | 0 (plus blocked items inside other phases — see [Blockers](#blockers)) |
@@ -116,6 +116,7 @@ Work being implemented now or approved as the next P0 task.
 | 1 | 94 — [Evidence integrity and routine backups](#phase-94) | P0\* | 🔵 In progress | External append-only audit shipping (94.1); protected-change approval for audit pruning (94.2); S3 destination (94.3) | — |
 | 2 | 51 — [Reliability and customer-boundary hardening](#phase-51) | P0\* | 🔵 In progress | Per-customer integration ownership (remaining part of the platform-integrations item) | — |
 | 3 | 112 — [Complete user documentation with annotated screenshots](#phase-112) | P1 | 🔵 In progress | 112.6 Security and monitoring; 112.7 Reports | 67 |
+| 4 | 113 — [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | 113.4 urgent accessibility fixes; 113.5 design tokens in CSS | 67 |
 
 <!-- /generated:now -->
 
@@ -363,6 +364,7 @@ unchanged. Click a feature for its details.
 | 67 | [Interface, navigation and dashboard redesign](#phase-67) | — | 🔵 In progress | 64 | 67.8 validation and 67.16 follow-ups |
 | 96 | [First-install setup wizard and interactive onboarding](#phase-96) | P0 | 🔵 In progress | 59, 64, 67 | 96.2 first-install detection; 96.3–96.4 assistant |
 | 112 | [Complete user documentation with annotated screenshots](#phase-112) | P1 | 🔵 In progress | 67 | 112.6 Security and monitoring; 112.7 Reports |
+| 113 | [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | 67 | 113.4 urgent accessibility fixes; 113.5 design tokens in CSS |
 
 <details markdown="1">
 <summary>4 completed phases</summary>
@@ -467,7 +469,7 @@ Planned and partly built phases not in NOW or NEXT, by workstream:
 | 4 | Sales and documentation: CRM discovery, estimator, quotes, documentation, discovery staging | P3 | [97](#phase-97), [98](#phase-98), [103](#phase-103), [104](#phase-104), [107](#phase-107), [108](#phase-108) |
 | 5 | Reporting and customer portal | P3 | [75](#phase-75), [77](#phase-77), [78](#phase-78), [89](#phase-89), [110](#phase-110) |
 | 6 | Advanced integrations and optional AI | P3 | [83](#phase-83), [84](#phase-84), [85](#phase-85), [86](#phase-86), [87](#phase-87), [88](#phase-88), [90](#phase-90), [99](#phase-99), [105](#phase-105), [109](#phase-109) |
-| 7 | Polish, regression coverage, documentation, completion checklist | — | [59](#phase-59), [67](#phase-67), [112](#phase-112) |
+| 7 | Polish, regression coverage, documentation, completion checklist | — | [59](#phase-59), [67](#phase-67), [112](#phase-112), [113](#phase-113) |
 | 8 | Rem0te functional expansion (separate backlog) | after Stage 7 | [Rem0te backlog](plans/platform-program/REM0TE_FEATURE_EXPANSION_ROADMAP.md) |
 
 <!-- /generated:stages -->
@@ -3989,6 +3991,58 @@ annotated screenshot (numbered callouts matched by a numbered list) captured fro
   Acceptance: every navigation section is documented by a guide; every guide in Clientst0r Docs has an
   annotated figure; `scripts/guide_figures.py --check` and the coverage test pass; screenshots are captured
   against the demo data only.
+
+</details>
+
+<a id="phase-113"></a>
+
+## Phase 113 — One consistent interface, shared design system and standalone guarantees **(L · P1 · usability)** [in progress]
+<!-- phase: ws=I stage=7 view=now order=4 deps=67 next="113.4 urgent accessibility fixes; 113.5 design tokens in CSS" -->
+**Status:** 🔵 In progress · **Priority:** P1 · **Workstream:** I. Deployment, Updates & Reliability · **Depends on:** 67  
+**Next:** 113.4 urgent accessibility fixes; 113.5 design tokens in CSS
+
+
+Builds on Phase 67 (navigation, settings center, palette, dashboard, workspaces — shipped) rather than replacing it.
+Plan and acceptance criteria: [docs/ux/UX_ROADMAP.md](ux/UX_ROADMAP.md),
+[docs/ux/UX_ACCEPTANCE_CRITERIA.md](ux/UX_ACCEPTANCE_CRITERIA.md). Clientst0r stays complete on its own: every
+increment is tested with no peer application and no RMM configured. Hiding a link stays presentation only.
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
+
+- **113.1 Audit and baselines** *(shipped v3.17.779)* — page audit in light and dark at six widths
+  ([UX_AUDIT](ux/UX_AUDIT.md), [COMPONENT_INVENTORY](ux/COMPONENT_INVENTORY.md)); workflow click counts and timings plus
+  per-page server time and query counts with re-runnable scripts ([WORKFLOW_BENCHMARKS](ux/WORKFLOW_BENCHMARKS.md)).
+- **113.2 Shared design specification v1.0.0** *(shipped v3.17.779)* — semantic tokens for light and dark with WCAG 2.2 AA
+  contrast checked by a test, type, spacing, density, breakpoints, icon map and component specs
+  ([SHARED_DESIGN_SYSTEM](ux/SHARED_DESIGN_SYSTEM.md), [design-tokens.json](ux/design-tokens.json)); a development-time
+  specification other applications adopt independently, never a runtime dependency.
+- **113.3 Standalone requirements and cross-application contract** *(shipped v3.17.779)* — permanent standalone rules,
+  gap table and test-matrix coverage ([STANDALONE_REQUIREMENTS](ux/STANDALONE_REQUIREMENTS.md)); application switcher,
+  customer context and deep-link contract with proposals needing peer agreement marked as such
+  ([CROSS_APP_UX_CONTRACT](ux/CROSS_APP_UX_CONTRACT.md), [REM0TE_HANDOFF](ux/REM0TE_HANDOFF.md)). Fixed on the way: the
+  ticket page no longer calls the RMM peer while rendering; RMM alert panels say "No RMM is connected" instead of
+  showing healthy.
+- **113.4 Urgent accessibility fixes** *(planned)* — styled error messages, readable skip link and current-page marker,
+  focus ring and top-bar contrast, names for unlabelled fields and icon buttons, 404/500 pages inside the shell.
+- **113.5 Design tokens in CSS** *(planned)* — one generated token stylesheet, existing themes mapped onto it, a
+  system-following theme, self-hosted Inter, every CDN script and font bundled.
+- **113.6 Standalone hardening** *(planned)* — no-network smoke test over every page, peer-unreachable fixture, RMM-only
+  navigation, widgets and tabs hidden when no RMM is connected, timeout lint, safe removal of an RMM connection,
+  restore-without-peer test.
+- **113.7 Page performance** *(planned)* — ticket detail, dispatch board, My Work, client workspace and palette within
+  query budgets; synthetic 10/100, 60/1,200 and 200/5,000 datasets.
+- **113.8 Shell and page headers** *(planned)* — one page-header component, section tabs only when the sidebar is collapsed
+  or on phones, "Service Desk" and "Customer" used consistently, less space above content.
+- **113.9 Technician speed** *(planned)* — timer in the first screen without a page reload, invoice draft in three clicks
+  with its confirmation kept, workspace presets (presentation only, never extra permissions).
+- **113.10 Optional application switcher** *(planned)* — shown only when a peer is paired and the user may open it;
+  depends on the contract proposals agreed with the peer.
+- **113.11 Later** *(planned)* — component showcase, role dashboards, customer onboarding and setup wizard, migration
+  previews, search ranking and saved searches, bulk-action previews, security-center views, training paths.
+
+Acceptance: see [UX_ACCEPTANCE_CRITERIA](ux/UX_ACCEPTANCE_CRITERIA.md). Usability targets are measured, not claimed;
+security steps are counted separately and never removed to save a click.
 
 </details>
 

@@ -6,6 +6,7 @@ propose actions, reveal a restricted credential or send an AI draft.
 """
 import json
 import uuid
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.test import Client
@@ -362,6 +363,52 @@ class ActionProposalTests(Rem0teBase):
             rmm_actions.refer_fix(self.tech, self.ticket, self.device.pk, 'key-x-00001', description='run a script',
                                   action_key='shell.exec@1')
 
+
+    # --- fault isolation (docs/ux/STANDALONE_REQUIREMENTS.md, rule F3) ---------
+    # The ticket page renders from stored state only. Before this, every view
+    # of a ticket re-sent an unsent proposal (POST) and read open ones (GET)
+    # inline: with Rem0te black-holing traffic that held the page for up to
+    # (5 s + 20 s) per request, 20 requests deep.
+
+    def _unsent_proposal(self):
+        self.fake.fail = lambda m, r: (503, 'UNAVAILABLE', 'down') if r == '/action-proposals' else None
+        req, _ = self.propose(self.tech, key='key-outage-1')
+        req.refresh_from_db()
+        self.assertEqual((req.status, req.remote_id), ('created', ''))
+        self.fake.fail = None
+        return req
+
+    def test_ticket_page_never_resends_or_polls_rem0te(self):
+        unsent = self._unsent_proposal()
+        sent, _ = self.propose(self.tech, key='key-open-2')
+        RMMRequest.objects.filter(pk=sent.pk).update(updated_at=timezone.now() - timedelta(hours=1))
+        before = len(self.fake.calls)
+        with patch('integrations.rem0te.client.request') as call:
+            r = self.c.get(f'/psa/t/{self.ticket.ticket_number}/')
+        self.assertEqual(r.status_code, 200)
+        call.assert_not_called()
+        self.assertEqual(len(self.fake.calls), before)
+        html = r.content.decode()
+        self.assertIn(f'data-rmm-request="{unsent.pk}"', html)
+        self.assertIn('data-rmm-status-as-of', html)  # open requests carry their freshness
+        unsent.refresh_from_db()
+        self.assertEqual(unsent.status, 'created')
+
+    def test_ticket_page_renders_while_rem0te_is_unreachable(self):
+        self._unsent_proposal()
+        from integrations.rem0te.client import Result
+        down = Result(False, code='UNREACHABLE', transport='timeout', message='did not answer in time')
+        with patch('integrations.rem0te.client.request', return_value=down) as call:
+            r = self.c.get(f'/psa/t/{self.ticket.ticket_number}/')
+        self.assertEqual(r.status_code, 200)
+        call.assert_not_called()
+
+    def test_scheduler_resends_what_the_page_no_longer_sends(self):
+        unsent = self._unsent_proposal()
+        self.assertEqual(actions.poll_open(connection=self.conn_a), 1)
+        unsent.refresh_from_db()
+        self.assertEqual(unsent.status, 'received')
+        self.assertTrue(unsent.remote_id)
 
 class L1PermissionTests(Rem0teBase):
     def test_l1_cannot_send_rem0te_draft_or_reveal_restricted_credential(self):

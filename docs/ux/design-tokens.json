@@ -1,0 +1,4414 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "$description": "MSP shared design system tokens. Clientst0r is the reference implementation. Development-time specification: each application bundles its own generated CSS.",
+  "meta": {
+    "name": "MSP shared design system",
+    "version": "1.0.0",
+    "date": "2026-11-25",
+    "owner": "Clientst0r",
+    "cssPrefix": "--cs-",
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "densities": [
+      "compact",
+      "comfortable"
+    ],
+    "format": "W3C Design Tokens Community Group draft: $value / $type / $description; {a.b.c} aliases.",
+    "cssContexts": {
+      "theme.light": ":root, [data-cs-theme=\"light\"]",
+      "theme.dark": "[data-cs-theme=\"dark\"]",
+      "theme.system": "@media (prefers-color-scheme: dark) { :root[data-cs-theme=\"system\"] } (dark values; light values otherwise)",
+      "density.compact": ":root, [data-density=\"compact\"]",
+      "density.comfortable": "[data-density=\"comfortable\"]",
+      "density.touch": "@media (max-width: 767.98px)",
+      "motion.reduced": "@media (prefers-reduced-motion: reduce)"
+    }
+  },
+  "program-palette": {
+    "navigation": {
+      "$value": "#14243A",
+      "$type": "color",
+      "$description": "Program \u00a74 initial value (record only; use the semantic tokens)."
+    },
+    "primary": {
+      "$value": "#2563EB",
+      "$type": "color",
+      "$description": "Program \u00a74 initial value (record only; use the semantic tokens)."
+    },
+    "accent": {
+      "$value": "#0D9488",
+      "$type": "color",
+      "$description": "Program \u00a74 initial value (record only; use the semantic tokens)."
+    },
+    "info": {
+      "$value": "#0284C7",
+      "$type": "color",
+      "$description": "Program \u00a74 initial value (record only; use the semantic tokens)."
+    },
+    "success": {
+      "$value": "#16A34A",
+      "$type": "color",
+      "$description": "Program \u00a74 initial value (record only; use the semantic tokens)."
+    },
+    "warning": {
+      "$value": "#D97706",
+      "$type": "color",
+      "$description": "Program \u00a74 initial value (record only; use the semantic tokens)."
+    },
+    "danger": {
+      "$value": "#DC2626",
+      "$type": "color",
+      "$description": "Program \u00a74 initial value (record only; use the semantic tokens)."
+    },
+    "pending": {
+      "$value": "#7C3AED",
+      "$type": "color",
+      "$description": "Program \u00a74 initial value (record only; use the semantic tokens)."
+    },
+    "light-background": {
+      "$value": "#F4F7FB",
+      "$type": "color",
+      "$description": "Program \u00a74 initial value (record only; use the semantic tokens)."
+    },
+    "light-surface": {
+      "$value": "#FFFFFF",
+      "$type": "color",
+      "$description": "Program \u00a74 initial value (record only; use the semantic tokens)."
+    },
+    "light-text": {
+      "$value": "#172033",
+      "$type": "color",
+      "$description": "Program \u00a74 initial value (record only; use the semantic tokens)."
+    },
+    "dark-background": {
+      "$value": "#0B1220",
+      "$type": "color",
+      "$description": "Program \u00a74 initial value (record only; use the semantic tokens)."
+    },
+    "dark-surface": {
+      "$value": "#152033",
+      "$type": "color",
+      "$description": "Program \u00a74 initial value (record only; use the semantic tokens)."
+    },
+    "dark-text": {
+      "$value": "#E2E8F0",
+      "$type": "color",
+      "$description": "Program \u00a74 initial value (record only; use the semantic tokens)."
+    }
+  },
+  "primitive": {
+    "color": {
+      "navy": {
+        "900": {
+          "$value": "#0B1220",
+          "$type": "color"
+        },
+        "850": {
+          "$value": "#152033",
+          "$type": "color"
+        },
+        "800": {
+          "$value": "#14243A",
+          "$type": "color"
+        },
+        "750": {
+          "$value": "#1B2F4B",
+          "$type": "color"
+        },
+        "700": {
+          "$value": "#24395A",
+          "$type": "color"
+        },
+        "600": {
+          "$value": "#2B3A55",
+          "$type": "color"
+        }
+      },
+      "slate": {
+        "50": {
+          "$value": "#F4F7FB",
+          "$type": "color"
+        },
+        "100": {
+          "$value": "#EEF2F7",
+          "$type": "color"
+        },
+        "150": {
+          "$value": "#E6EBF1",
+          "$type": "color"
+        },
+        "200": {
+          "$value": "#DCE3EC",
+          "$type": "color"
+        },
+        "300": {
+          "$value": "#C5CED9",
+          "$type": "color"
+        },
+        "400": {
+          "$value": "#8A94A6",
+          "$type": "color"
+        },
+        "450": {
+          "$value": "#7A8597",
+          "$type": "color"
+        },
+        "500": {
+          "$value": "#5B6576",
+          "$type": "color"
+        },
+        "600": {
+          "$value": "#3F4A5C",
+          "$type": "color"
+        },
+        "700": {
+          "$value": "#172033",
+          "$type": "color"
+        },
+        "d-text": {
+          "$value": "#E2E8F0",
+          "$type": "color"
+        },
+        "d-secondary": {
+          "$value": "#B8C2D1",
+          "$type": "color"
+        },
+        "d-muted": {
+          "$value": "#94A3B8",
+          "$type": "color"
+        },
+        "d-disabled": {
+          "$value": "#7C8799",
+          "$type": "color"
+        },
+        "d-strong": {
+          "$value": "#6B7A92",
+          "$type": "color"
+        }
+      },
+      "blue": {
+        "200": {
+          "$value": "#BFDBFE",
+          "$type": "color"
+        },
+        "300": {
+          "$value": "#93C5FD",
+          "$type": "color"
+        },
+        "400": {
+          "$value": "#60A5FA",
+          "$type": "color"
+        },
+        "600": {
+          "$value": "#2563EB",
+          "$type": "color"
+        },
+        "700": {
+          "$value": "#1D4ED8",
+          "$type": "color"
+        },
+        "800": {
+          "$value": "#1E40AF",
+          "$type": "color"
+        },
+        "50": {
+          "$value": "#E8F0FE",
+          "$type": "color"
+        },
+        "d-selected": {
+          "$value": "#1B3358",
+          "$type": "color"
+        }
+      },
+      "teal": {
+        "300": {
+          "$value": "#5EEAD4",
+          "$type": "color"
+        },
+        "400": {
+          "$value": "#2DD4BF",
+          "$type": "color"
+        },
+        "500": {
+          "$value": "#14B8A6",
+          "$type": "color"
+        },
+        "600": {
+          "$value": "#0D9488",
+          "$type": "color"
+        },
+        "700": {
+          "$value": "#0F766E",
+          "$type": "color"
+        },
+        "800": {
+          "$value": "#115E59",
+          "$type": "color"
+        }
+      },
+      "sky": {
+        "400": {
+          "$value": "#38BDF8",
+          "$type": "color"
+        },
+        "600": {
+          "$value": "#0284C7",
+          "$type": "color"
+        },
+        "700": {
+          "$value": "#0369A1",
+          "$type": "color"
+        },
+        "800": {
+          "$value": "#075985",
+          "$type": "color"
+        },
+        "50": {
+          "$value": "#E0F2FE",
+          "$type": "color"
+        },
+        "d-subtle": {
+          "$value": "#0F2433",
+          "$type": "color"
+        }
+      },
+      "green": {
+        "400": {
+          "$value": "#4ADE80",
+          "$type": "color"
+        },
+        "600": {
+          "$value": "#16A34A",
+          "$type": "color"
+        },
+        "700": {
+          "$value": "#15803D",
+          "$type": "color"
+        },
+        "800": {
+          "$value": "#166534",
+          "$type": "color"
+        },
+        "50": {
+          "$value": "#DCFCE7",
+          "$type": "color"
+        },
+        "d-subtle": {
+          "$value": "#0F2A1D",
+          "$type": "color"
+        }
+      },
+      "amber": {
+        "400": {
+          "$value": "#FBBF24",
+          "$type": "color"
+        },
+        "600": {
+          "$value": "#D97706",
+          "$type": "color"
+        },
+        "700": {
+          "$value": "#B45309",
+          "$type": "color"
+        },
+        "800": {
+          "$value": "#92400E",
+          "$type": "color"
+        },
+        "900": {
+          "$value": "#78350F",
+          "$type": "color"
+        },
+        "50": {
+          "$value": "#FEF3C7",
+          "$type": "color"
+        },
+        "d-subtle": {
+          "$value": "#2E2410",
+          "$type": "color"
+        }
+      },
+      "red": {
+        "400": {
+          "$value": "#F87171",
+          "$type": "color"
+        },
+        "600": {
+          "$value": "#DC2626",
+          "$type": "color"
+        },
+        "700": {
+          "$value": "#B91C1C",
+          "$type": "color"
+        },
+        "800": {
+          "$value": "#991B1B",
+          "$type": "color"
+        },
+        "50": {
+          "$value": "#FEE2E2",
+          "$type": "color"
+        },
+        "d-subtle": {
+          "$value": "#301619",
+          "$type": "color"
+        }
+      },
+      "violet": {
+        "400": {
+          "$value": "#A78BFA",
+          "$type": "color"
+        },
+        "600": {
+          "$value": "#7C3AED",
+          "$type": "color"
+        },
+        "700": {
+          "$value": "#6D28D9",
+          "$type": "color"
+        },
+        "800": {
+          "$value": "#5B21B6",
+          "$type": "color"
+        },
+        "50": {
+          "$value": "#EDE9FE",
+          "$type": "color"
+        },
+        "d-subtle": {
+          "$value": "#251A40",
+          "$type": "color"
+        }
+      },
+      "neutral": {
+        "white": {
+          "$value": "#FFFFFF",
+          "$type": "color"
+        },
+        "black": {
+          "$value": "#000000",
+          "$type": "color"
+        }
+      },
+      "pink": {
+        "400": {
+          "$value": "#F472B6",
+          "$type": "color"
+        },
+        "600": {
+          "$value": "#DB2777",
+          "$type": "color"
+        }
+      },
+      "lime": {
+        "400": {
+          "$value": "#A3E635",
+          "$type": "color"
+        },
+        "700": {
+          "$value": "#4D7C0F",
+          "$type": "color"
+        }
+      },
+      "cyan": {
+        "400": {
+          "$value": "#22D3EE",
+          "$type": "color"
+        },
+        "700": {
+          "$value": "#0E7490",
+          "$type": "color"
+        }
+      },
+      "gray": {
+        "400": {
+          "$value": "#94A3B8",
+          "$type": "color"
+        },
+        "500": {
+          "$value": "#64748B",
+          "$type": "color"
+        }
+      }
+    }
+  },
+  "theme": {
+    "light": {
+      "color": {
+        "bg": {
+          "page": {
+            "$value": "{primitive.color.slate.50}",
+            "$type": "color",
+            "$description": "App background behind cards and tables (program light background)."
+          },
+          "surface": {
+            "$value": "{primitive.color.neutral.white}",
+            "$type": "color",
+            "$description": "Cards, tables, dialogs, menus (program light surface)."
+          },
+          "raised": {
+            "$value": "{primitive.color.neutral.white}",
+            "$type": "color",
+            "$description": "Dropdowns, popovers; separated by shadow."
+          },
+          "sunken": {
+            "$value": "{primitive.color.slate.100}",
+            "$type": "color",
+            "$description": "Wells, table headers, code blocks, read-only fields."
+          },
+          "hover": {
+            "$value": "{primitive.color.slate.100}",
+            "$type": "color",
+            "$description": "Row and menu-item hover."
+          },
+          "selected": {
+            "$value": "{primitive.color.blue.50}",
+            "$type": "color",
+            "$description": "Selected row / active menu item."
+          },
+          "backdrop": {
+            "$value": "#0B122099",
+            "$type": "color",
+            "$description": "Dialog / drawer backdrop (60% navy)."
+          }
+        },
+        "text": {
+          "primary": {
+            "$value": "{primitive.color.slate.700}",
+            "$type": "color",
+            "$description": "Body text and headings (program light primary text)."
+          },
+          "secondary": {
+            "$value": "{primitive.color.slate.600}",
+            "$type": "color",
+            "$description": "Labels, secondary columns."
+          },
+          "muted": {
+            "$value": "{primitive.color.slate.500}",
+            "$type": "color",
+            "$description": "Metadata, timestamps, help text. Still 4.5:1."
+          },
+          "disabled": {
+            "$value": "{primitive.color.slate.400}",
+            "$type": "color",
+            "$description": "Disabled labels. WCAG-exempt; held at 3:1 so it stays legible."
+          },
+          "link": {
+            "$value": "{primitive.color.blue.700}",
+            "$type": "color",
+            "$description": "Inline links (underlined in body text)."
+          },
+          "link-hover": {
+            "$value": "{primitive.color.blue.800}",
+            "$type": "color"
+          },
+          "inverse": {
+            "$value": "{primitive.color.neutral.white}",
+            "$type": "color",
+            "$description": "Text on dark fills such as tooltips."
+          }
+        },
+        "border": {
+          "subtle": {
+            "$value": "{primitive.color.slate.200}",
+            "$type": "color",
+            "$description": "Dividers and card outlines (decorative, no contrast minimum)."
+          },
+          "default": {
+            "$value": "{primitive.color.slate.300}",
+            "$type": "color",
+            "$description": "Table grid, separators that group content."
+          },
+          "strong": {
+            "$value": "{primitive.color.slate.450}",
+            "$type": "color",
+            "$description": "Form-control borders, checkboxes, meaningful outlines (3:1)."
+          }
+        },
+        "focus": {
+          "ring": {
+            "$value": "{primitive.color.blue.600}",
+            "$type": "color",
+            "$description": "2px ring, 2px offset; 3:1 against page, surface and raised."
+          },
+          "ring-danger": {
+            "$value": "{primitive.color.red.700}",
+            "$type": "color",
+            "$description": "Focus ring inside an invalid field."
+          }
+        },
+        "action": {
+          "primary": {
+            "bg": {
+              "$value": "{primitive.color.blue.600}",
+              "$type": "color",
+              "$description": "Program primary action, kept: white text 5.17:1."
+            },
+            "bg-hover": {
+              "$value": "{primitive.color.blue.700}",
+              "$type": "color"
+            },
+            "bg-active": {
+              "$value": "{primitive.color.blue.800}",
+              "$type": "color"
+            },
+            "text": {
+              "$value": "{primitive.color.neutral.white}",
+              "$type": "color"
+            }
+          },
+          "secondary": {
+            "bg": {
+              "$value": "{primitive.color.neutral.white}",
+              "$type": "color"
+            },
+            "bg-hover": {
+              "$value": "{primitive.color.slate.100}",
+              "$type": "color"
+            },
+            "bg-active": {
+              "$value": "{primitive.color.slate.150}",
+              "$type": "color"
+            },
+            "text": {
+              "$value": "{primitive.color.slate.700}",
+              "$type": "color"
+            },
+            "border": {
+              "$value": "{primitive.color.slate.450}",
+              "$type": "color"
+            }
+          },
+          "ghost": {
+            "bg-hover": {
+              "$value": "{primitive.color.slate.100}",
+              "$type": "color"
+            },
+            "bg-active": {
+              "$value": "{primitive.color.slate.150}",
+              "$type": "color"
+            },
+            "text": {
+              "$value": "{primitive.color.slate.600}",
+              "$type": "color"
+            }
+          },
+          "danger": {
+            "bg": {
+              "$value": "{primitive.color.red.600}",
+              "$type": "color",
+              "$description": "Program danger, kept: white text 4.83:1."
+            },
+            "bg-hover": {
+              "$value": "{primitive.color.red.700}",
+              "$type": "color"
+            },
+            "bg-active": {
+              "$value": "{primitive.color.red.800}",
+              "$type": "color"
+            },
+            "text": {
+              "$value": "{primitive.color.neutral.white}",
+              "$type": "color"
+            }
+          },
+          "disabled": {
+            "bg": {
+              "$value": "{primitive.color.slate.150}",
+              "$type": "color"
+            },
+            "text": {
+              "$value": "{primitive.color.slate.500}",
+              "$type": "color",
+              "$description": "Disabled button label."
+            },
+            "border": {
+              "$value": "{primitive.color.slate.200}",
+              "$type": "color"
+            }
+          }
+        },
+        "accent": {
+          "solid": {
+            "$value": "{primitive.color.teal.700}",
+            "$type": "color",
+            "$description": "Accent fill. Program #0D9488 darkened: white on it is 3.74:1."
+          },
+          "on-solid": {
+            "$value": "{primitive.color.neutral.white}",
+            "$type": "color"
+          },
+          "text": {
+            "$value": "{primitive.color.teal.700}",
+            "$type": "color",
+            "$description": "Accent-coloured text."
+          },
+          "graphic": {
+            "$value": "{primitive.color.teal.600}",
+            "$type": "color",
+            "$description": "Program accent, kept for non-text marks (3.74:1 on surface)."
+          }
+        },
+        "status": {
+          "success": {
+            "solid": {
+              "$value": "{primitive.color.green.700}",
+              "$type": "color",
+              "$description": "Filled badge / banner / button background."
+            },
+            "on-solid": {
+              "$value": "{primitive.color.neutral.white}",
+              "$type": "color",
+              "$description": "Text and icons on the solid fill."
+            },
+            "text": {
+              "$value": "{primitive.color.green.700}",
+              "$type": "color",
+              "$description": "Status text and icons on page, surface and subtle grounds."
+            },
+            "graphic": {
+              "$value": "{primitive.color.green.700}",
+              "$type": "color",
+              "$description": "Non-text marks: dots, chart marks, progress, left borders (3:1)."
+            },
+            "subtle": {
+              "$value": "{primitive.color.green.50}",
+              "$type": "color",
+              "$description": "Tinted background for alerts and soft badges."
+            },
+            "border": {
+              "$value": "{primitive.color.green.600}",
+              "$type": "color",
+              "$description": "Border of a subtle alert."
+            },
+            "$description": "Healthy / success. Program #16A34A fails 4.5:1 with white and 3:1 on page."
+          },
+          "warning": {
+            "solid": {
+              "$value": "{primitive.color.amber.700}",
+              "$type": "color",
+              "$description": "Filled badge / banner / button background."
+            },
+            "on-solid": {
+              "$value": "{primitive.color.neutral.white}",
+              "$type": "color",
+              "$description": "Text and icons on the solid fill."
+            },
+            "text": {
+              "$value": "{primitive.color.amber.800}",
+              "$type": "color",
+              "$description": "Status text and icons on page, surface and subtle grounds."
+            },
+            "graphic": {
+              "$value": "{primitive.color.amber.700}",
+              "$type": "color",
+              "$description": "Non-text marks: dots, chart marks, progress, left borders (3:1)."
+            },
+            "subtle": {
+              "$value": "{primitive.color.amber.50}",
+              "$type": "color",
+              "$description": "Tinted background for alerts and soft badges."
+            },
+            "border": {
+              "$value": "{primitive.color.amber.600}",
+              "$type": "color",
+              "$description": "Border of a subtle alert."
+            },
+            "$description": "Warning. Program #D97706 is 2.96:1 on the page; darkened."
+          },
+          "danger": {
+            "solid": {
+              "$value": "{primitive.color.red.600}",
+              "$type": "color",
+              "$description": "Filled badge / banner / button background."
+            },
+            "on-solid": {
+              "$value": "{primitive.color.neutral.white}",
+              "$type": "color",
+              "$description": "Text and icons on the solid fill."
+            },
+            "text": {
+              "$value": "{primitive.color.red.700}",
+              "$type": "color",
+              "$description": "Status text and icons on page, surface and subtle grounds."
+            },
+            "graphic": {
+              "$value": "{primitive.color.red.600}",
+              "$type": "color",
+              "$description": "Non-text marks: dots, chart marks, progress, left borders (3:1)."
+            },
+            "subtle": {
+              "$value": "{primitive.color.red.50}",
+              "$type": "color",
+              "$description": "Tinted background for alerts and soft badges."
+            },
+            "border": {
+              "$value": "{primitive.color.red.600}",
+              "$type": "color",
+              "$description": "Border of a subtle alert."
+            },
+            "$description": "Critical / danger. Program #DC2626 kept for fills and marks; text one step darker."
+          },
+          "info": {
+            "solid": {
+              "$value": "{primitive.color.sky.700}",
+              "$type": "color",
+              "$description": "Filled badge / banner / button background."
+            },
+            "on-solid": {
+              "$value": "{primitive.color.neutral.white}",
+              "$type": "color",
+              "$description": "Text and icons on the solid fill."
+            },
+            "text": {
+              "$value": "{primitive.color.sky.700}",
+              "$type": "color",
+              "$description": "Status text and icons on page, surface and subtle grounds."
+            },
+            "graphic": {
+              "$value": "{primitive.color.sky.600}",
+              "$type": "color",
+              "$description": "Non-text marks: dots, chart marks, progress, left borders (3:1)."
+            },
+            "subtle": {
+              "$value": "{primitive.color.sky.50}",
+              "$type": "color",
+              "$description": "Tinted background for alerts and soft badges."
+            },
+            "border": {
+              "$value": "{primitive.color.sky.600}",
+              "$type": "color",
+              "$description": "Border of a subtle alert."
+            },
+            "$description": "Information. Program #0284C7 kept for marks; fill and text darkened."
+          },
+          "pending": {
+            "solid": {
+              "$value": "{primitive.color.violet.600}",
+              "$type": "color",
+              "$description": "Filled badge / banner / button background."
+            },
+            "on-solid": {
+              "$value": "{primitive.color.neutral.white}",
+              "$type": "color",
+              "$description": "Text and icons on the solid fill."
+            },
+            "text": {
+              "$value": "{primitive.color.violet.700}",
+              "$type": "color",
+              "$description": "Status text and icons on page, surface and subtle grounds."
+            },
+            "graphic": {
+              "$value": "{primitive.color.violet.600}",
+              "$type": "color",
+              "$description": "Non-text marks: dots, chart marks, progress, left borders (3:1)."
+            },
+            "subtle": {
+              "$value": "{primitive.color.violet.50}",
+              "$type": "color",
+              "$description": "Tinted background for alerts and soft badges."
+            },
+            "border": {
+              "$value": "{primitive.color.violet.600}",
+              "$type": "color",
+              "$description": "Border of a subtle alert."
+            },
+            "$description": "Pending approval. Program #7C3AED kept."
+          },
+          "neutral": {
+            "solid": {
+              "$value": "{primitive.color.slate.600}",
+              "$type": "color",
+              "$description": "Filled badge / banner / button background."
+            },
+            "on-solid": {
+              "$value": "{primitive.color.neutral.white}",
+              "$type": "color",
+              "$description": "Text and icons on the solid fill."
+            },
+            "text": {
+              "$value": "{primitive.color.slate.600}",
+              "$type": "color",
+              "$description": "Status text and icons on page, surface and subtle grounds."
+            },
+            "graphic": {
+              "$value": "{primitive.color.slate.500}",
+              "$type": "color",
+              "$description": "Non-text marks: dots, chart marks, progress, left borders (3:1)."
+            },
+            "subtle": {
+              "$value": "{primitive.color.slate.100}",
+              "$type": "color",
+              "$description": "Tinted background for alerts and soft badges."
+            },
+            "border": {
+              "$value": "{primitive.color.slate.300}",
+              "$type": "color",
+              "$description": "Border of a subtle alert."
+            },
+            "$description": "Unknown / not applicable / draft."
+          }
+        },
+        "nav": {
+          "$description": "Sidebar, icon rail and flyouts. Navy in both themes (program navigation colour).",
+          "bg": {
+            "$value": "{primitive.color.navy.800}",
+            "$type": "color",
+            "$description": "Program navigation colour."
+          },
+          "bg-raised": {
+            "$value": "{primitive.color.navy.750}",
+            "$type": "color",
+            "$description": "Filter input, flyout panel."
+          },
+          "hover": {
+            "$value": "{primitive.color.navy.750}",
+            "$type": "color"
+          },
+          "active-bg": {
+            "$value": "#133A44",
+            "$type": "color",
+            "$description": "Active item background (teal tint on navy)."
+          },
+          "border": {
+            "$value": "{primitive.color.navy.700}",
+            "$type": "color"
+          },
+          "text": {
+            "$value": "#CBD5E1",
+            "$type": "color",
+            "$description": "Item labels."
+          },
+          "text-muted": {
+            "$value": "{primitive.color.slate.d-muted}",
+            "$type": "color",
+            "$description": "Group headings, counts."
+          },
+          "text-strong": {
+            "$value": "#F8FAFC",
+            "$type": "color",
+            "$description": "Hovered / active label."
+          },
+          "active-text": {
+            "$value": "{primitive.color.teal.300}",
+            "$type": "color",
+            "$description": "Active item label and icon."
+          },
+          "active-indicator": {
+            "$value": "{primitive.color.teal.400}",
+            "$type": "color",
+            "$description": "3px bar on the active item (3:1)."
+          },
+          "focus": {
+            "$value": "#7DD3FC",
+            "$type": "color",
+            "$description": "Focus ring inside the sidebar."
+          }
+        },
+        "chart": {
+          "$description": "Categorical series, in this order. Not for status: use status.*.graphic for good/bad.",
+          "1": {
+            "$value": "{primitive.color.blue.600}",
+            "$type": "color"
+          },
+          "2": {
+            "$value": "{primitive.color.teal.600}",
+            "$type": "color"
+          },
+          "3": {
+            "$value": "{primitive.color.amber.700}",
+            "$type": "color"
+          },
+          "4": {
+            "$value": "{primitive.color.violet.600}",
+            "$type": "color"
+          },
+          "5": {
+            "$value": "{primitive.color.pink.600}",
+            "$type": "color"
+          },
+          "6": {
+            "$value": "{primitive.color.cyan.700}",
+            "$type": "color"
+          },
+          "7": {
+            "$value": "{primitive.color.lime.700}",
+            "$type": "color"
+          },
+          "8": {
+            "$value": "{primitive.color.gray.500}",
+            "$type": "color"
+          },
+          "grid": {
+            "$value": "{primitive.color.slate.200}",
+            "$type": "color",
+            "$description": "Gridlines (decorative)."
+          },
+          "axis": {
+            "$value": "{primitive.color.slate.500}",
+            "$type": "color",
+            "$description": "Axis labels (text, 4.5:1)."
+          }
+        }
+      },
+      "shadow": {
+        "0": {
+          "$value": "none",
+          "$type": "shadow"
+        },
+        "1": {
+          "$value": "0 1px 2px rgba(16, 24, 40, 0.06)",
+          "$type": "shadow",
+          "$description": "Cards (optional; border carries most separation)."
+        },
+        "2": {
+          "$value": "0 4px 12px rgba(16, 24, 40, 0.10)",
+          "$type": "shadow",
+          "$description": "Dropdowns, popovers, sticky toolbars."
+        },
+        "3": {
+          "$value": "0 12px 32px rgba(16, 24, 40, 0.16)",
+          "$type": "shadow",
+          "$description": "Dialogs, drawers, command palette."
+        }
+      }
+    },
+    "dark": {
+      "color": {
+        "bg": {
+          "page": {
+            "$value": "{primitive.color.navy.900}",
+            "$type": "color",
+            "$description": "Program dark background."
+          },
+          "surface": {
+            "$value": "{primitive.color.navy.850}",
+            "$type": "color",
+            "$description": "Program dark surface."
+          },
+          "raised": {
+            "$value": "{primitive.color.navy.750}",
+            "$type": "color",
+            "$description": "Dropdowns, popovers; one step lighter than surface."
+          },
+          "sunken": {
+            "$value": "{primitive.color.navy.900}",
+            "$type": "color",
+            "$description": "Wells, table headers, code blocks."
+          },
+          "hover": {
+            "$value": "{primitive.color.navy.750}",
+            "$type": "color",
+            "$description": "Row and menu-item hover."
+          },
+          "selected": {
+            "$value": "{primitive.color.blue.d-selected}",
+            "$type": "color",
+            "$description": "Selected row / active menu item."
+          },
+          "backdrop": {
+            "$value": "#000000A6",
+            "$type": "color",
+            "$description": "Dialog / drawer backdrop (65% black)."
+          }
+        },
+        "text": {
+          "primary": {
+            "$value": "{primitive.color.slate.d-text}",
+            "$type": "color",
+            "$description": "Program dark primary text."
+          },
+          "secondary": {
+            "$value": "{primitive.color.slate.d-secondary}",
+            "$type": "color"
+          },
+          "muted": {
+            "$value": "{primitive.color.slate.d-muted}",
+            "$type": "color"
+          },
+          "disabled": {
+            "$value": "{primitive.color.slate.d-disabled}",
+            "$type": "color",
+            "$description": "WCAG-exempt; held at 3:1."
+          },
+          "link": {
+            "$value": "{primitive.color.blue.300}",
+            "$type": "color",
+            "$description": "Primary blue is 3.16:1 on the dark surface; links use a lighter blue."
+          },
+          "link-hover": {
+            "$value": "{primitive.color.blue.200}",
+            "$type": "color"
+          },
+          "inverse": {
+            "$value": "{primitive.color.navy.900}",
+            "$type": "color"
+          }
+        },
+        "border": {
+          "subtle": {
+            "$value": "{primitive.color.navy.700}",
+            "$type": "color"
+          },
+          "default": {
+            "$value": "{primitive.color.navy.600}",
+            "$type": "color"
+          },
+          "strong": {
+            "$value": "{primitive.color.slate.d-strong}",
+            "$type": "color",
+            "$description": "Form-control borders (3:1 on surface)."
+          }
+        },
+        "focus": {
+          "ring": {
+            "$value": "{primitive.color.blue.400}",
+            "$type": "color",
+            "$description": "2px ring, 2px offset."
+          },
+          "ring-danger": {
+            "$value": "{primitive.color.red.400}",
+            "$type": "color"
+          }
+        },
+        "action": {
+          "primary": {
+            "bg": {
+              "$value": "{primitive.color.blue.600}",
+              "$type": "color",
+              "$description": "Same fill as light; white text 5.17:1."
+            },
+            "bg-hover": {
+              "$value": "{primitive.color.blue.700}",
+              "$type": "color",
+              "$description": "Hover darkens: a lighter blue would drop white text below 4.5:1."
+            },
+            "bg-active": {
+              "$value": "{primitive.color.blue.800}",
+              "$type": "color"
+            },
+            "text": {
+              "$value": "{primitive.color.neutral.white}",
+              "$type": "color"
+            }
+          },
+          "secondary": {
+            "bg": {
+              "$value": "{primitive.color.navy.850}",
+              "$type": "color"
+            },
+            "bg-hover": {
+              "$value": "{primitive.color.navy.750}",
+              "$type": "color"
+            },
+            "bg-active": {
+              "$value": "{primitive.color.navy.700}",
+              "$type": "color"
+            },
+            "text": {
+              "$value": "{primitive.color.slate.d-text}",
+              "$type": "color"
+            },
+            "border": {
+              "$value": "{primitive.color.slate.d-strong}",
+              "$type": "color"
+            }
+          },
+          "ghost": {
+            "bg-hover": {
+              "$value": "{primitive.color.navy.750}",
+              "$type": "color"
+            },
+            "bg-active": {
+              "$value": "{primitive.color.navy.700}",
+              "$type": "color"
+            },
+            "text": {
+              "$value": "{primitive.color.slate.d-secondary}",
+              "$type": "color"
+            }
+          },
+          "danger": {
+            "bg": {
+              "$value": "{primitive.color.red.600}",
+              "$type": "color"
+            },
+            "bg-hover": {
+              "$value": "{primitive.color.red.700}",
+              "$type": "color"
+            },
+            "bg-active": {
+              "$value": "{primitive.color.red.800}",
+              "$type": "color"
+            },
+            "text": {
+              "$value": "{primitive.color.neutral.white}",
+              "$type": "color"
+            }
+          },
+          "disabled": {
+            "bg": {
+              "$value": "{primitive.color.navy.750}",
+              "$type": "color"
+            },
+            "text": {
+              "$value": "{primitive.color.slate.d-disabled}",
+              "$type": "color"
+            },
+            "border": {
+              "$value": "{primitive.color.navy.700}",
+              "$type": "color"
+            }
+          }
+        },
+        "accent": {
+          "solid": {
+            "$value": "{primitive.color.teal.700}",
+            "$type": "color"
+          },
+          "on-solid": {
+            "$value": "{primitive.color.neutral.white}",
+            "$type": "color"
+          },
+          "text": {
+            "$value": "{primitive.color.teal.400}",
+            "$type": "color"
+          },
+          "graphic": {
+            "$value": "{primitive.color.teal.500}",
+            "$type": "color"
+          }
+        },
+        "status": {
+          "success": {
+            "solid": {
+              "$value": "{primitive.color.green.700}",
+              "$type": "color",
+              "$description": "Filled badge / banner / button background."
+            },
+            "on-solid": {
+              "$value": "{primitive.color.neutral.white}",
+              "$type": "color",
+              "$description": "Text and icons on the solid fill."
+            },
+            "text": {
+              "$value": "{primitive.color.green.400}",
+              "$type": "color",
+              "$description": "Status text and icons on page, surface and subtle grounds."
+            },
+            "graphic": {
+              "$value": "{primitive.color.green.400}",
+              "$type": "color",
+              "$description": "Non-text marks: dots, chart marks, progress, left borders (3:1)."
+            },
+            "subtle": {
+              "$value": "{primitive.color.green.d-subtle}",
+              "$type": "color",
+              "$description": "Tinted background for alerts and soft badges."
+            },
+            "border": {
+              "$value": "{primitive.color.green.700}",
+              "$type": "color",
+              "$description": "Border of a subtle alert."
+            },
+            "$description": "Healthy / success."
+          },
+          "warning": {
+            "solid": {
+              "$value": "{primitive.color.amber.700}",
+              "$type": "color",
+              "$description": "Filled badge / banner / button background."
+            },
+            "on-solid": {
+              "$value": "{primitive.color.neutral.white}",
+              "$type": "color",
+              "$description": "Text and icons on the solid fill."
+            },
+            "text": {
+              "$value": "{primitive.color.amber.400}",
+              "$type": "color",
+              "$description": "Status text and icons on page, surface and subtle grounds."
+            },
+            "graphic": {
+              "$value": "{primitive.color.amber.400}",
+              "$type": "color",
+              "$description": "Non-text marks: dots, chart marks, progress, left borders (3:1)."
+            },
+            "subtle": {
+              "$value": "{primitive.color.amber.d-subtle}",
+              "$type": "color",
+              "$description": "Tinted background for alerts and soft badges."
+            },
+            "border": {
+              "$value": "{primitive.color.amber.700}",
+              "$type": "color",
+              "$description": "Border of a subtle alert."
+            },
+            "$description": "Warning."
+          },
+          "danger": {
+            "solid": {
+              "$value": "{primitive.color.red.600}",
+              "$type": "color",
+              "$description": "Filled badge / banner / button background."
+            },
+            "on-solid": {
+              "$value": "{primitive.color.neutral.white}",
+              "$type": "color",
+              "$description": "Text and icons on the solid fill."
+            },
+            "text": {
+              "$value": "{primitive.color.red.400}",
+              "$type": "color",
+              "$description": "Status text and icons on page, surface and subtle grounds."
+            },
+            "graphic": {
+              "$value": "{primitive.color.red.400}",
+              "$type": "color",
+              "$description": "Non-text marks: dots, chart marks, progress, left borders (3:1)."
+            },
+            "subtle": {
+              "$value": "{primitive.color.red.d-subtle}",
+              "$type": "color",
+              "$description": "Tinted background for alerts and soft badges."
+            },
+            "border": {
+              "$value": "{primitive.color.red.700}",
+              "$type": "color",
+              "$description": "Border of a subtle alert."
+            },
+            "$description": "Critical / danger."
+          },
+          "info": {
+            "solid": {
+              "$value": "{primitive.color.sky.700}",
+              "$type": "color",
+              "$description": "Filled badge / banner / button background."
+            },
+            "on-solid": {
+              "$value": "{primitive.color.neutral.white}",
+              "$type": "color",
+              "$description": "Text and icons on the solid fill."
+            },
+            "text": {
+              "$value": "{primitive.color.sky.400}",
+              "$type": "color",
+              "$description": "Status text and icons on page, surface and subtle grounds."
+            },
+            "graphic": {
+              "$value": "{primitive.color.sky.400}",
+              "$type": "color",
+              "$description": "Non-text marks: dots, chart marks, progress, left borders (3:1)."
+            },
+            "subtle": {
+              "$value": "{primitive.color.sky.d-subtle}",
+              "$type": "color",
+              "$description": "Tinted background for alerts and soft badges."
+            },
+            "border": {
+              "$value": "{primitive.color.sky.700}",
+              "$type": "color",
+              "$description": "Border of a subtle alert."
+            },
+            "$description": "Information."
+          },
+          "pending": {
+            "solid": {
+              "$value": "{primitive.color.violet.600}",
+              "$type": "color",
+              "$description": "Filled badge / banner / button background."
+            },
+            "on-solid": {
+              "$value": "{primitive.color.neutral.white}",
+              "$type": "color",
+              "$description": "Text and icons on the solid fill."
+            },
+            "text": {
+              "$value": "{primitive.color.violet.400}",
+              "$type": "color",
+              "$description": "Status text and icons on page, surface and subtle grounds."
+            },
+            "graphic": {
+              "$value": "{primitive.color.violet.400}",
+              "$type": "color",
+              "$description": "Non-text marks: dots, chart marks, progress, left borders (3:1)."
+            },
+            "subtle": {
+              "$value": "{primitive.color.violet.d-subtle}",
+              "$type": "color",
+              "$description": "Tinted background for alerts and soft badges."
+            },
+            "border": {
+              "$value": "{primitive.color.violet.600}",
+              "$type": "color",
+              "$description": "Border of a subtle alert."
+            },
+            "$description": "Pending approval. Program #7C3AED is 2.86:1 on the dark surface; marks and text use violet-400."
+          },
+          "neutral": {
+            "solid": {
+              "$value": "{primitive.color.slate.600}",
+              "$type": "color",
+              "$description": "Filled badge / banner / button background."
+            },
+            "on-solid": {
+              "$value": "{primitive.color.neutral.white}",
+              "$type": "color",
+              "$description": "Text and icons on the solid fill."
+            },
+            "text": {
+              "$value": "{primitive.color.slate.d-muted}",
+              "$type": "color",
+              "$description": "Status text and icons on page, surface and subtle grounds."
+            },
+            "graphic": {
+              "$value": "{primitive.color.slate.d-muted}",
+              "$type": "color",
+              "$description": "Non-text marks: dots, chart marks, progress, left borders (3:1)."
+            },
+            "subtle": {
+              "$value": "{primitive.color.navy.750}",
+              "$type": "color",
+              "$description": "Tinted background for alerts and soft badges."
+            },
+            "border": {
+              "$value": "{primitive.color.navy.600}",
+              "$type": "color",
+              "$description": "Border of a subtle alert."
+            },
+            "$description": "Unknown / draft."
+          }
+        },
+        "nav": {
+          "$description": "Sidebar, icon rail and flyouts. Navy in both themes (program navigation colour).",
+          "bg": {
+            "$value": "{primitive.color.navy.800}",
+            "$type": "color",
+            "$description": "Program navigation colour."
+          },
+          "bg-raised": {
+            "$value": "{primitive.color.navy.750}",
+            "$type": "color",
+            "$description": "Filter input, flyout panel."
+          },
+          "hover": {
+            "$value": "{primitive.color.navy.750}",
+            "$type": "color"
+          },
+          "active-bg": {
+            "$value": "#133A44",
+            "$type": "color",
+            "$description": "Active item background (teal tint on navy)."
+          },
+          "border": {
+            "$value": "{primitive.color.navy.700}",
+            "$type": "color"
+          },
+          "text": {
+            "$value": "#CBD5E1",
+            "$type": "color",
+            "$description": "Item labels."
+          },
+          "text-muted": {
+            "$value": "{primitive.color.slate.d-muted}",
+            "$type": "color",
+            "$description": "Group headings, counts."
+          },
+          "text-strong": {
+            "$value": "#F8FAFC",
+            "$type": "color",
+            "$description": "Hovered / active label."
+          },
+          "active-text": {
+            "$value": "{primitive.color.teal.300}",
+            "$type": "color",
+            "$description": "Active item label and icon."
+          },
+          "active-indicator": {
+            "$value": "{primitive.color.teal.400}",
+            "$type": "color",
+            "$description": "3px bar on the active item (3:1)."
+          },
+          "focus": {
+            "$value": "#7DD3FC",
+            "$type": "color",
+            "$description": "Focus ring inside the sidebar."
+          }
+        },
+        "chart": {
+          "$description": "Categorical series, in this order. Not for status: use status.*.graphic for good/bad.",
+          "1": {
+            "$value": "{primitive.color.blue.400}",
+            "$type": "color"
+          },
+          "2": {
+            "$value": "{primitive.color.teal.400}",
+            "$type": "color"
+          },
+          "3": {
+            "$value": "{primitive.color.amber.400}",
+            "$type": "color"
+          },
+          "4": {
+            "$value": "{primitive.color.violet.400}",
+            "$type": "color"
+          },
+          "5": {
+            "$value": "{primitive.color.pink.400}",
+            "$type": "color"
+          },
+          "6": {
+            "$value": "{primitive.color.cyan.400}",
+            "$type": "color"
+          },
+          "7": {
+            "$value": "{primitive.color.lime.400}",
+            "$type": "color"
+          },
+          "8": {
+            "$value": "{primitive.color.gray.400}",
+            "$type": "color"
+          },
+          "grid": {
+            "$value": "{primitive.color.navy.700}",
+            "$type": "color"
+          },
+          "axis": {
+            "$value": "{primitive.color.slate.d-muted}",
+            "$type": "color"
+          }
+        }
+      },
+      "shadow": {
+        "0": {
+          "$value": "none",
+          "$type": "shadow"
+        },
+        "1": {
+          "$value": "0 1px 2px rgba(0, 0, 0, 0.35)",
+          "$type": "shadow"
+        },
+        "2": {
+          "$value": "0 8px 24px rgba(0, 0, 0, 0.45)",
+          "$type": "shadow"
+        },
+        "3": {
+          "$value": "0 16px 48px rgba(0, 0, 0, 0.55)",
+          "$type": "shadow"
+        }
+      }
+    }
+  },
+  "space": {
+    "0": {
+      "$value": "0px",
+      "$type": "dimension"
+    },
+    "1": {
+      "$value": "4px",
+      "$type": "dimension"
+    },
+    "2": {
+      "$value": "8px",
+      "$type": "dimension"
+    },
+    "3": {
+      "$value": "12px",
+      "$type": "dimension"
+    },
+    "4": {
+      "$value": "16px",
+      "$type": "dimension"
+    },
+    "5": {
+      "$value": "20px",
+      "$type": "dimension"
+    },
+    "6": {
+      "$value": "24px",
+      "$type": "dimension"
+    },
+    "8": {
+      "$value": "32px",
+      "$type": "dimension"
+    },
+    "10": {
+      "$value": "40px",
+      "$type": "dimension"
+    },
+    "12": {
+      "$value": "48px",
+      "$type": "dimension"
+    },
+    "16": {
+      "$value": "64px",
+      "$type": "dimension"
+    },
+    "$description": "4/8 scale. Use 4 and 12 inside components, multiples of 8 between them."
+  },
+  "font": {
+    "family": {
+      "sans": {
+        "$value": [
+          "Inter",
+          "system-ui",
+          "-apple-system",
+          "Segoe UI",
+          "Roboto",
+          "Helvetica Neue",
+          "Arial",
+          "sans-serif"
+        ],
+        "$type": "fontFamily",
+        "$description": "Inter self-hosted (woff2, OFL). Fallbacks keep layout if the font fails."
+      },
+      "mono": {
+        "$value": [
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "Consolas",
+          "Liberation Mono",
+          "monospace"
+        ],
+        "$type": "fontFamily",
+        "$description": "Code, IPs, MACs, serials, secrets."
+      }
+    },
+    "weight": {
+      "regular": {
+        "$value": 400,
+        "$type": "fontWeight"
+      },
+      "medium": {
+        "$value": 500,
+        "$type": "fontWeight"
+      },
+      "semibold": {
+        "$value": 600,
+        "$type": "fontWeight"
+      },
+      "bold": {
+        "$value": 700,
+        "$type": "fontWeight"
+      }
+    },
+    "size": {
+      "xs": {
+        "$value": "12px",
+        "$type": "dimension",
+        "$description": "Captions, counts, timestamps."
+      },
+      "sm": {
+        "$value": "13px",
+        "$type": "dimension",
+        "$description": "Supporting metadata, table secondary lines."
+      },
+      "md": {
+        "$value": "14px",
+        "$type": "dimension",
+        "$description": "Body, table cells, controls."
+      },
+      "lg": {
+        "$value": "16px",
+        "$type": "dimension",
+        "$description": "Card and section headings; body on phones."
+      },
+      "xl": {
+        "$value": "18px",
+        "$type": "dimension",
+        "$description": "Dialog titles, sub-page titles."
+      },
+      "2xl": {
+        "$value": "22px",
+        "$type": "dimension",
+        "$description": "Page title (compact density and phones)."
+      },
+      "3xl": {
+        "$value": "26px",
+        "$type": "dimension",
+        "$description": "Page title (comfortable density)."
+      },
+      "kpi": {
+        "$value": "28px",
+        "$type": "dimension",
+        "$description": "KPI tile value (tabular numerals)."
+      }
+    },
+    "line-height": {
+      "tight": {
+        "$value": 1.25,
+        "$type": "number"
+      },
+      "snug": {
+        "$value": 1.375,
+        "$type": "number"
+      },
+      "normal": {
+        "$value": 1.5,
+        "$type": "number"
+      }
+    }
+  },
+  "radius": {
+    "none": {
+      "$value": "0px",
+      "$type": "dimension"
+    },
+    "sm": {
+      "$value": "4px",
+      "$type": "dimension",
+      "$description": "Badges, checkboxes, tags."
+    },
+    "md": {
+      "$value": "6px",
+      "$type": "dimension",
+      "$description": "Buttons, inputs, menus."
+    },
+    "lg": {
+      "$value": "8px",
+      "$type": "dimension",
+      "$description": "Cards, tables, alerts."
+    },
+    "xl": {
+      "$value": "12px",
+      "$type": "dimension",
+      "$description": "Dialogs, drawers, command palette."
+    },
+    "pill": {
+      "$value": "999px",
+      "$type": "dimension",
+      "$description": "Status pills and count badges only."
+    }
+  },
+  "border-width": {
+    "hairline": {
+      "$value": "1px",
+      "$type": "dimension",
+      "$description": "All borders and dividers."
+    },
+    "thick": {
+      "$value": "2px",
+      "$type": "dimension",
+      "$description": "Selected tab underline, emphasis."
+    },
+    "indicator": {
+      "$value": "3px",
+      "$type": "dimension",
+      "$description": "Active-nav bar, alert left border."
+    },
+    "focus": {
+      "$value": "2px",
+      "$type": "dimension",
+      "$description": "Focus ring width."
+    },
+    "focus-offset": {
+      "$value": "2px",
+      "$type": "dimension",
+      "$description": "Gap between control and focus ring."
+    }
+  },
+  "motion": {
+    "duration": {
+      "instant": {
+        "$value": "0ms",
+        "$type": "duration",
+        "$description": ""
+      },
+      "fast": {
+        "$value": "120ms",
+        "$type": "duration",
+        "$description": "Hover, press, colour changes."
+      },
+      "base": {
+        "$value": "180ms",
+        "$type": "duration",
+        "$description": "Menus, popovers, tab indicator."
+      },
+      "slow": {
+        "$value": "260ms",
+        "$type": "duration",
+        "$description": "Drawers, dialogs, sidebar collapse."
+      }
+    },
+    "easing": {
+      "standard": {
+        "$value": [
+          0.2,
+          0,
+          0,
+          1
+        ],
+        "$type": "cubicBezier",
+        "$description": "Enter and move."
+      },
+      "exit": {
+        "$value": [
+          0.4,
+          0,
+          1,
+          1
+        ],
+        "$type": "cubicBezier",
+        "$description": "Leave."
+      }
+    },
+    "reduced": {
+      "$description": "Values under @media (prefers-reduced-motion: reduce).",
+      "duration": {
+        "fast": {
+          "$value": "0ms",
+          "$type": "duration"
+        },
+        "base": {
+          "$value": "0ms",
+          "$type": "duration"
+        },
+        "slow": {
+          "$value": "0ms",
+          "$type": "duration"
+        }
+      }
+    }
+  },
+  "density": {
+    "$description": "compact is the default (matches ui.css today); comfortable adds room. Phones force touch sizes.",
+    "compact": {
+      "control-height": {
+        "$value": "36px",
+        "$type": "dimension",
+        "$description": "Inputs, selects, standard buttons."
+      },
+      "control-height-sm": {
+        "$value": "28px",
+        "$type": "dimension",
+        "$description": "Small buttons in toolbars and table rows."
+      },
+      "icon-button": {
+        "$value": "32px",
+        "$type": "dimension",
+        "$description": "Icon-only buttons (hit area >= 24px, WCAG 2.5.8)."
+      },
+      "row-height": {
+        "$value": "36px",
+        "$type": "dimension",
+        "$description": "Table row minimum."
+      },
+      "cell-padding-y": {
+        "$value": "6px",
+        "$type": "dimension",
+        "$description": "Table cell vertical padding."
+      },
+      "cell-padding-x": {
+        "$value": "12px",
+        "$type": "dimension"
+      },
+      "card-padding": {
+        "$value": "16px",
+        "$type": "dimension",
+        "$description": "Card body (ui.css today: 14px)."
+      },
+      "card-header-padding-y": {
+        "$value": "8px",
+        "$type": "dimension",
+        "$description": "(ui.css today: 10px)."
+      },
+      "section-gap": {
+        "$value": "12px",
+        "$type": "dimension",
+        "$description": "Gap between cards / sections."
+      },
+      "page-gutter": {
+        "$value": "16px",
+        "$type": "dimension",
+        "$description": "Content padding inside the shell."
+      }
+    },
+    "comfortable": {
+      "control-height": {
+        "$value": "40px",
+        "$type": "dimension",
+        "$description": "(ui.css today: 42px)."
+      },
+      "control-height-sm": {
+        "$value": "32px",
+        "$type": "dimension"
+      },
+      "icon-button": {
+        "$value": "40px",
+        "$type": "dimension"
+      },
+      "row-height": {
+        "$value": "48px",
+        "$type": "dimension"
+      },
+      "cell-padding-y": {
+        "$value": "12px",
+        "$type": "dimension"
+      },
+      "cell-padding-x": {
+        "$value": "16px",
+        "$type": "dimension",
+        "$description": "(ui.css today: 14px)."
+      },
+      "card-padding": {
+        "$value": "20px",
+        "$type": "dimension"
+      },
+      "card-header-padding-y": {
+        "$value": "12px",
+        "$type": "dimension",
+        "$description": "(ui.css today: 14px)."
+      },
+      "section-gap": {
+        "$value": "20px",
+        "$type": "dimension"
+      },
+      "page-gutter": {
+        "$value": "24px",
+        "$type": "dimension"
+      }
+    },
+    "touch": {
+      "$description": "Applied below breakpoint.md (768px) whatever the density.",
+      "control-height": {
+        "$value": "44px",
+        "$type": "dimension"
+      },
+      "icon-button": {
+        "$value": "44px",
+        "$type": "dimension"
+      },
+      "row-height": {
+        "$value": "48px",
+        "$type": "dimension"
+      }
+    }
+  },
+  "breakpoint": {
+    "xs": {
+      "$value": "390px",
+      "$type": "dimension",
+      "$description": "Phone reference width; layouts must also work at 360px."
+    },
+    "md": {
+      "$value": "768px",
+      "$type": "dimension",
+      "$description": "Tablet: sidebar becomes the icon rail; tables may stay tabular."
+    },
+    "lg": {
+      "$value": "1280px",
+      "$type": "dimension",
+      "$description": "Laptop: full sidebar."
+    },
+    "xl": {
+      "$value": "1440px",
+      "$type": "dimension",
+      "$description": "Desktop: side panels (ticket context, filters) open beside content."
+    },
+    "2xl": {
+      "$value": "1920px",
+      "$type": "dimension",
+      "$description": "Wide: more dashboard columns, not wider cards."
+    },
+    "3xl": {
+      "$value": "2560px",
+      "$type": "dimension",
+      "$description": "Ultrawide / wallboard: max content width applies to forms and reading text only."
+    },
+    "$description": "min-width media queries. Bootstrap grid breakpoints (576/768/992/1200/1400) stay inside Bootstrap."
+  },
+  "z-index": {
+    "base": {
+      "$value": 0,
+      "$type": "number",
+      "$description": ""
+    },
+    "raised": {
+      "$value": 1,
+      "$type": "number",
+      "$description": "Overlapping cards, drag handles."
+    },
+    "dropdown": {
+      "$value": 1000,
+      "$type": "number",
+      "$description": "Matches Bootstrap."
+    },
+    "sticky": {
+      "$value": 1020,
+      "$type": "number",
+      "$description": "Sticky table headers, toolbars."
+    },
+    "header": {
+      "$value": 1030,
+      "$type": "number",
+      "$description": "Top bar."
+    },
+    "nav": {
+      "$value": 1040,
+      "$type": "number",
+      "$description": "Sidebar / rail."
+    },
+    "nav-flyout": {
+      "$value": 1045,
+      "$type": "number",
+      "$description": "Rail flyouts."
+    },
+    "backdrop": {
+      "$value": 1050,
+      "$type": "number",
+      "$description": "Dialog and drawer backdrop."
+    },
+    "dialog": {
+      "$value": 1055,
+      "$type": "number",
+      "$description": "Modal dialog, drawer."
+    },
+    "command-palette": {
+      "$value": 1060,
+      "$type": "number",
+      "$description": "Ctrl+K palette."
+    },
+    "popover": {
+      "$value": 1070,
+      "$type": "number",
+      "$description": ""
+    },
+    "tooltip": {
+      "$value": 1080,
+      "$type": "number",
+      "$description": ""
+    },
+    "toast": {
+      "$value": 1090,
+      "$type": "number",
+      "$description": "Notifications."
+    },
+    "skip-link": {
+      "$value": 1100,
+      "$type": "number",
+      "$description": "Skip-to-content link when focused."
+    }
+  },
+  "layout": {
+    "sidebar-width": {
+      "$value": "248px",
+      "$type": "dimension",
+      "$description": "Expanded sidebar."
+    },
+    "rail-width": {
+      "$value": "64px",
+      "$type": "dimension",
+      "$description": "Icon rail."
+    },
+    "topbar-height": {
+      "$value": "56px",
+      "$type": "dimension"
+    },
+    "content-max-form": {
+      "$value": "960px",
+      "$type": "dimension",
+      "$description": "Forms and settings pages."
+    },
+    "content-max-reading": {
+      "$value": "760px",
+      "$type": "dimension",
+      "$description": "Long-form text (~72ch at 14px)."
+    },
+    "dialog-sm": {
+      "$value": "400px",
+      "$type": "dimension"
+    },
+    "dialog-md": {
+      "$value": "560px",
+      "$type": "dimension"
+    },
+    "dialog-lg": {
+      "$value": "800px",
+      "$type": "dimension"
+    },
+    "drawer-width": {
+      "$value": "480px",
+      "$type": "dimension"
+    }
+  },
+  "contrast-pairs": {
+    "$description": "Every pair must meet min. fg/bg are paths under theme.<theme>.color. 4.5 = WCAG 1.4.3 text; 3.0 = 1.4.11 non-text / large text / focus (2.4.13 guidance).",
+    "pairs": [
+      {
+        "theme": "light",
+        "fg": "text.primary",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.primary",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.primary",
+        "bg": "bg.raised",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.primary",
+        "bg": "bg.sunken",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.primary",
+        "bg": "bg.hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.primary",
+        "bg": "bg.selected",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.secondary",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.secondary",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.secondary",
+        "bg": "bg.raised",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.secondary",
+        "bg": "bg.sunken",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.secondary",
+        "bg": "bg.hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.secondary",
+        "bg": "bg.selected",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.muted",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.muted",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.muted",
+        "bg": "bg.raised",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.muted",
+        "bg": "bg.sunken",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.muted",
+        "bg": "bg.hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.muted",
+        "bg": "bg.selected",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.link",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.link",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.link",
+        "bg": "bg.hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.link",
+        "bg": "bg.selected",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.link-hover",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.link-hover",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.link-hover",
+        "bg": "bg.hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.link-hover",
+        "bg": "bg.selected",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.disabled",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "disabled text (project rule; WCAG-exempt)"
+      },
+      {
+        "theme": "light",
+        "fg": "border.strong",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "ui-component"
+      },
+      {
+        "theme": "light",
+        "fg": "focus.ring",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "focus"
+      },
+      {
+        "theme": "light",
+        "fg": "border.strong",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "ui-component"
+      },
+      {
+        "theme": "light",
+        "fg": "focus.ring",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "focus"
+      },
+      {
+        "theme": "light",
+        "fg": "border.strong",
+        "bg": "bg.raised",
+        "min": 3.0,
+        "use": "ui-component"
+      },
+      {
+        "theme": "light",
+        "fg": "focus.ring",
+        "bg": "bg.raised",
+        "min": 3.0,
+        "use": "focus"
+      },
+      {
+        "theme": "light",
+        "fg": "focus.ring-danger",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "focus"
+      },
+      {
+        "theme": "light",
+        "fg": "action.primary.text",
+        "bg": "action.primary.bg",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "action.primary.text",
+        "bg": "action.primary.bg-hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "action.primary.text",
+        "bg": "action.primary.bg-active",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "action.danger.text",
+        "bg": "action.danger.bg",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "action.danger.text",
+        "bg": "action.danger.bg-hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "action.danger.text",
+        "bg": "action.danger.bg-active",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "action.secondary.text",
+        "bg": "action.secondary.bg",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "action.secondary.text",
+        "bg": "action.secondary.bg-hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "action.secondary.text",
+        "bg": "action.secondary.bg-active",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "action.secondary.border",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "ui-component"
+      },
+      {
+        "theme": "light",
+        "fg": "action.ghost.text",
+        "bg": "action.ghost.bg-hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "action.ghost.text",
+        "bg": "action.ghost.bg-active",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "action.ghost.text",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "action.disabled.text",
+        "bg": "action.disabled.bg",
+        "min": 3.0,
+        "use": "disabled text (project rule; WCAG-exempt)"
+      },
+      {
+        "theme": "light",
+        "fg": "accent.on-solid",
+        "bg": "accent.solid",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "accent.text",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "accent.text",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "accent.graphic",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "status.success.on-solid",
+        "bg": "status.success.solid",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.success.text",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.success.text",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.success.text",
+        "bg": "status.success.subtle",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.success.graphic",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "status.success.graphic",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "status.warning.on-solid",
+        "bg": "status.warning.solid",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.warning.text",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.warning.text",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.warning.text",
+        "bg": "status.warning.subtle",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.warning.graphic",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "status.warning.graphic",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "status.danger.on-solid",
+        "bg": "status.danger.solid",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.danger.text",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.danger.text",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.danger.text",
+        "bg": "status.danger.subtle",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.danger.graphic",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "status.danger.graphic",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "status.info.on-solid",
+        "bg": "status.info.solid",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.info.text",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.info.text",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.info.text",
+        "bg": "status.info.subtle",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.info.graphic",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "status.info.graphic",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "status.pending.on-solid",
+        "bg": "status.pending.solid",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.pending.text",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.pending.text",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.pending.text",
+        "bg": "status.pending.subtle",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.pending.graphic",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "status.pending.graphic",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "status.neutral.on-solid",
+        "bg": "status.neutral.solid",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.neutral.text",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.neutral.text",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.neutral.text",
+        "bg": "status.neutral.subtle",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "status.neutral.graphic",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "status.neutral.graphic",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "nav.text",
+        "bg": "nav.bg",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "nav.text",
+        "bg": "nav.hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "nav.text",
+        "bg": "nav.active-bg",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "nav.text",
+        "bg": "nav.bg-raised",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "nav.text-muted",
+        "bg": "nav.bg",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "nav.text-muted",
+        "bg": "nav.hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "nav.text-muted",
+        "bg": "nav.active-bg",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "nav.text-muted",
+        "bg": "nav.bg-raised",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "nav.text-strong",
+        "bg": "nav.bg",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "nav.text-strong",
+        "bg": "nav.hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "nav.text-strong",
+        "bg": "nav.active-bg",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "nav.text-strong",
+        "bg": "nav.bg-raised",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "nav.active-text",
+        "bg": "nav.bg",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "nav.active-text",
+        "bg": "nav.hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "nav.active-text",
+        "bg": "nav.active-bg",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "nav.active-text",
+        "bg": "nav.bg-raised",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "nav.active-indicator",
+        "bg": "nav.bg",
+        "min": 3.0,
+        "use": "ui-component"
+      },
+      {
+        "theme": "light",
+        "fg": "nav.focus",
+        "bg": "nav.bg",
+        "min": 3.0,
+        "use": "focus"
+      },
+      {
+        "theme": "light",
+        "fg": "nav.focus",
+        "bg": "nav.bg-raised",
+        "min": 3.0,
+        "use": "focus"
+      },
+      {
+        "theme": "light",
+        "fg": "chart.1",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "chart.1",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "chart.2",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "chart.2",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "chart.3",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "chart.3",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "chart.4",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "chart.4",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "chart.5",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "chart.5",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "chart.6",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "chart.6",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "chart.7",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "chart.7",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "chart.8",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "chart.8",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "light",
+        "fg": "chart.axis",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "light",
+        "fg": "text.inverse",
+        "bg": "text.primary",
+        "min": 4.5,
+        "use": "text (tooltip: inverse text on primary-text fill)"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.primary",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.primary",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.primary",
+        "bg": "bg.raised",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.primary",
+        "bg": "bg.sunken",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.primary",
+        "bg": "bg.hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.primary",
+        "bg": "bg.selected",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.secondary",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.secondary",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.secondary",
+        "bg": "bg.raised",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.secondary",
+        "bg": "bg.sunken",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.secondary",
+        "bg": "bg.hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.secondary",
+        "bg": "bg.selected",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.muted",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.muted",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.muted",
+        "bg": "bg.raised",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.muted",
+        "bg": "bg.sunken",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.muted",
+        "bg": "bg.hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.muted",
+        "bg": "bg.selected",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.link",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.link",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.link",
+        "bg": "bg.hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.link",
+        "bg": "bg.selected",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.link-hover",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.link-hover",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.link-hover",
+        "bg": "bg.hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.link-hover",
+        "bg": "bg.selected",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.disabled",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "disabled text (project rule; WCAG-exempt)"
+      },
+      {
+        "theme": "dark",
+        "fg": "border.strong",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "ui-component"
+      },
+      {
+        "theme": "dark",
+        "fg": "focus.ring",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "focus"
+      },
+      {
+        "theme": "dark",
+        "fg": "border.strong",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "ui-component"
+      },
+      {
+        "theme": "dark",
+        "fg": "focus.ring",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "focus"
+      },
+      {
+        "theme": "dark",
+        "fg": "border.strong",
+        "bg": "bg.raised",
+        "min": 3.0,
+        "use": "ui-component"
+      },
+      {
+        "theme": "dark",
+        "fg": "focus.ring",
+        "bg": "bg.raised",
+        "min": 3.0,
+        "use": "focus"
+      },
+      {
+        "theme": "dark",
+        "fg": "focus.ring-danger",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "focus"
+      },
+      {
+        "theme": "dark",
+        "fg": "action.primary.text",
+        "bg": "action.primary.bg",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "action.primary.text",
+        "bg": "action.primary.bg-hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "action.primary.text",
+        "bg": "action.primary.bg-active",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "action.danger.text",
+        "bg": "action.danger.bg",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "action.danger.text",
+        "bg": "action.danger.bg-hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "action.danger.text",
+        "bg": "action.danger.bg-active",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "action.secondary.text",
+        "bg": "action.secondary.bg",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "action.secondary.text",
+        "bg": "action.secondary.bg-hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "action.secondary.text",
+        "bg": "action.secondary.bg-active",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "action.secondary.border",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "ui-component"
+      },
+      {
+        "theme": "dark",
+        "fg": "action.ghost.text",
+        "bg": "action.ghost.bg-hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "action.ghost.text",
+        "bg": "action.ghost.bg-active",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "action.ghost.text",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "action.disabled.text",
+        "bg": "action.disabled.bg",
+        "min": 3.0,
+        "use": "disabled text (project rule; WCAG-exempt)"
+      },
+      {
+        "theme": "dark",
+        "fg": "accent.on-solid",
+        "bg": "accent.solid",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "accent.text",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "accent.text",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "accent.graphic",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.success.on-solid",
+        "bg": "status.success.solid",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.success.text",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.success.text",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.success.text",
+        "bg": "status.success.subtle",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.success.graphic",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.success.graphic",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.warning.on-solid",
+        "bg": "status.warning.solid",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.warning.text",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.warning.text",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.warning.text",
+        "bg": "status.warning.subtle",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.warning.graphic",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.warning.graphic",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.danger.on-solid",
+        "bg": "status.danger.solid",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.danger.text",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.danger.text",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.danger.text",
+        "bg": "status.danger.subtle",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.danger.graphic",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.danger.graphic",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.info.on-solid",
+        "bg": "status.info.solid",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.info.text",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.info.text",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.info.text",
+        "bg": "status.info.subtle",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.info.graphic",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.info.graphic",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.pending.on-solid",
+        "bg": "status.pending.solid",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.pending.text",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.pending.text",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.pending.text",
+        "bg": "status.pending.subtle",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.pending.graphic",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.pending.graphic",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.neutral.on-solid",
+        "bg": "status.neutral.solid",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.neutral.text",
+        "bg": "bg.page",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.neutral.text",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.neutral.text",
+        "bg": "status.neutral.subtle",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.neutral.graphic",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "status.neutral.graphic",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "nav.text",
+        "bg": "nav.bg",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "nav.text",
+        "bg": "nav.hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "nav.text",
+        "bg": "nav.active-bg",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "nav.text",
+        "bg": "nav.bg-raised",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "nav.text-muted",
+        "bg": "nav.bg",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "nav.text-muted",
+        "bg": "nav.hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "nav.text-muted",
+        "bg": "nav.active-bg",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "nav.text-muted",
+        "bg": "nav.bg-raised",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "nav.text-strong",
+        "bg": "nav.bg",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "nav.text-strong",
+        "bg": "nav.hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "nav.text-strong",
+        "bg": "nav.active-bg",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "nav.text-strong",
+        "bg": "nav.bg-raised",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "nav.active-text",
+        "bg": "nav.bg",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "nav.active-text",
+        "bg": "nav.hover",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "nav.active-text",
+        "bg": "nav.active-bg",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "nav.active-text",
+        "bg": "nav.bg-raised",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "nav.active-indicator",
+        "bg": "nav.bg",
+        "min": 3.0,
+        "use": "ui-component"
+      },
+      {
+        "theme": "dark",
+        "fg": "nav.focus",
+        "bg": "nav.bg",
+        "min": 3.0,
+        "use": "focus"
+      },
+      {
+        "theme": "dark",
+        "fg": "nav.focus",
+        "bg": "nav.bg-raised",
+        "min": 3.0,
+        "use": "focus"
+      },
+      {
+        "theme": "dark",
+        "fg": "chart.1",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "chart.1",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "chart.2",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "chart.2",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "chart.3",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "chart.3",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "chart.4",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "chart.4",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "chart.5",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "chart.5",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "chart.6",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "chart.6",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "chart.7",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "chart.7",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "chart.8",
+        "bg": "bg.page",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "chart.8",
+        "bg": "bg.surface",
+        "min": 3.0,
+        "use": "graphic"
+      },
+      {
+        "theme": "dark",
+        "fg": "chart.axis",
+        "bg": "bg.surface",
+        "min": 4.5,
+        "use": "text"
+      },
+      {
+        "theme": "dark",
+        "fg": "text.inverse",
+        "bg": "text.primary",
+        "min": 4.5,
+        "use": "text (tooltip: inverse text on primary-text fill)"
+      }
+    ]
+  },
+  "icon": {
+    "$description": "Semantic icon map: one icon per concept in every app. fa = Font Awesome Free 6 canonical name (solid style unless noted, vendored in Clientst0r). lucide = equivalent Lucide name for apps that adopt Lucide; checked by name only, not vendored here. retired = FA 5 alias names still in Clientst0r templates, to be replaced by the canonical name.",
+    "concepts": {
+      "nav-dashboard": {
+        "fa": "gauge-high",
+        "lucide": "layout-dashboard",
+        "retired-fa": [
+          "tachometer-alt"
+        ],
+        "use": "Dashboard group"
+      },
+      "nav-my-work": {
+        "fa": "clipboard-check",
+        "lucide": "clipboard-check",
+        "retired-fa": [],
+        "use": "My Work group"
+      },
+      "nav-service-desk": {
+        "fa": "headset",
+        "lucide": "headset",
+        "retired-fa": [],
+        "use": "Service Desk group"
+      },
+      "nav-customers": {
+        "fa": "building",
+        "lucide": "building-2",
+        "retired-fa": [],
+        "use": "Customers / Clients group and a customer record"
+      },
+      "nav-assets": {
+        "fa": "server",
+        "lucide": "server",
+        "retired-fa": [],
+        "use": "Assets and Network group"
+      },
+      "nav-business": {
+        "fa": "briefcase",
+        "lucide": "briefcase",
+        "retired-fa": [],
+        "use": "Business group"
+      },
+      "nav-knowledge": {
+        "fa": "book-open",
+        "lucide": "book-open",
+        "retired-fa": [],
+        "use": "Knowledge and Vault group, KB article"
+      },
+      "nav-security": {
+        "fa": "shield-halved",
+        "lucide": "shield",
+        "retired-fa": [
+          "shield-alt"
+        ],
+        "use": "Security and Monitoring group"
+      },
+      "nav-reports": {
+        "fa": "chart-column",
+        "lucide": "chart-column",
+        "retired-fa": [
+          "chart-bar"
+        ],
+        "use": "Reports group"
+      },
+      "nav-admin": {
+        "fa": "gear",
+        "lucide": "settings",
+        "retired-fa": [
+          "cog"
+        ],
+        "use": "Administration / settings"
+      },
+      "app-switcher": {
+        "fa": "grip",
+        "lucide": "grip",
+        "retired-fa": [],
+        "use": "Application switcher button (only when a peer is configured)"
+      },
+      "ticket": {
+        "fa": "ticket",
+        "lucide": "ticket",
+        "retired-fa": [
+          "ticket-alt"
+        ],
+        "use": "Ticket"
+      },
+      "device": {
+        "fa": "desktop",
+        "lucide": "monitor",
+        "retired-fa": [],
+        "use": "Managed device / workstation"
+      },
+      "laptop": {
+        "fa": "laptop",
+        "lucide": "laptop",
+        "retired-fa": [],
+        "use": "Laptop"
+      },
+      "server-asset": {
+        "fa": "hard-drive",
+        "lucide": "hard-drive",
+        "retired-fa": [],
+        "use": "Storage / disk"
+      },
+      "network": {
+        "fa": "network-wired",
+        "lucide": "network",
+        "retired-fa": [],
+        "use": "Network, subnet, switch"
+      },
+      "wifi": {
+        "fa": "wifi",
+        "lucide": "wifi",
+        "retired-fa": [],
+        "use": "Wireless"
+      },
+      "printer": {
+        "fa": "print",
+        "lucide": "printer",
+        "retired-fa": [],
+        "use": "Printer / print action"
+      },
+      "credential": {
+        "fa": "key",
+        "lucide": "key-round",
+        "retired-fa": [],
+        "use": "Password / credential in the vault"
+      },
+      "locked": {
+        "fa": "lock",
+        "lucide": "lock",
+        "retired-fa": [],
+        "use": "Locked, restricted, secret"
+      },
+      "user": {
+        "fa": "user",
+        "lucide": "user",
+        "retired-fa": [],
+        "use": "Single user / contact"
+      },
+      "users": {
+        "fa": "users",
+        "lucide": "users",
+        "retired-fa": [],
+        "use": "Users, team, group"
+      },
+      "role": {
+        "fa": "user-shield",
+        "lucide": "user-cog",
+        "retired-fa": [],
+        "use": "Role, permission, access group"
+      },
+      "integration": {
+        "fa": "plug",
+        "lucide": "plug",
+        "retired-fa": [],
+        "use": "Integration / connected application"
+      },
+      "automation": {
+        "fa": "bolt",
+        "lucide": "zap",
+        "retired-fa": [],
+        "use": "Automation, workflow trigger"
+      },
+      "module": {
+        "fa": "puzzle-piece",
+        "lucide": "puzzle",
+        "retired-fa": [],
+        "use": "Module / feature toggle"
+      },
+      "ai": {
+        "fa": "robot",
+        "lucide": "bot",
+        "retired-fa": [],
+        "use": "OPTIONAL AI action (only when psa_ai_enabled)"
+      },
+      "remote-session": {
+        "fa": "terminal",
+        "lucide": "terminal",
+        "retired-fa": [],
+        "use": "Remote shell / session"
+      },
+      "invoice": {
+        "fa": "file-invoice-dollar",
+        "lucide": "receipt-text",
+        "retired-fa": [],
+        "use": "Invoice"
+      },
+      "contract": {
+        "fa": "file-contract",
+        "lucide": "file-pen-line",
+        "retired-fa": [],
+        "use": "Contract / agreement"
+      },
+      "payment": {
+        "fa": "credit-card",
+        "lucide": "credit-card",
+        "retired-fa": [],
+        "use": "Payment method"
+      },
+      "procurement": {
+        "fa": "truck",
+        "lucide": "truck",
+        "retired-fa": [],
+        "use": "Purchase order, shipping"
+      },
+      "inventory": {
+        "fa": "boxes-stacked",
+        "lucide": "boxes",
+        "retired-fa": [],
+        "use": "Stock / inventory"
+      },
+      "vehicle": {
+        "fa": "car",
+        "lucide": "car",
+        "retired-fa": [],
+        "use": "Vehicle"
+      },
+      "document": {
+        "fa": "file-lines",
+        "lucide": "file-text",
+        "retired-fa": [
+          "file-alt"
+        ],
+        "use": "Document"
+      },
+      "folder": {
+        "fa": "folder",
+        "lucide": "folder",
+        "retired-fa": [],
+        "use": "Folder / category"
+      },
+      "attachment": {
+        "fa": "paperclip",
+        "lucide": "paperclip",
+        "retired-fa": [],
+        "use": "Attachment"
+      },
+      "comment": {
+        "fa": "comment",
+        "lucide": "message-square",
+        "retired-fa": [],
+        "use": "Reply / note / comment"
+      },
+      "monitoring": {
+        "fa": "heart-pulse",
+        "lucide": "heart-pulse",
+        "retired-fa": [],
+        "use": "Uptime / health check"
+      },
+      "trend": {
+        "fa": "chart-line",
+        "lucide": "chart-line",
+        "retired-fa": [],
+        "use": "Trend / time series"
+      },
+      "schedule": {
+        "fa": "calendar-days",
+        "lucide": "calendar-days",
+        "retired-fa": [
+          "calendar-alt"
+        ],
+        "use": "Calendar, schedule, date picker"
+      },
+      "time": {
+        "fa": "clock",
+        "lucide": "clock",
+        "retired-fa": [],
+        "use": "Time entry, SLA timer, timestamp"
+      },
+      "history": {
+        "fa": "clock-rotate-left",
+        "lucide": "history",
+        "retired-fa": [
+          "history"
+        ],
+        "use": "Audit trail, recent records"
+      },
+      "notification": {
+        "fa": "bell",
+        "lucide": "bell",
+        "retired-fa": [],
+        "use": "Notifications"
+      },
+      "favorite": {
+        "fa": "star",
+        "lucide": "star",
+        "retired-fa": [],
+        "use": "Favorite (regular = off, solid = on)"
+      },
+      "pin": {
+        "fa": "thumbtack",
+        "lucide": "pin",
+        "retired-fa": [],
+        "use": "Pin to strip / sidebar"
+      },
+      "help": {
+        "fa": "circle-question",
+        "lucide": "circle-help",
+        "retired-fa": [
+          "question-circle"
+        ],
+        "use": "Help and documentation"
+      },
+      "email": {
+        "fa": "envelope",
+        "lucide": "mail",
+        "retired-fa": [],
+        "use": "Email"
+      },
+      "phone": {
+        "fa": "phone",
+        "lucide": "phone",
+        "retired-fa": [],
+        "use": "Phone"
+      },
+      "location": {
+        "fa": "location-dot",
+        "lucide": "map-pin",
+        "retired-fa": [
+          "map-marker-alt"
+        ],
+        "use": "Site / address"
+      },
+      "home": {
+        "fa": "house",
+        "lucide": "house",
+        "retired-fa": [
+          "home"
+        ],
+        "use": "Home / portal start"
+      },
+      "inbox": {
+        "fa": "inbox",
+        "lucide": "inbox",
+        "retired-fa": [],
+        "use": "Queue / inbox"
+      },
+      "tasks": {
+        "fa": "list-check",
+        "lucide": "list-checks",
+        "retired-fa": [
+          "tasks"
+        ],
+        "use": "Task list, checklist"
+      },
+      "tag": {
+        "fa": "tag",
+        "lucide": "tag",
+        "retired-fa": [],
+        "use": "Tag / label"
+      },
+      "bookmark": {
+        "fa": "bookmark",
+        "lucide": "bookmark",
+        "retired-fa": [],
+        "use": "Saved view"
+      },
+      "action-add": {
+        "fa": "plus",
+        "lucide": "plus",
+        "retired-fa": [],
+        "use": "Create / add"
+      },
+      "action-edit": {
+        "fa": "pen-to-square",
+        "lucide": "square-pen",
+        "retired-fa": [
+          "edit"
+        ],
+        "use": "Edit a record (use pen for inline field edit)"
+      },
+      "action-edit-inline": {
+        "fa": "pen",
+        "lucide": "pencil",
+        "retired-fa": [
+          "pencil-alt"
+        ],
+        "use": "Inline field edit"
+      },
+      "action-delete": {
+        "fa": "trash-can",
+        "lucide": "trash-2",
+        "retired-fa": [
+          "trash",
+          "trash-alt"
+        ],
+        "use": "Delete (always confirmed)"
+      },
+      "action-search": {
+        "fa": "magnifying-glass",
+        "lucide": "search",
+        "retired-fa": [
+          "search"
+        ],
+        "use": "Search"
+      },
+      "action-filter": {
+        "fa": "filter",
+        "lucide": "funnel",
+        "retired-fa": [],
+        "use": "Filter"
+      },
+      "action-sort": {
+        "fa": "sort",
+        "lucide": "arrow-up-down",
+        "retired-fa": [],
+        "use": "Sortable column"
+      },
+      "action-refresh": {
+        "fa": "arrows-rotate",
+        "lucide": "refresh-cw",
+        "retired-fa": [
+          "sync",
+          "sync-alt",
+          "redo"
+        ],
+        "use": "Refresh / sync now"
+      },
+      "action-undo": {
+        "fa": "rotate-left",
+        "lucide": "undo-2",
+        "retired-fa": [
+          "undo"
+        ],
+        "use": "Undo / revert"
+      },
+      "action-save": {
+        "fa": "floppy-disk",
+        "lucide": "save",
+        "retired-fa": [
+          "save"
+        ],
+        "use": "Save"
+      },
+      "action-copy": {
+        "fa": "copy",
+        "lucide": "copy",
+        "retired-fa": [],
+        "use": "Copy to clipboard"
+      },
+      "action-link": {
+        "fa": "link",
+        "lucide": "link",
+        "retired-fa": [],
+        "use": "Link / relate records"
+      },
+      "action-external": {
+        "fa": "arrow-up-right-from-square",
+        "lucide": "external-link",
+        "retired-fa": [
+          "external-link-alt"
+        ],
+        "use": "Opens outside the page / in a peer app"
+      },
+      "action-upload": {
+        "fa": "upload",
+        "lucide": "upload",
+        "retired-fa": [],
+        "use": "Upload / import"
+      },
+      "action-download": {
+        "fa": "download",
+        "lucide": "download",
+        "retired-fa": [],
+        "use": "Download / export"
+      },
+      "action-more": {
+        "fa": "ellipsis",
+        "lucide": "ellipsis",
+        "retired-fa": [
+          "ellipsis-h"
+        ],
+        "use": "Row overflow menu"
+      },
+      "action-close": {
+        "fa": "xmark",
+        "lucide": "x",
+        "retired-fa": [
+          "times"
+        ],
+        "use": "Close dialog / dismiss / clear"
+      },
+      "action-confirm": {
+        "fa": "check",
+        "lucide": "check",
+        "retired-fa": [],
+        "use": "Confirm, selected"
+      },
+      "action-sign-out": {
+        "fa": "right-from-bracket",
+        "lucide": "log-out",
+        "retired-fa": [
+          "sign-out-alt"
+        ],
+        "use": "Sign out"
+      },
+      "show": {
+        "fa": "eye",
+        "lucide": "eye",
+        "retired-fa": [],
+        "use": "Reveal secret / view"
+      },
+      "hide": {
+        "fa": "eye-slash",
+        "lucide": "eye-off",
+        "retired-fa": [],
+        "use": "Hide secret"
+      },
+      "drag-handle": {
+        "fa": "grip-vertical",
+        "lucide": "grip-vertical",
+        "retired-fa": [],
+        "use": "Reorder handle"
+      },
+      "menu": {
+        "fa": "bars",
+        "lucide": "menu",
+        "retired-fa": [],
+        "use": "Open the navigation drawer (phones)"
+      },
+      "expand": {
+        "fa": "chevron-down",
+        "lucide": "chevron-down",
+        "retired-fa": [],
+        "use": "Expand / dropdown"
+      },
+      "next": {
+        "fa": "chevron-right",
+        "lucide": "chevron-right",
+        "retired-fa": [],
+        "use": "Next, drill in, breadcrumb separator"
+      },
+      "layout-grid": {
+        "fa": "table-cells-large",
+        "lucide": "layout-grid",
+        "retired-fa": [],
+        "use": "Card / grid view"
+      },
+      "theme-light": {
+        "fa": "sun",
+        "lucide": "sun",
+        "retired-fa": [],
+        "use": "Light theme"
+      },
+      "theme-dark": {
+        "fa": "moon",
+        "lucide": "moon",
+        "retired-fa": [],
+        "use": "Dark theme"
+      },
+      "theme-system": {
+        "fa": "circle-half-stroke",
+        "lucide": "sun-moon",
+        "retired-fa": [],
+        "use": "Follow system theme"
+      },
+      "status-success": {
+        "fa": "circle-check",
+        "lucide": "circle-check",
+        "retired-fa": [
+          "check-circle"
+        ],
+        "use": "Healthy / success (always with text)"
+      },
+      "status-warning": {
+        "fa": "triangle-exclamation",
+        "lucide": "triangle-alert",
+        "retired-fa": [
+          "exclamation-triangle"
+        ],
+        "use": "Warning"
+      },
+      "status-danger": {
+        "fa": "circle-exclamation",
+        "lucide": "circle-alert",
+        "retired-fa": [
+          "exclamation-circle"
+        ],
+        "use": "Critical / error"
+      },
+      "status-info": {
+        "fa": "circle-info",
+        "lucide": "info",
+        "retired-fa": [
+          "info-circle"
+        ],
+        "use": "Information"
+      },
+      "status-pending": {
+        "fa": "hourglass-half",
+        "lucide": "hourglass",
+        "retired-fa": [],
+        "use": "Pending approval / waiting"
+      },
+      "status-failed": {
+        "fa": "circle-xmark",
+        "lucide": "circle-x",
+        "retired-fa": [
+          "times-circle"
+        ],
+        "use": "Failed / rejected"
+      },
+      "status-paused": {
+        "fa": "circle-pause",
+        "lucide": "circle-pause",
+        "retired-fa": [],
+        "use": "Paused / on hold"
+      },
+      "status-unknown": {
+        "fa": "circle-question",
+        "lucide": "circle-help",
+        "retired-fa": [],
+        "use": "Unknown / stale (with last-sync time)"
+      },
+      "loading": {
+        "fa": "spinner",
+        "lucide": "loader-circle",
+        "retired-fa": [],
+        "use": "Loading (fa-spin; static under reduced motion)"
+      }
+    }
+  }
+}

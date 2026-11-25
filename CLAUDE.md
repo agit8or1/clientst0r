@@ -50,6 +50,42 @@ Security labelling: the in-app update badge turns into a red "Security Update" o
 - AI-assisted features must be explicitly tagged **OPTIONAL AI** in the roadmap and gated by `psa_ai_enabled`.
 - Don't position planned items as fully implemented. Use "planned", "in progress", "extends X (shipped vN.N.N)" markers.
 
+## Standalone operation and optional integration (permanent)
+
+Clientst0r is a complete, independently deployable application. Running it with no RMM, with Rem0te, with another
+supported RMM, with several providers, or next to unrelated software are all first-class configurations.
+
+- Never require Rem0te, another MSPZero app, Agit8or Connect, a central server or a shared identity provider for any
+  local feature, for install, setup, sign-in, upgrade, backup or restore. Clientst0r keeps its own installer, database,
+  local authentication and break-glass recovery, users, customers, roles, settings, API, AI configuration, notifications,
+  reports, backups, updates and documentation.
+- Don't restrict standalone features to push adoption of Rem0te, and don't degrade other RMM integrations in its favour.
+- Standalone UI: no application switcher when no peer is configured, no peer-only widgets, nav sections or empty space,
+  no nags, upsells or broken controls. Optional integrations stay discoverable in Administration → Integrations.
+- Paired UI shows only capabilities both installed versions support.
+- Fault isolation: outbound calls have bounded timeouts, limited retries with backoff, and stay off the page-render path;
+  a down, slow, revoked or incompatible peer never blocks local pages; external data shows its last successful sync
+  time and is never shown as current or healthy when stale.
+- Removing or disabling an integration never deletes local customer data, tickets, documents, billing or audit records.
+- Cross-app security: never share cookies or sessions between apps, never trust a peer's customer ID, role or user
+  without verification, no arbitrary redirect URLs, no secrets in URLs. Protocol changes go through the integration
+  coordination document; never edit the Rem0te repository from here.
+- Clientst0r never executes privileged actions in an RMM directly (nor does AI): it requests and records; the RMM
+  authorizes and executes.
+
+Details and the test matrix: `docs/ux/STANDALONE_REQUIREMENTS.md`, `docs/ux/CROSS_APP_UX_CONTRACT.md`.
+
+## Shared design system
+
+- The design specification (`docs/ux/SHARED_DESIGN_SYSTEM.md`, `docs/ux/design-tokens.json`, semver) is a
+  development-time spec, not a runtime dependency: every app bundles its own CSS, fonts and icons; no CDNs and no assets
+  loaded from another app.
+- Use semantic tokens instead of hard-coded colours and sizes in new or changed templates; text and UI colour pairs must
+  meet WCAG 2.2 AA (`scripts/ux/check_design_tokens.py`, `core/tests/test_design_tokens.py`).
+- Changing a token is a spec version change: bump the version in `design-tokens.json` and note it in
+  `docs/ux/REM0TE_HANDOFF.md`.
+- Never remove an approval, confirmation, step-up or server-side check to save a click.
+
 ## Dev workflow
 
 - All edits go through `/home/administrator/.dev-worktree/` on the `dev-work` branch.
