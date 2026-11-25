@@ -26,13 +26,13 @@ Effective MSP operations rely on accurate, accessible documentation. Clientst0r 
 - Encrypted backups via the `manage.py backup` command
 
 ### Knowledge Base
-- Per-organization documentation with a saved version on every edit; compare and restore versions
+- Per-organization documentation (see [Documents and diagrams](DOCUMENTS_AND_DIAGRAMS.md)); a version is saved when an edit changes the title, body or editor type; compare and restore versions
 - Document owners, review intervals, drafts, publish approval and an Archived list
 - Template drift: see which documents are behind their template, with a diff
 - KB analytics: most and never viewed, overdue reviews, searches that found nothing
 - Global MSP knowledge base (MSP staff only)
-- Draw.io diagram integration
-- Floor plan import (MagicPlan)
+- Diagrams drawn in the draw.io editor (loaded from `embed.diagrams.net`, so the browser needs internet access to it), saved per customer with a PNG preview and a .drawio download
+- Floor plan import from MagicPlan JSON exports: creates floor plan records on a location (not diagrams); the import job pages are superuser-only
 - SOPs and runbooks
 
 ### Documentation Readiness
@@ -54,6 +54,8 @@ Effective MSP operations rely on accurate, accessible documentation. Clientst0r 
 - PSA providers (ConnectWise Manage, Autotask, HaloPSA, Kaseya BMS, Syncro, Freshservice, Zendesk, ITFlow) — companies, contacts and tickets; RangerMSP and Alga PSA newly added (Limited)
 - 5 RMM providers (Tactical RMM, NinjaOne, Datto RMM, Atera, ConnectWise Automate) — devices, alerts and software
 - REST API v1 and GraphQL API v2
+
+For how to use documents, categories, templates and diagrams, read [Documents and diagrams](DOCUMENTS_AND_DIAGRAMS.md).
 
 ## Goal
 

@@ -55,7 +55,7 @@
                     <h6><i class="fas fa-exclamation-triangle"></i> Security Reminder</h6>
                     <ul class="mb-0 small">
                         <li>This link provides access to encrypted content - share it securely</li>
-                        <li>The note is encrypted end-to-end in the database</li>
+                        <li>The note is encrypted at rest in the database</li>
                         {% if note.expires_at %}
                         <li>Link expires: <strong>{{ note.expires_at|localtime|date:"M d, Y g:i A" }}</strong></li>
                         {% else %}
@@ -100,7 +100,7 @@
                 <ul class="small mb-0">
                     <li>View all your secret links in the <a href="{% url 'core:secure_note_sent' %}">Sent Notes</a> page</li>
                     <li>You can manually expire/delete links at any time</li>
-                    <li>Track read count (coming in Phase 2)</li>
+                    <li>See each view (time, IP address, browser) under Analytics on the Secret Links page</li>
                 </ul>
             </div>
         </div>

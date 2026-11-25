@@ -17,10 +17,12 @@
         </div>
     </div>
     <div class="btn-group">
-        {% if not diagram.is_global %}
+        {% if can_edit_diagram %}
         <a href="{% url 'docs:diagram_edit' diagram.slug %}" class="btn btn-primary">
             <i class="fas fa-edit"></i> Edit
         </a>
+        {% endif %}
+        {% if can_delete_diagram %}
         <a href="{% url 'docs:diagram_delete' diagram.slug %}" class="btn btn-outline-danger">
             <i class="fas fa-trash"></i> Delete
         </a>

@@ -557,3 +557,27 @@ class AnalyticsTests(_Base):
     def test_analytics_staff_only(self):
         r = self.client_for(self.publisher).get(reverse('docs:kb_analytics'))
         self.assertEqual(r.status_code, 403)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class ReviewQueueMarkReviewedTests(_Base):
+    """The review queue lists every customer's overdue articles for staff, and
+    slugs are only unique per customer, so its Mark reviewed form must name
+    the article by pk (otherwise it could reset another customer's article)."""
+
+    def test_mark_reviewed_targets_the_listed_article(self):
+        old = timezone.now() - timedelta(days=400)
+        mine = Document.objects.create(organization=self.org, title='Shared slug', slug='shared-slug',
+                                       body='b', created_by=self.staff, owner=self.staff,
+                                       last_reviewed_at=old, review_interval_days=90)
+        theirs = Document.objects.create(organization=self.other_org, title='Shared slug', slug='shared-slug',
+                                         body='b', created_by=self.staff, owner=self.staff,
+                                         last_reviewed_at=old, review_interval_days=90)
+        c = self.client_for(self.staff)
+        r = c.get(reverse('docs:kb_review_queue'))
+        self.assertContains(r, f'name="pk" value="{theirs.pk}"')
+        # Working in "Lifecycle Co", mark the other customer's article reviewed.
+        c.post(reverse('docs:kb_mark_reviewed', args=['shared-slug']), {'pk': theirs.pk})
+        mine.refresh_from_db(); theirs.refresh_from_db()
+        self.assertEqual(mine.last_reviewed_at, old)
+        self.assertGreater(theirs.last_reviewed_at, old)

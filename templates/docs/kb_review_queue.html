@@ -68,6 +68,7 @@
                 <td class="text-end">
                     <form method="post" action="{% url 'docs:kb_mark_reviewed' d.slug %}" class="d-inline">
                         {% csrf_token %}
+                        <input type="hidden" name="pk" value="{{ d.pk }}">
                         <button type="submit" class="btn btn-sm btn-outline-success">
                             <i class="fas fa-check me-1"></i>Mark reviewed
                         </button>

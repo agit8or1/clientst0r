@@ -10,7 +10,7 @@
             <h1><i class="fas fa-download"></i> Import Job #{{ job.id }}</h1>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{% url 'imports:import_list' %}">Import Jobs</a></li>
+                    {% if request.user.is_superuser %}<li class="breadcrumb-item"><a href="{% url 'imports:import_list' %}">Import Jobs</a></li>{% else %}<li class="breadcrumb-item"><a href="{% url 'locations:floor_plan_import' %}">Floor plan import</a></li>{% endif %}
                     <li class="breadcrumb-item active">Job #{{ job.id }}</li>
                 </ol>
             </nav>
@@ -30,18 +30,18 @@
             </form>
             {% endif %}
             {% if job.status == 'pending' %}
-            <a href="{% url 'imports:import_edit' job.pk %}" class="btn btn-secondary">
+            {% if request.user.is_superuser %}<a href="{% url 'imports:import_edit' job.pk %}" class="btn btn-secondary">
                 <i class="fas fa-edit"></i> Edit
-            </a>
+            </a>{% endif %}
             {% endif %}
             {% if job.can_rollback %}
-            <a href="{% url 'imports:import_rollback' job.pk %}" class="btn btn-warning">
+            {% if can_remove_job %}<a href="{% url 'imports:import_rollback' job.pk %}" class="btn btn-warning">
                 <i class="fas fa-undo"></i> Rollback
-            </a>
+            </a>{% endif %}
             {% endif %}
-            <a href="{% url 'imports:import_delete' job.pk %}" class="btn btn-danger">
+            {% if can_remove_job %}<a href="{% url 'imports:import_delete' job.pk %}" class="btn btn-danger">
                 <i class="fas fa-trash"></i> Delete
-            </a>
+            </a>{% endif %}
         </div>
     </div>
 
@@ -297,9 +297,9 @@
                     {% endif %}
 
                     {% if job.status == 'pending' %}
-                    <a href="{% url 'imports:import_edit' job.pk %}" class="btn btn-secondary w-100 mb-2">
+                    {% if request.user.is_superuser %}<a href="{% url 'imports:import_edit' job.pk %}" class="btn btn-secondary w-100 mb-2">
                         <i class="fas fa-edit"></i> Edit Configuration
-                    </a>
+                    </a>{% endif %}
                     {% endif %}
 
                     <a href="{% url 'imports:import_log' job.pk %}" class="btn btn-outline-primary w-100 mb-2">
@@ -308,9 +308,9 @@
 
                     <hr>
 
-                    <a href="{% url 'imports:import_delete' job.pk %}" class="btn btn-danger w-100">
+                    {% if can_remove_job %}<a href="{% url 'imports:import_delete' job.pk %}" class="btn btn-danger w-100">
                         <i class="fas fa-trash"></i> Delete Job
-                    </a>
+                    </a>{% endif %}
                 </div>
             </div>
 

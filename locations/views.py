@@ -892,6 +892,9 @@ def floor_plan_import(request):
         if form.is_valid():
             job = form.save(commit=False)
             job.source_type = 'magicplan'  # Force MagicPlan type
+            job.target_organization = organization  # always the selected customer
+            if job.target_location_id and job.target_location.organization_id != organization.pk:
+                job.target_location = None
             job.started_by = request.user
             job.import_floor_plans = True
             # Disable other import types for floor plans

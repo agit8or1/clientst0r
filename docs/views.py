@@ -68,6 +68,33 @@ def _docs_flag(action):
     return decorator
 
 
+# First path segments that docs/urls.py routes before the `<slug>/` catch-alls:
+# a slug equal to one of these could never be opened.
+_RESERVED_DOC_SLUGS = {
+    'create', 'upload', 'import', 'ai', 'export', 'review-queue', 'approval-queue',
+    'lifecycle', 'id', 'templates', 'kb', 'bulk', 'customer-groups', 'categories',
+    'diagrams', 'api',
+}
+_RESERVED_DIAGRAM_SLUGS = {'create', 'templates'}
+
+
+def _unique_slug(model, org, title, reserved=(), fallback='untitled', exclude_pk=None):
+    """A slug for `title` that is free in `org` and cannot collide with a fixed
+    URL. Slugs are unique per customer; the forms leave the slug out, so
+    without this a second document with the same title was an IntegrityError
+    (HTTP 500)."""
+    base = slugify(title) or fallback
+    max_len = model._meta.get_field('slug').max_length
+    base = base[:max_len - 6]
+    slug, n = base, 2
+    taken = model.objects.filter(organization=org)
+    if exclude_pk:
+        taken = taken.exclude(pk=exclude_pk)
+    while slug in reserved or taken.filter(slug=slug).exists():
+        slug, n = f'{base}-{n}', n + 1
+    return slug
+
+
 def _uploaded_file_type(request, field_name, file_name=None):
     """
     Resolve the MIME type of an uploaded file.
@@ -426,7 +453,7 @@ def document_create(request):
         if form.is_valid():
             document = form.save(commit=False)
             document.organization = org
-            document.slug = slugify(document.title)
+            document.slug = _unique_slug(Document, org, document.title, _RESERVED_DOC_SLUGS, 'document')
             document.created_by = request.user
             document.last_modified_by = request.user
             document.is_template = False  # Ensure created docs are not templates
@@ -447,7 +474,7 @@ def document_create(request):
                 if not document.title or document.title == '':
                     import os
                     document.title = os.path.splitext(document.file.name)[0]
-                    document.slug = slugify(document.title)
+                    document.slug = _unique_slug(Document, org, document.title, _RESERVED_DOC_SLUGS, 'document')
 
             made_global = _apply_make_global(form, document)
             document.save()
@@ -1200,9 +1227,11 @@ def global_kb_create(request):
             document.created_by = request.user
             document.last_modified_by = request.user
             _link_source_template(request, org, document, any_org=True)
-            if not document.slug:
-                document.slug = slugify(document.title)
             scoped = _apply_kb_scope(form, document)
+            # Free in the organization the article is filed under (a scoped
+            # article moves to that customer); a repeated title used to be a 500.
+            document.slug = _unique_slug(Document, document.organization, document.title,
+                                         _RESERVED_DOC_SLUGS, 'article')
             note = apply_publish_rules(
                 document, request.user,
                 requested_publish=form.cleaned_data.get('is_published'),
@@ -1340,7 +1369,7 @@ def template_create(request):
         if form.is_valid():
             template = form.save(commit=False)
             template.organization = org
-            template.slug = slugify(template.title)
+            template.slug = _unique_slug(Document, org, template.title, _RESERVED_DOC_SLUGS, 'template')
             template.created_by = request.user
             template.last_modified_by = request.user
             template.is_template = True  # Force as template
@@ -1533,11 +1562,16 @@ def diagram_detail(request, slug):
     # Get versions
     versions = diagram.versions.all()[:10]  # Last 10 versions
 
+    # Edit and Delete work only on the selected customer's own diagram, for a
+    # role holding docs_edit / docs_delete there; show the buttons only then.
+    own = org is not None and diagram.organization_id == org.pk
     return render(request, 'docs/diagram_detail.html', {
         'diagram': diagram,
         'versions': versions,
         'current_organization': org,
         'in_global_view': in_global_view,
+        'can_edit_diagram': own and can_edit_in_org(request.user, org, 'edit'),
+        'can_delete_diagram': own and can_edit_in_org(request.user, org, 'delete'),
     })
 
 
@@ -1581,6 +1615,7 @@ def diagram_create(request):
         if form.is_valid():
             diagram = form.save(commit=False)
             diagram.organization = org
+            diagram.slug = _unique_slug(Diagram, org, diagram.title, _RESERVED_DIAGRAM_SLUGS, 'diagram')
             diagram.created_by = request.user
             diagram.last_modified_by = request.user
             # If from template, use template's XML; otherwise empty
@@ -1765,7 +1800,7 @@ def diagram_template_create(request):
         if form.is_valid():
             template = form.save(commit=False)
             template.organization = org
-            template.slug = slugify(template.title)
+            template.slug = _unique_slug(Diagram, org, template.title, _RESERVED_DIAGRAM_SLUGS, 'diagram')
             template.created_by = request.user
             template.last_modified_by = request.user
             template.is_template = True  # Force as template
@@ -1907,6 +1942,7 @@ def category_create(request):
         if form.is_valid():
             category = form.save(commit=False)
             category.organization = target_org  # may be None for global
+            category.slug = _unique_slug(DocumentCategory, target_org, category.name, fallback='category')
             category.save()
             messages.success(request, f"Category '{category.name}' created successfully.")
             response = redirect('docs:category_list')

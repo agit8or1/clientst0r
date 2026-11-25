@@ -432,3 +432,54 @@ class ImportScreensAreSuperuserOnlyTests(TestCase):
         self.assertEqual(self.client.get(url).status_code, 302)
         self.client.force_login(su)
         self.assertEqual(self.client.get(url).status_code, 200)
+
+
+@override_settings(MIDDLEWARE=_TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class FloorPlanJobAccessTests(TestCase):
+    """Owner's decision (2026-11-25): floor plan import can be anyone. A
+    floor-plan-only MagicPlan job may be followed through by anyone who may add
+    assets at its customer (the people who can open Import Floor Plans);
+    rolling it back or deleting it needs asset delete there. Every other
+    import stays superuser-only."""
+
+    def setUp(self):
+        from accounts.models import Membership, Role
+        self.org = Organization.objects.create(name='Plan Co', slug='plan-co')
+        self.other = Organization.objects.create(name='Other Plan Co', slug='other-plan-co')
+        self.editor = User.objects.create_user('fp_editor', 'e@x.test', 'pw')
+        Membership.objects.create(user=self.editor, organization=self.org, role=Role.EDITOR, is_active=True)
+        self.reader = User.objects.create_user('fp_reader', 'r@x.test', 'pw')
+        Membership.objects.create(user=self.reader, organization=self.org, role=Role.READONLY, is_active=True)
+
+    def _job(self, org=None, **flags):
+        values = dict(source_type='magicplan', target_organization=org or self.org, import_floor_plans=True,
+                      import_assets=False, import_passwords=False, import_documents=False,
+                      import_contacts=False, import_locations=False, import_networks=False)
+        values.update(flags)
+        return ImportJob.objects.create(**values)
+
+    def _get(self, user, name, job):
+        from django.urls import reverse
+        self.client.force_login(user)
+        s = self.client.session
+        s['current_organization_id'] = self.org.pk
+        s['2fa_prompted'] = True
+        s.save()
+        return self.client.get(reverse(name, args=[job.pk]))
+
+    def test_asset_creator_can_follow_a_floor_plan_job(self):
+        job = self._job()
+        for name in ('imports:import_detail', 'imports:import_start', 'imports:import_log'):
+            self.assertEqual(self._get(self.editor, name, job).status_code, 200, name)
+        html = self._get(self.editor, 'imports:import_detail', job).content.decode()
+        self.assertNotIn(f'/imports/{job.pk}/edit/', html)
+
+    def test_other_imports_stay_superuser_only(self):
+        job = self._job(import_passwords=True)
+        self.assertEqual(self._get(self.editor, 'imports:import_detail', job).status_code, 403)
+        hudu = self._job(source_type='hudu')
+        self.assertEqual(self._get(self.editor, 'imports:import_detail', hudu).status_code, 403)
+
+    def test_another_customers_job_and_read_only_roles_are_refused(self):
+        self.assertEqual(self._get(self.editor, 'imports:import_detail', self._job(org=self.other)).status_code, 403)
+        self.assertEqual(self._get(self.reader, 'imports:import_detail', self._job()).status_code, 403)

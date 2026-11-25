@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.778] - 2026-11-25
+
+### Added
+- **Knowledge and vault guides with annotated screenshots** (Clientst0r Docs → Everyday work):
+  - *Documents and Diagrams*: writing and organising customer documents, versions, templates, diagrams and
+    floor-plan imports.
+  - *Knowledge Base*: writing, review, approval and publishing, keeping articles current, and documentation
+    readiness.
+  - *Password Vault*: shared credentials, reveal and approval, two-factor codes, My Vault, secure notes and secret
+    links.
+
+### Changed
+- **Floor-plan import is open to anyone who may add assets at that customer**, not only superusers. They see and
+  run only their own customer's floor-plan jobs; rolling back or deleting one needs permission to delete assets.
+  IT Glue, Hudu and other imports stay superuser-only.
+
+### Fixed
+- **Audit log:**
+  - Licence keys, secure-note text and note content are no longer written into audit entries, and secret-link
+    addresses are no longer recorded. Older entries that hold them are shown redacted (the stored records are left
+    untouched so the audit chain still verifies).
+- **Password vault:**
+  - The password list escapes entry names and fields properly.
+  - A password revealed in Global View is recorded under the entry's own customer.
+  - Approving or denying a reveal request from the list returns you to the list.
+  - The Copy button copies the password, and "Modified" shows when the entry last changed.
+  - A secure note's access password can't be left empty when protection is switched on.
+  - The secret-links summary cards count correctly, and the note form says "Encrypted at rest on the server".
+- **Documents and diagrams:**
+  - Two documents (or knowledge base articles) with the same title no longer collide on their address.
+  - Diagram templates and categories no longer ask for a slug by hand; category icons show.
+  - A diagram's Edit and Delete buttons appear only to people who may use them.
+- **Knowledge base:** *Mark reviewed* in the review queue works.
+
 ## [3.17.777] - 2026-11-25
 
 ### Added

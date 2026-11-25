@@ -52,6 +52,14 @@ SECTION_GUIDES = {
     'psa_procurement': 'procurement',
     'psa_vendors': 'procurement',
     'mod_health': 'client-health',
+    'docs_documents': 'documents-and-diagrams',
+    'docs_diagrams': 'documents-and-diagrams',
+    'docs_kb': 'knowledge-base',
+    'docs_review': 'knowledge-base',
+    'docs_readiness': 'knowledge-base',
+    'vault_passwords': 'password-vault',
+    'vault_personal': 'password-vault',
+    'vault_notes': 'password-vault',
     'settings_access': 'roles-and-access',
     'settings_integrations': 'integrations',
     'settings_system': 'auto-update',
@@ -62,9 +70,6 @@ SECTION_GUIDES = {
 
 # Sections without a guide yet, by roadmap batch.
 PENDING_SECTIONS = frozenset({
-    # 112.5 Knowledge and vault
-    'docs_documents', 'docs_kb', 'docs_diagrams', 'docs_review', 'docs_readiness', 'vault_passwords',
-    'vault_personal', 'vault_notes',
     # 112.6 Security and monitoring
     'mod_security', 'mod_security_ops', 'ops_monitoring',
     # 112.7 Reports

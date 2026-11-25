@@ -11,7 +11,45 @@ from .models import AuditLog
 # Any field or query parameter whose name looks like a credential
 # (shared_secret, access_token, client_secret, ca_bundle private keys, ...).
 _SENSITIVE_KEY = re.compile(r'(?i)(password|passwd|secret|token|api_?key|credential|private|'
-                            r'passphrase|auth)')
+                            r'passphrase|auth|license_?key|secure_?notes)')
+
+# Pages whose free-text `content` field is itself the secret: a secure note's
+# message and a My Vault note. Elsewhere `content` is ordinary text.
+_SECRET_CONTENT_PATHS = ('/vault/', '/core/secure-notes/')
+
+
+_ALWAYS_SENSITIVE = {'password', 'password1', 'password2', 'old_password', 'new_password',
+                     'secret', 'token', 'api_key', 'csrfmiddlewaretoken'}
+REDACTED = '***REDACTED***'
+
+
+def is_sensitive_field(key, path=''):
+    """True when a form field or query parameter must never be stored or shown
+    in the audit log."""
+    k = (key or '').lower()
+    return (k in _ALWAYS_SENSITIVE or bool(_SENSITIVE_KEY.search(k))
+            or (k == 'content' and (path or '').startswith(_SECRET_CONTENT_PATHS)))
+
+
+def redact_path(path):
+    """A secret link's path is its bearer token."""
+    if path and path.startswith('/core/secret/'):
+        return '/core/secret/' + REDACTED
+    return path
+
+
+def redacted_extra(extra_data, path=''):
+    """extra_data as it may be shown. Entries written before v3.17.779 kept
+    licence keys and secure-note text; stored rows stay as they are (they are
+    sealed into the audit chain), so the rule is applied again on display."""
+    if not isinstance(extra_data, dict):
+        return extra_data
+    shown = dict(extra_data)
+    for section in ('form_data', 'query_params'):
+        values = shown.get(section)
+        if isinstance(values, dict):
+            shown[section] = {k: (REDACTED if is_sensitive_field(k, path) else v) for k, v in values.items()}
+    return shown
 
 
 class AuditLoggingMiddleware(MiddlewareMixin):
@@ -31,6 +69,9 @@ class AuditLoggingMiddleware(MiddlewareMixin):
         # Public contract signing pages: the path carries a signing token or
         # invitation id. contracts.events writes its own audit entries.
         '/sign/',
+        # Secret links: the path is the link's bearer token, and the message
+        # is shown once. securenotes_views writes SecureNoteAccessLog rows.
+        '/core/secret/',
     ]
 
     # Methods that indicate data modification
@@ -87,7 +128,7 @@ class AuditLoggingMiddleware(MiddlewareMixin):
         # Add query params for GET requests
         if request.method == 'GET' and request.GET:
             extra_data['query_params'] = {
-                k: ('***REDACTED***' if _SENSITIVE_KEY.search(k) else v)
+                k: (REDACTED if is_sensitive_field(k, request.path) else v)
                 for k, v in request.GET.lists()}
 
         # Add form data for POST requests (excluding passwords)
@@ -95,10 +136,8 @@ class AuditLoggingMiddleware(MiddlewareMixin):
             form_data = {}
             for key, value in request.POST.items():
                 # Don't log sensitive fields
-                if key.lower() in ['password', 'password1', 'password2', 'old_password',
-                                  'new_password', 'secret', 'token', 'api_key', 'csrfmiddlewaretoken'] \
-                        or _SENSITIVE_KEY.search(key):
-                    form_data[key] = '***REDACTED***'
+                if is_sensitive_field(key, request.path):
+                    form_data[key] = REDACTED
                 else:
                     form_data[key] = value[:100]  # Limit length
             extra_data['form_data'] = form_data

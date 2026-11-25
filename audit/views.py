@@ -156,6 +156,9 @@ def audit_log_detail(request, pk):
     org = get_request_organization(request)
     log = get_object_or_404(AuditLog, pk=pk, organization=org)
 
+    from .middleware import redact_path, redacted_extra
     return render(request, 'audit/audit_log_detail.html', {
         'log': log,
+        'shown_extra': redacted_extra(log.extra_data, log.path),
+        'shown_path': redact_path(log.path),
     })

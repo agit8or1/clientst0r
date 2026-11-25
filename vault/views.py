@@ -107,9 +107,11 @@ def password_list_datatables(request):
     # Build data array
     data = []
     for password in passwords:
-        # Get tags HTML
+        # Get tags HTML. Every value written into this HTML is escaped:
+        # titles, usernames, URLs and tag names are typed by anyone with
+        # vault_create, and DataTables inserts the cells as HTML.
         tags_html = ''.join([
-            f'<span class="badge" style="background-color: {tag.color}">{tag.name}</span> '
+            f'<span class="badge" style="background-color: {escape(tag.color)}">{escape(tag.name)}</span> '
             for tag in password.tags.all()
         ])
 
@@ -129,7 +131,7 @@ def password_list_datatables(request):
                 security_badge += f' <span class="badge bg-warning text-dark"><i class="fas fa-clock"></i> Expires in {password.days_until_expiration}d</span>'
 
         # URL icon
-        url_html = f'<a href="{password.url}" target="_blank" rel="noopener"><i class="fas fa-external-link-alt"></i></a>' if password.url else '—'
+        url_html = f'<a href="{escape(password.url)}" target="_blank" rel="noopener"><i class="fas fa-external-link-alt"></i></a>' if password.url else '—'
 
         # Actions
         from django.urls import reverse
@@ -143,8 +145,8 @@ def password_list_datatables(request):
         '''
 
         data.append([
-            f'<a href="{detail_url}">{password.title}</a>',
-            password.username or '—',
+            f'<a href="{detail_url}">{escape(password.title)}</a>',
+            escape(password.username) if password.username else '—',
             url_html,
             # Plain text, not a badge: every row carries a type, so a coloured
             # pill on all of them added weight without adding information.
@@ -380,9 +382,11 @@ def password_reveal(request, pk):
                 if approval is not None:
                     approval.mark_revealed()
 
-            # Create audit log for password reveal
+            # Create audit log for password reveal. Filed under the entry's
+            # customer (not the selected one, which is None in global view),
+            # so the reveal shows in that customer's audit log.
             AuditLog.objects.create(
-                organization=org,
+                organization=password.organization,
                 user=request.user,
                 username=request.user.username,
                 action='reveal',
@@ -552,24 +556,36 @@ def _can_decide_vault_reveal(user, request_obj, request_meta):
 @login_required
 def vault_reveal_request_decide(request, pk):
     """Approve or deny a pending VaultRevealRequest.
-    Staff/superuser OR client-org admin (Phase 37 v2)."""
+    Staff/superuser OR client-org admin (Phase 37 v2).
+
+    Answers JSON, except for the Approve / Deny form on the Reveal Requests
+    page (`next=list`), which is a plain form post: that one gets a message
+    and a redirect back to the list instead of a raw JSON page."""
     if request.method != 'POST':
         return JsonResponse({'error': 'POST required'}, status=405)
     from .models import VaultRevealRequest
+    from_list = request.POST.get('next') == 'list'
+
+    def answer(payload, status=200):
+        if not from_list:
+            return JsonResponse(payload, status=status)
+        if status == 200:
+            messages.success(request, f"Reveal request {payload['status']}.")
+        else:
+            messages.error(request, payload['error'])
+        return redirect('vault:reveal_request_list')
+
     req = get_object_or_404(VaultRevealRequest, pk=pk)
     allowed, reason = _can_decide_vault_reveal(request.user, req, request)
     if not allowed:
         if reason == 'self_approval_blocked':
-            return JsonResponse(
-                {'error': 'You cannot approve your own reveal request.'},
-                status=403,
-            )
-        return JsonResponse(
+            return answer({'error': 'You cannot approve your own reveal request.'}, 403)
+        return answer(
             {'error': 'Only staff, superuser, or a client-org admin can decide reveal requests.'},
-            status=403,
+            403,
         )
     if req.status != 'pending':
-        return JsonResponse({'error': f'Request already {req.status}'}, status=400)
+        return answer({'error': f'Request already {req.status}'}, 400)
     decision = request.POST.get('decision') or ''
     notes = (request.POST.get('notes') or '').strip()[:5000]
     if decision == 'approve':
@@ -595,9 +611,8 @@ def vault_reveal_request_decide(request, pk):
             ip_address=request.META.get('REMOTE_ADDR'),
         )
     else:
-        return JsonResponse({'error': 'decision must be approve or deny'},
-                            status=400)
-    return JsonResponse({'ok': True, 'status': req.status})
+        return answer({'error': 'decision must be approve or deny'}, 400)
+    return answer({'ok': True, 'status': req.status})
 
 
 @login_required
@@ -726,7 +741,7 @@ def password_test_breach(request, pk):
 
             # Create audit log
             AuditLog.objects.create(
-                organization=org,
+                organization=password.organization,
                 user=request.user,
                 username=request.user.username,
                 action='check',
@@ -1089,7 +1104,7 @@ def generate_otp_api(request, pk):
 
             # Log TOTP generation for audit
             AuditLog.objects.create(
-                organization=org,
+                organization=password.organization,
                 user=request.user,
                 username=request.user.username,
                 action='read',
@@ -1171,7 +1186,7 @@ def password_qrcode(request, pk):
 
         # Log QR code view for audit
         AuditLog.objects.create(
-            organization=org,
+            organization=password.organization,
             user=request.user,
             username=request.user.username,
             action='read',

@@ -8,7 +8,7 @@
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
-            <li class="breadcrumb-item"><a href="{% url 'imports:import_list' %}">Imports</a></li>
+            {% if request.user.is_superuser %}<li class="breadcrumb-item"><a href="{% url 'imports:import_list' %}">Imports</a></li>{% else %}<li class="breadcrumb-item"><a href="{% url 'locations:floor_plan_import' %}">Floor plan import</a></li>{% endif %}
             <li class="breadcrumb-item"><a href="{% url 'imports:import_detail' job.pk %}">{{ job.get_source_type_display }} Import</a></li>
             <li class="breadcrumb-item active">Rollback</li>
         </ol>

@@ -2526,6 +2526,848 @@
         }
       ],
       "caption": "Business → Pulse Checks → Opt-outs."
+    },
+    {
+      "name": "guide-kdoc-list",
+      "guide": "docs/DOCUMENTS_AND_DIAGRAMS.md",
+      "route": "/docs/",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "The Documents list with callouts on the Organize menu, the search and filters, the document table, the Upload files button and New document",
+      "annotate": [
+        {
+          "selector": "button:has-text(\"Organize\")",
+          "note": "Organize: Categories, Templates, Drafts, Approval queue, Review queue and Archived."
+        },
+        {
+          "selector": "#docSearch",
+          "note": "Search titles and contents, then narrow by category or tag."
+        },
+        {
+          "selector": "#orgDocsTable tbody tr:has-text(\"Northwind — Network Overview\")",
+          "note": "One row per live document, grouped under its category: type, category, tags and last update. The eye, pencil and bin open, edit and delete it."
+        },
+        {
+          "selector": "button:has-text(\"Upload files\")",
+          "note": "Upload files: store PDFs, Office files and images as documents."
+        },
+        {
+          "selector": "a:has-text(\"New document\")",
+          "note": "New document: write one in the editor."
+        }
+      ],
+      "caption": "Documentation → Documents."
+    },
+    {
+      "name": "guide-kdoc-detail",
+      "guide": "docs/DOCUMENTS_AND_DIAGRAMS.md",
+      "route": "/docs/northwind-network-overview/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "A document page with callouts on the status panel with owner and next review, the Edit button, the export menu, the body and the version list",
+      "annotate": [
+        {
+          "selector": ".card.mb-3.no-print",
+          "note": "Owner, next review date and, when set, the template it came from. Mark reviewed and History are on the right."
+        },
+        {
+          "selector": ".doc-actions a[href$=\"/edit/\"]",
+          "note": "Edit opens the editor."
+        },
+        {
+          "selector": ".doc-actions .btn-group",
+          "note": "Export the document as PDF, Word, Markdown or print-ready HTML."
+        },
+        {
+          "selector": ".card:not(.mb-3) .card-body",
+          "note": "The document body, as readers see it."
+        },
+        {
+          "selector": "h3:has-text(\"Version History\")",
+          "note": "Version History: earlier content, kept on every edit that changes the title or body."
+        }
+      ],
+      "caption": "A document page."
+    },
+    {
+      "name": "guide-kdoc-form",
+      "guide": "docs/DOCUMENTS_AND_DIAGRAMS.md",
+      "route": "/docs/northwind-network-overview/edit/",
+      "theme": "light",
+      "max_h": 2000,
+      "alt": "The document editor with callouts on the title and type, the category, the content editor, the options, owner and review interval, and Save changes",
+      "annotate": [
+        {
+          "selector": "#id_title",
+          "note": "Title. The address of the document is made from it."
+        },
+        {
+          "selector": "#content-type-select",
+          "note": "Content type: HTML (rich text), Markdown, or Uploaded File."
+        },
+        {
+          "selector": "#id_category",
+          "note": "Category: this customer's own categories."
+        },
+        {
+          "selector": ".tox-tinymce, #tinymce-editor-container",
+          "note": "The content editor."
+        },
+        {
+          "selector": "#id_owner",
+          "note": "Owner, who gets the review reminders; and how many days between reviews."
+        },
+        {
+          "selector": "button:has-text(\"Save changes\")",
+          "note": "Save changes: the replaced content is kept as a version."
+        }
+      ],
+      "caption": "Editing a document."
+    },
+    {
+      "name": "guide-kdoc-versions",
+      "guide": "docs/DOCUMENTS_AND_DIAGRAMS.md",
+      "route": "/docs/id/6/versions/",
+      "theme": "light",
+      "max_h": 800,
+      "alt": "The version history table with callouts on a version row, View, Compare with current and Restore",
+      "annotate": [
+        {
+          "selector": "table tbody tr:nth-child(1)",
+          "note": "One row per earlier version: when it was replaced and by whom."
+        },
+        {
+          "selector": "table tbody tr:nth-child(1) a:has-text(\"View\")",
+          "note": "View shows that version as it was."
+        },
+        {
+          "selector": "table tbody tr:nth-child(1) a:has-text(\"Compare\")",
+          "note": "Compare with current: added and removed lines."
+        },
+        {
+          "selector": "table tbody tr:nth-child(1) button:has-text(\"Restore\")",
+          "note": "Restore makes it current and keeps what it replaces as a new version."
+        }
+      ],
+      "caption": "A document's version history."
+    },
+    {
+      "name": "guide-kdoc-categories",
+      "guide": "docs/DOCUMENTS_AND_DIAGRAMS.md",
+      "route": "/docs/categories/",
+      "theme": "light",
+      "max_h": 800,
+      "alt": "The document categories list with callouts on New Category, a category name, its parent and its document count",
+      "annotate": [
+        {
+          "selector": "a:has-text(\"New Category\")",
+          "note": "New Category: name, description, parent, icon and sort order."
+        },
+        {
+          "selector": "tbody tr:has-text(\"Warehouse systems\") td:nth-child(2)",
+          "note": "Categories are listed per customer."
+        },
+        {
+          "selector": "tbody tr:has-text(\"Warehouse systems\") td:nth-child(4)",
+          "note": "A parent makes it a sub-category; the document list shows Runbooks › Warehouse systems."
+        },
+        {
+          "selector": "tbody tr:has-text(\"Warehouse systems\") td:nth-child(6)",
+          "note": "How many documents use it. Deleting a category leaves its documents uncategorised."
+        }
+      ],
+      "caption": "Organize → Categories."
+    },
+    {
+      "name": "guide-kdoc-templates",
+      "guide": "docs/DOCUMENTS_AND_DIAGRAMS.md",
+      "route": "/docs/templates/",
+      "theme": "light",
+      "max_h": 800,
+      "alt": "Document templates with callouts on New Template and a template card with Use, Edit, Documents and Delete",
+      "annotate": [
+        {
+          "selector": "a:has-text(\"New Template\")",
+          "note": "New Template."
+        },
+        {
+          "selector": ".card.h-100",
+          "note": "A template card: type, category and last update."
+        },
+        {
+          "selector": ".card.h-100 a[title=\"Use this template\"]",
+          "note": "Use opens a new document pre-filled with the template."
+        },
+        {
+          "selector": ".card.h-100 a[title=\"Documents created from this template\"]",
+          "note": "Documents shows every document made from it and whether it is behind."
+        }
+      ],
+      "caption": "Organize → Templates."
+    },
+    {
+      "name": "guide-kdoc-office",
+      "guide": "docs/DOCUMENTS_AND_DIAGRAMS.md",
+      "route": "/office/templates/",
+      "theme": "light",
+      "max_h": 800,
+      "alt": "Office templates with callouts on the upload form, a template row, Details and versions and Retire",
+      "annotate": [
+        {
+          "selector": "form.row",
+          "note": "Upload a .docx, .xlsx, .pptx, .dotx, .xltx or .potx file, a description, and who it is for."
+        },
+        {
+          "selector": "tbody tr:has-text(\"Change request form\")",
+          "note": "A template: its name, who it is for and its status."
+        },
+        {
+          "selector": "tbody tr:has-text(\"Change request form\") a:has-text(\"Details\")",
+          "note": "Details and versions."
+        },
+        {
+          "selector": "tbody tr:has-text(\"Change request form\") button:has-text(\"Retire\")",
+          "note": "Retire hides it from New from template. Documents already made from it are not affected."
+        }
+      ],
+      "caption": "Documentation → Office Templates."
+    },
+    {
+      "name": "guide-kdoc-diagrams",
+      "guide": "docs/DOCUMENTS_AND_DIAGRAMS.md",
+      "route": "/docs/diagrams/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The diagram list with callouts on Templates, New Diagram, the filters and a diagram card",
+      "annotate": [
+        {
+          "selector": ".btn-group a[href$=\"/templates/\"]",
+          "note": "Diagram templates."
+        },
+        {
+          "selector": "a:has-text(\"New Diagram\")",
+          "note": "New Diagram: title, description, type and tags, then the editor."
+        },
+        {
+          "selector": "form.row",
+          "note": "Search by title or description; filter by type or tag."
+        },
+        {
+          "selector": ".col-md-4 .card:first-child",
+          "note": "A diagram card: preview image, type badge and time since the last edit."
+        }
+      ],
+      "caption": "Diagrams → Diagrams."
+    },
+    {
+      "name": "guide-kdoc-diagram-detail",
+      "guide": "docs/DOCUMENTS_AND_DIAGRAMS.md",
+      "route": "/docs/diagrams/dayton-depot-network/",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "A diagram page with callouts on Edit, the preview, the downloads and the metadata",
+      "annotate": [
+        {
+          "selector": ".btn-group a[href$=\"/edit/\"]",
+          "note": "Edit opens the full-screen editor."
+        },
+        {
+          "selector": ".card-body.text-center",
+          "note": "The preview: the picture saved by the editor."
+        },
+        {
+          "selector": ".card:has-text(\"Downloads\")",
+          "note": "Download the .drawio file, the PNG, or the SVG when there is one."
+        },
+        {
+          "selector": ".card:has-text(\"Metadata\")",
+          "note": "Who created and last changed it, and the version number."
+        }
+      ],
+      "caption": "A diagram page."
+    },
+    {
+      "name": "guide-kdoc-floorplan",
+      "guide": "docs/DOCUMENTS_AND_DIAGRAMS.md",
+      "route": "/locations/floor-plan-import/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The floor plan import page with callouts on the steps, the target organization, the file, Preview only and Start Import",
+      "annotate": [
+        {
+          "selector": ".alert-info",
+          "note": "The steps."
+        },
+        {
+          "selector": "#id_target_organization",
+          "note": "Target organization (required)."
+        },
+        {
+          "selector": "#id_source_file",
+          "note": "The MagicPlan JSON file."
+        },
+        {
+          "selector": "#id_dry_run",
+          "note": "Preview only: lists what would be created, changes nothing."
+        },
+        {
+          "selector": "button:has-text(\"Start Import\")",
+          "note": "Start Import creates an import job; it does not import yet."
+        }
+      ],
+      "caption": "Diagrams → Import Floor Plans."
+    },
+    {
+      "name": "guide-kb-browse",
+      "guide": "docs/KNOWLEDGE_BASE.md",
+      "route": "/psa/kb/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The Knowledge Base list with numbered callouts on the search box, New article, the category tree, the audience bulk controls, the Audience column and the row buttons",
+      "annotate": [
+        {
+          "selector": "main form[role=search], main input[name=q]",
+          "note": "Search article titles and bodies."
+        },
+        {
+          "selector": "a:has-text(\"New article\")",
+          "note": "Write a new global article."
+        },
+        {
+          "selector": ".card:has-text(\"Categories\") >> nth=0",
+          "note": "The category tree. Click a category to filter; Manage edits the categories."
+        },
+        {
+          "selector": "#kb-audience-bar",
+          "note": "Who sees the selected articles: every customer, selected customers or groups, or move one to a single customer."
+        },
+        {
+          "selector": "table thead th:has-text(\"Audience\")",
+          "note": "Audience: which customers get the article. A black Staff only badge means it is not shown in any customer portal."
+        },
+        {
+          "selector": "table tbody tr:first-child td:last-child",
+          "note": "Edit, delete and move."
+        }
+      ],
+      "caption": "Knowledge Base → Knowledge Base."
+    },
+    {
+      "name": "guide-kb-editor",
+      "guide": "docs/KNOWLEDGE_BASE.md",
+      "route": "/docs/zebra-label-printer-blank-labels/edit/",
+      "theme": "light",
+      "max_h": 1700,
+      "alt": "The article editor with callouts on the title, the body editor, the publishing options, the portal visibility box, the owner and the review interval",
+      "annotate": [
+        {
+          "selector": "#id_title",
+          "note": "The article title."
+        },
+        {
+          "selector": "label:has-text('Tags')",
+          "note": "Tags. Ticket suggestions match on tags and categories."
+        },
+        {
+          "selector": ".form-check:has(#id_is_published)",
+          "note": "Published, Requires approval, Template and Archived. Only people who may publish see Published and Requires approval."
+        },
+        {
+          "selector": ".form-check:has(#id_is_client_visible)",
+          "note": "Show in this customer's portal. Off means internal only."
+        },
+        {
+          "selector": "#id_owner",
+          "note": "Owner: who keeps the article current and gets the review reminders."
+        },
+        {
+          "selector": "#id_review_interval_days",
+          "note": "Review every N days; 0 turns reminders off."
+        }
+      ],
+      "caption": "Editing an article (Documentation → open an article → Edit)."
+    },
+    {
+      "name": "guide-kb-lifecycle",
+      "guide": "docs/KNOWLEDGE_BASE.md",
+      "route": "/docs/guest-wi-fi-onboarding-steps/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "An article pending review with callouts on the Pending review banner, Approve and publish, the owner and next review line",
+      "annotate": [
+        {
+          "selector": ".alert-warning",
+          "note": "The Pending review banner. The article is not in lists, search or the portal."
+        },
+        {
+          "selector": ".alert-warning button:has-text(\"Approve\")",
+          "note": "Approve and publish: shown only to someone who may publish this article."
+        },
+        {
+          "selector": ".card.mb-3:has-text(\"Next review\")",
+          "note": "Owner and next review date. A badge shows when it is due soon or overdue."
+        }
+      ],
+      "caption": "An article waiting for approval."
+    },
+    {
+      "name": "guide-kb-drafts",
+      "guide": "docs/KNOWLEDGE_BASE.md",
+      "route": "/docs/lifecycle/drafts/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The Drafts list with callouts on the tabs, the state badges and the owner column",
+      "annotate": [
+        {
+          "selector": "nav.section-tabs",
+          "note": "The Review & Publishing tabs."
+        },
+        {
+          "selector": "table thead th:has-text(\"Owner\")",
+          "note": "The owner of each document."
+        },
+        {
+          "selector": "table thead th:has-text(\"State\")",
+          "note": "State: Draft is private; Pending review is waiting in the approval queue."
+        }
+      ],
+      "caption": "Review & Publishing → Drafts."
+    },
+    {
+      "name": "guide-kb-approval",
+      "guide": "docs/KNOWLEDGE_BASE.md",
+      "route": "/docs/approval-queue/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The Approval Queue with a pending article, its body preview, the Approve and publish button and the rejection note box",
+      "annotate": [
+        {
+          "selector": ".card.border-warning >> nth=0",
+          "note": "One submitted article: title, owner, customer, last update and a link to its history."
+        },
+        {
+          "selector": ".card.border-warning >> nth=0 >> .bg-light",
+          "note": "A preview of the body."
+        },
+        {
+          "selector": "button:has-text(\"Approve\")",
+          "note": "Approve and publish."
+        },
+        {
+          "selector": "input[name=note]",
+          "note": "The reason for a rejection. It is appended to the article body for the author."
+        }
+      ],
+      "caption": "Review & Publishing → Approval Queue."
+    },
+    {
+      "name": "guide-kb-review",
+      "guide": "docs/KNOWLEDGE_BASE.md",
+      "route": "/docs/review-queue/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The Review Queue with callouts on the scope switch, the Overdue and Due soon counts, the owner and last reviewed columns and Mark reviewed",
+      "annotate": [
+        {
+          "selector": ".btn-group[role=group]",
+          "note": "My articles or All articles (MSP staff)."
+        },
+        {
+          "selector": ".card.border-danger",
+          "note": "Overdue: past the review interval."
+        },
+        {
+          "selector": ".card.border-warning",
+          "note": "Due soon: within 7 days."
+        },
+        {
+          "selector": "table thead th:has-text(\"Last reviewed\")",
+          "note": "Last reviewed; \"never\" counts from the publish date."
+        },
+        {
+          "selector": "button:has-text(\"Mark reviewed\") >> nth=0",
+          "note": "Mark reviewed restarts the clock."
+        }
+      ],
+      "caption": "Review & Publishing → Review Queue."
+    },
+    {
+      "name": "guide-kb-archived",
+      "guide": "docs/KNOWLEDGE_BASE.md",
+      "route": "/docs/lifecycle/archived/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The Archived list with callouts on the state badge and the Restore button",
+      "annotate": [
+        {
+          "selector": "p.text-muted.small",
+          "note": "Archived documents are hidden everywhere readers look."
+        },
+        {
+          "selector": ".badge:has-text(\"Archived\")",
+          "note": "State."
+        },
+        {
+          "selector": "button:has-text(\"Restore\")",
+          "note": "Restore from the archive (needs edit permission)."
+        }
+      ],
+      "caption": "Review & Publishing → Archived."
+    },
+    {
+      "name": "guide-kb-analytics",
+      "guide": "docs/KNOWLEDGE_BASE.md",
+      "route": "/docs/lifecycle/analytics/",
+      "theme": "light",
+      "max_h": 1750,
+      "alt": "KB analytics with callouts on the summary counts, most viewed, zero-result searches, past review date and never viewed",
+      "annotate": [
+        {
+          "selector": ".row.g-3.mb-3",
+          "note": "Never viewed, past review date and zero-result searches."
+        },
+        {
+          "selector": ".card:has(.card-header:has-text(\"Most viewed\"))",
+          "note": "Most viewed, with staff and customer-portal opens."
+        },
+        {
+          "selector": ".card:has(.card-header:has-text(\"Top zero-result\"))",
+          "note": "Searches that found nothing in the last 90 days."
+        },
+        {
+          "selector": ".card:has(.card-header:has-text(\"Past review date\"))",
+          "note": "Articles past their review date."
+        },
+        {
+          "selector": ".card:has(.card-header:has-text(\"Never viewed\"))",
+          "note": "Published articles nobody has opened."
+        }
+      ],
+      "caption": "Review & Publishing → KB Analytics."
+    },
+    {
+      "name": "guide-kb-suggest",
+      "guide": "docs/KNOWLEDGE_BASE.md",
+      "route": "/psa/t/PSA-2026-000013/",
+      "theme": "light",
+      "max_h": 1700,
+      "alt": "A ticket with the Suggested articles card",
+      "annotate": [
+        {
+          "selector": "#kb-suggestions-card",
+          "note": "Suggested articles, with the reason each one matched."
+        }
+      ],
+      "caption": "A ticket with a suggested article."
+    },
+    {
+      "name": "guide-kb-readiness",
+      "guide": "docs/KNOWLEDGE_BASE.md",
+      "route": "/readiness/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "Documentation Readiness with callouts on the standards filter, the tabs, the score badges and the unmet count",
+      "annotate": [
+        {
+          "selector": "select[name=standard]",
+          "note": "Show the score for one standard only."
+        },
+        {
+          "selector": "ul.nav-tabs",
+          "note": "Overview, Repair queue, Standards and Broken relationships (staff)."
+        },
+        {
+          "selector": "table thead th:has-text(\"Score\")",
+          "note": "Score: share of the applicable requirement weight that is met."
+        },
+        {
+          "selector": "table thead th:has-text(\"Unmet\")",
+          "note": "Unmet requirements; click to open the repair queue for that customer."
+        }
+      ],
+      "caption": "Documentation Readiness → Overview."
+    },
+    {
+      "name": "guide-kb-readiness-org",
+      "guide": "docs/KNOWLEDGE_BASE.md",
+      "route": "/readiness/customer/2/",
+      "theme": "light",
+      "max_h": 1500,
+      "alt": "One customer's readiness with callouts on the score, a standard, a met requirement, an unmet requirement and the fix button",
+      "annotate": [
+        {
+          "selector": "h1.h3",
+          "note": "The customer's overall score."
+        },
+        {
+          "selector": ".card.mb-4 >> nth=0 >> .card-header",
+          "note": "A standard that applies to this customer, with its own score."
+        },
+        {
+          "selector": ".req-row.met >> nth=0",
+          "note": "A met requirement."
+        },
+        {
+          "selector": ".req-row.unmet >> nth=0",
+          "note": "An unmet requirement, with the reason and the owner."
+        },
+        {
+          "selector": ".req-row.unmet >> nth=0 >> a.btn",
+          "note": "The fix button: opens the page that creates or edits the record."
+        }
+      ],
+      "caption": "One customer's readiness."
+    },
+    {
+      "name": "guide-vault-list",
+      "guide": "docs/PASSWORD_VAULT.md",
+      "route": "/vault/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The Password Vault list for Northwind Logistics with callouts on Add Password, the search box, the Type and Security columns and the row buttons",
+      "annotate": [
+        {
+          "selector": "a.btn:has-text(\"Add Password\")",
+          "note": "Add Password: a new entry for the selected customer."
+        },
+        {
+          "selector": "#passwordTable_filter input",
+          "note": "Search titles, usernames, URLs and plain notes. Secrets are never searched."
+        },
+        {
+          "selector": "#passwordTable thead th:has-text(\"Type\")",
+          "note": "The entry type, which decides the extra fields on the form."
+        },
+        {
+          "selector": "#passwordTable thead th:has-text(\"Security\")",
+          "note": "Security: Breached (found by the last breach check), Weak (strength under 50) or Safe, plus an expiry badge within 14 days."
+        },
+        {
+          "selector": "#passwordTable tbody tr:first-child .btn-group",
+          "note": "View or edit the entry. The list never shows a password."
+        }
+      ],
+      "caption": "Passwords: every vault entry of the selected customer."
+    },
+    {
+      "name": "guide-vault-detail",
+      "guide": "docs/PASSWORD_VAULT.md",
+      "route": "/vault/8/",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "A vault entry with callouts on Edit, Reveal, Copy, the breach Test Now button, the secure notes Reveal button and the Two-factor card",
+      "annotate": [
+        {
+          "selector": "main a.btn-secondary:has-text(\"Edit\")",
+          "note": "Edit or delete the entry (needs Edit or Delete passwords at this customer)."
+        },
+        {
+          "selector": "#reveal-btn",
+          "note": "Reveal: shows the password. Every reveal is checked and written to the audit log."
+        },
+        {
+          "selector": "#copy-password-btn",
+          "note": "Copy: copies the password without showing it. It is the same audited reveal."
+        },
+        {
+          "selector": "#test-breach-btn",
+          "note": "Test Now: checks the password against the breached-password list."
+        },
+        {
+          "selector": "#reveal-secure-notes-btn",
+          "note": "Secure notes are encrypted and come out through the same audited reveal."
+        },
+        {
+          "selector": "#totp-card",
+          "note": "Two-factor: store the account's TOTP secret here and the page shows the current code."
+        }
+      ],
+      "caption": "A vault entry. Secrets stay masked until you reveal them."
+    },
+    {
+      "name": "guide-vault-form",
+      "guide": "docs/PASSWORD_VAULT.md",
+      "route": "/vault/8/edit/",
+      "theme": "light",
+      "max_h": 2200,
+      "alt": "The vault entry form with callouts on the type, the password field and generator, the TOTP section, the notes and secure notes, and client portal access",
+      "annotate": [
+        {
+          "selector": "#id_password_type",
+          "note": "The type. It shows the fields that type needs (host, port, domain, license key ...)."
+        },
+        {
+          "selector": "#common-password-field",
+          "note": "The password. Leave it blank to keep the stored one; the generator button fills a strong one."
+        },
+        {
+          "selector": "#section-otp",
+          "note": "TOTP: paste the account's secret, or tick Auto-generate new TOTP secret."
+        },
+        {
+          "selector": "#notes-section",
+          "note": "Notes are plain text anyone who can see the entry reads; secure notes are encrypted and need a reveal."
+        },
+        {
+          "selector": ".card.border-info",
+          "note": "Client portal access: off by default. Turn it on to share the entry with this customer's portal users."
+        }
+      ],
+      "caption": "Editing a vault entry."
+    },
+    {
+      "name": "guide-vault-reveal-requests",
+      "guide": "docs/PASSWORD_VAULT.md",
+      "route": "/vault/reveal-requests/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "Vault Reveal Approvals with a pending request, its justification, the Approve and Deny buttons and the Recent decisions table with a break-glass row",
+      "annotate": [
+        {
+          "selector": ".card.border-warning >> nth=0",
+          "note": "A pending request: the entry, who asked and when."
+        },
+        {
+          "selector": ".card.border-warning .bg-light >> nth=0",
+          "note": "The requester's justification."
+        },
+        {
+          "selector": "button:has-text(\"Approve (1 hour window)\") >> nth=0",
+          "note": "Approve: the requester may reveal once within the next hour."
+        },
+        {
+          "selector": "button:has-text(\"Deny\") >> nth=0",
+          "note": "Deny, with optional decision notes."
+        },
+        {
+          "selector": "table:has-text(\"Requester\")",
+          "note": "Recent decisions, including break-glass (BG) reveals the requester approved themselves."
+        }
+      ],
+      "caption": "Reveal Requests: approvals for entries that need one."
+    },
+    {
+      "name": "guide-vault-personal",
+      "guide": "docs/PASSWORD_VAULT.md",
+      "route": "/vault/personal/",
+      "theme": "light",
+      "max_h": 800,
+      "alt": "My Vault with three personal notes, a favourite, categories and the New Note button",
+      "annotate": [
+        {
+          "selector": "a.btn:has-text(\"New Note\")",
+          "note": "New Note: a private encrypted note."
+        },
+        {
+          "selector": ".card.border-warning >> nth=0",
+          "note": "Favourites are listed first."
+        },
+        {
+          "selector": "main .badge.bg-secondary >> nth=0",
+          "note": "An optional category."
+        },
+        {
+          "selector": "main .card-footer >> nth=0",
+          "note": "View, edit or delete. Only you can open your notes."
+        }
+      ],
+      "caption": "My Vault: your own encrypted notes."
+    },
+    {
+      "name": "guide-vault-notes-inbox",
+      "guide": "docs/PASSWORD_VAULT.md",
+      "route": "/core/secure-notes/",
+      "theme": "light",
+      "max_h": 700,
+      "alt": "The Secure Notes inbox with an unread read-once note, a read note, the Send Note button and the Inbox and Sent tabs",
+      "annotate": [
+        {
+          "selector": "a.btn:has-text(\"Send Note\")",
+          "note": "Send Note: to people, or as a secret link."
+        },
+        {
+          "selector": "main .nav-tabs",
+          "note": "Inbox (with the unread count) and Sent."
+        },
+        {
+          "selector": "main tbody tr:has-text(\"Temporary admin PIN\") td:first-child",
+          "note": "Icons: a key means password protected; the crossed eye means it is deleted after the first read."
+        },
+        {
+          "selector": "main tbody tr:has-text(\"Temporary admin PIN\") .badge.bg-warning",
+          "note": "When the note expires. Expired notes leave the inbox."
+        }
+      ],
+      "caption": "Secure Notes inbox."
+    },
+    {
+      "name": "guide-vault-note-create",
+      "guide": "docs/PASSWORD_VAULT.md",
+      "route": "/core/secure-notes/create/",
+      "theme": "light",
+      "max_h": 1100,
+      "actions": [
+        {
+          "check": "#link_only"
+        }
+      ],
+      "alt": "Send Secure Note with Generate Link Only on, the expiry choice, self-destruct, maximum views and require password",
+      "annotate": [
+        {
+          "selector": "label[for=link_only]",
+          "note": "Generate Link Only: no recipients; you get a link to share once the note is saved."
+        },
+        {
+          "selector": "select[name=expires_hours]",
+          "note": "Expires After: 1 hour to 30 days, or never."
+        },
+        {
+          "selector": "label[for=read_once]",
+          "note": "Self-destruct after first read."
+        },
+        {
+          "selector": "#max_views_field",
+          "note": "Maximum Views (links only): the link stops working after this many views."
+        },
+        {
+          "selector": "label[for=require_password]",
+          "note": "Require a password, which you pass on separately."
+        }
+      ],
+      "caption": "Sending a secure note as a secret link.",
+      "text_replace": [
+        [
+          "^End-to-end encrypted$",
+          "Encrypted at rest on the server"
+        ]
+      ]
+    },
+    {
+      "name": "guide-vault-secret-links",
+      "guide": "docs/PASSWORD_VAULT.md",
+      "route": "/core/secure-notes/links-dashboard/",
+      "theme": "light",
+      "max_h": 600,
+      "alt": "The Secret Links page with label and status filters and a table of links with views, maximum views, status and row actions",
+      "annotate": [
+        {
+          "selector": "select[name=label]",
+          "note": "Filter by label or status."
+        },
+        {
+          "selector": "main table thead th:has-text(\"Views\") >> nth=0",
+          "note": "Views so far and the maximum."
+        },
+        {
+          "selector": "main table thead th:has-text(\"Status\")",
+          "note": "Active, Expired or Max Views Reached."
+        },
+        {
+          "selector": "main tbody tr:has-text(\"New starter\") .btn-group",
+          "note": "New link (the old one stops working), Analytics (each view), View, Delete."
+        }
+      ],
+      "caption": "Secret Links: the links you created."
     }
   ]
 }

@@ -38,16 +38,6 @@
                         <small class="form-text text-muted">Descriptive name for this template</small>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="{{ form.slug.id_for_label }}" class="form-label">
-                            Slug <span class="text-danger">*</span>
-                        </label>
-                        {{ form.slug }}
-                        {% if form.slug.errors %}
-                        <div class="text-danger small">{{ form.slug.errors }}</div>
-                        {% endif %}
-                        <small class="form-text text-muted">URL-friendly identifier (auto-generated if left blank)</small>
-                    </div>
 
                     <div class="mb-3">
                         <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
@@ -165,20 +155,4 @@
     </div>
 </div>
 
-<script nonce="{{ csp_nonce }}">
-// Auto-generate slug from title
-document.getElementById('id_title').addEventListener('blur', function() {
-    const title = this.value;
-    const slugField = document.getElementById('id_slug');
-
-    if (title && !slugField.value) {
-        const slug = title.toLowerCase()
-            .replace(/[^\w\s-]/g, '')
-            .replace(/\s+/g, '-')
-            .replace(/--+/g, '-')
-            .trim();
-        slugField.value = slug;
-    }
-});
-</script>
 {% endblock %}

@@ -49,7 +49,7 @@
             <tbody>
                 {% for category in categories %}
                 <tr>
-                    <td><i class="fas {{ category.icon }}"></i></td>
+                    <td><i class="fas {% if category.icon|slice:":3" != "fa-" %}fa-{% endif %}{{ category.icon|default:"folder" }}"></i></td>
                     <td><strong>{{ category.name }}</strong></td>
                     <td>{{ category.description|truncatewords:15 }}</td>
                     <td>

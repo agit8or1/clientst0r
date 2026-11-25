@@ -26,6 +26,34 @@ def is_import_admin(user):
     return bool(user.is_authenticated and user.is_superuser)
 
 
+_OTHER_IMPORT_FLAGS = ('import_assets', 'import_passwords', 'import_documents',
+                       'import_contacts', 'import_locations', 'import_networks')
+
+
+def is_floor_plan_job_for(user, job, perm='assets_create'):
+    """A floor-plan-only job (MagicPlan, nothing but floor plans, filed under one
+    customer) may be run by anyone allowed to add assets at that customer, the
+    same people who can open Locations → Import Floor Plans; rolling one back or
+    deleting it needs assets_delete there. Every other import stays
+    superuser-only (is_import_admin)."""
+    if not (user.is_authenticated and job.source_type == 'magicplan' and job.import_floor_plans
+            and job.target_organization_id
+            and not any(getattr(job, f) for f in _OTHER_IMPORT_FLAGS)):
+        return False
+    from accounts.permission_utils import has_perm_for_org
+    return has_perm_for_org(user, job.target_organization, perm)
+
+
+def _job_for(request, pk, *related, perm='assets_create'):
+    """The import job, if this user may handle it; 403 otherwise."""
+    from django.core.exceptions import PermissionDenied
+    qs = ImportJob.objects.select_related('target_organization', *related)
+    job = get_object_or_404(qs, pk=pk)
+    if is_import_admin(request.user) or is_floor_plan_job_for(request.user, job, perm):
+        return job
+    raise PermissionDenied('Imports other than floor plans are for superusers only.')
+
+
 def report_import_outcome(request, job):
     """Flash a message that says what actually happened - never an
     unqualified success when records failed."""
@@ -105,13 +133,14 @@ def import_create(request):
 
 
 @login_required
-@user_passes_test(is_import_admin)
 def import_detail(request, pk):
     """View import job details."""
-    job = get_object_or_404(ImportJob.objects.select_related('target_organization', 'started_by'), pk=pk)
+    job = _job_for(request, pk, 'started_by')
 
     return render(request, 'imports/import_detail.html', {
         'job': job,
+        'can_remove_job': (is_import_admin(request.user)
+                           or is_floor_plan_job_for(request.user, job, 'assets_delete')),
     })
 
 
@@ -145,14 +174,15 @@ def import_edit(request, pk):
 
 
 @login_required
-@user_passes_test(is_import_admin)
 def import_delete(request, pk):
     """Delete import job."""
-    job = get_object_or_404(ImportJob, pk=pk)
+    job = _job_for(request, pk, perm='assets_delete')
 
     if request.method == 'POST':
         job.delete()
         messages.success(request, 'Import job deleted.')
+        if not is_import_admin(request.user):
+            return redirect('locations:floor_plan_import')
         return redirect('imports:import_list')
 
     return render(request, 'imports/import_confirm_delete.html', {
@@ -161,7 +191,6 @@ def import_delete(request, pk):
 
 
 @login_required
-@user_passes_test(is_import_admin)
 def import_rollback(request, pk):
     """
     Rollback import job - delete all imported objects.
@@ -169,10 +198,7 @@ def import_rollback(request, pk):
     This allows users to undo an import for testing/debugging purposes.
     All objects created during the import (tracked via ImportMapping) will be deleted.
     """
-    job = get_object_or_404(
-        ImportJob.objects.select_related('target_organization', 'started_by', 'rolled_back_by'),
-        pk=pk
-    )
+    job = _job_for(request, pk, 'started_by', 'rolled_back_by', perm='assets_delete')
 
     # Check if rollback is allowed
     if not job.can_rollback():
@@ -220,10 +246,9 @@ def import_rollback(request, pk):
 
 
 @login_required
-@user_passes_test(is_import_admin)
 def import_start(request, pk):
     """Start an import job."""
-    job = get_object_or_404(ImportJob, pk=pk)
+    job = _job_for(request, pk)
 
     if job.rehearsal_plan is not None:
         # Rehearsal jobs are applied from their reviewed plan only.
@@ -253,14 +278,13 @@ def import_start(request, pk):
 
 
 @login_required
-@user_passes_test(is_import_admin)
 def import_promote(request, pk):
     """Promote a completed dry-run job to an actual import.
 
     Resets the job to 'pending' with dry_run=False, clears prior results,
     then redirects to the start page so the user can confirm and run it.
     """
-    job = get_object_or_404(ImportJob, pk=pk)
+    job = _job_for(request, pk)
 
     if job.rehearsal_plan is not None:
         return redirect('imports:rehearsal_detail', pk=job.rehearsal_plan.pk)
@@ -288,10 +312,9 @@ def import_promote(request, pk):
 
 
 @login_required
-@user_passes_test(is_import_admin)
 def import_log(request, pk):
     """View import job log."""
-    job = get_object_or_404(ImportJob, pk=pk)
+    job = _job_for(request, pk)
 
     return render(request, 'imports/import_log.html', {
         'job': job,

@@ -80,13 +80,13 @@
             </div>
         </div>
 
-        {% if log.extra_data %}
+        {% if shown_extra %}
         <div class="card mt-3">
             <div class="card-header">
                 <h3 class="mb-0"><i class="fas fa-code"></i> Additional Data</h3>
             </div>
             <div class="card-body">
-                <pre class="bg-light p-3 rounded"><code>{{ log.extra_data }}</code></pre>
+                <pre class="bg-light p-3 rounded"><code>{{ shown_extra }}</code></pre>
             </div>
         </div>
         {% endif %}
@@ -104,9 +104,9 @@
                     <dd><code>{{ log.ip_address }}</code></dd>
                     {% endif %}
 
-                    {% if log.path %}
+                    {% if shown_path %}
                     <dt>Path:</dt>
-                    <dd><code>{{ log.path }}</code></dd>
+                    <dd><code>{{ shown_path }}</code></dd>
                     {% endif %}
 
                     {% if log.user_agent %}

@@ -486,3 +486,23 @@ class MigrationDependencyPinningTests(TestCase):
                 if isinstance(node, ast.Constant) and node.value == '__latest__':
                     offenders.append(f'{path.relative_to(base)}:{node.lineno}')
         self.assertEqual(offenders, [], 'pin these dependencies to a named migration')
+
+
+class LegacyAuditRedactionTests(TestCase):
+    """Entries written before the middleware hid licence keys, secure-note text
+    and secret-link paths stay stored as they are (they are sealed into the
+    audit chain); the detail page applies the rule again when showing them."""
+
+    def test_old_form_values_and_secret_paths_are_hidden_on_display(self):
+        from audit.middleware import REDACTED, redact_path, redacted_extra
+        extra = {'method': 'POST', 'form_data': {'license_key': 'ABCD-1234', 'content': 'the note',
+                                                 'title': 'Router'}}
+        shown = redacted_extra(extra, '/core/secure-notes/create/')
+        self.assertEqual(shown['form_data']['license_key'], REDACTED)
+        self.assertEqual(shown['form_data']['content'], REDACTED)
+        self.assertEqual(shown['form_data']['title'], 'Router')
+        self.assertEqual(extra['form_data']['license_key'], 'ABCD-1234')  # stored row untouched
+        # `content` is ordinary text outside the secret pages.
+        self.assertEqual(redacted_extra(extra, '/docs/create/')['form_data']['content'], 'the note')
+        self.assertEqual(redact_path('/core/secret/tok123/'), '/core/secret/' + REDACTED)
+        self.assertEqual(redact_path('/docs/'), '/docs/')

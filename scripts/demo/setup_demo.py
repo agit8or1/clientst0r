@@ -92,9 +92,10 @@ for step in (seed_demo.seed_named_approvers, seed_demo.seed_readiness_custom_fie
              seed_demo.seed_connected_apps):
     print(step.__name__)
     step()
-# Phase 112.4 guide data: vendors linked to purchase orders, and pulse checks
-# with answers (the health computation below then has satisfaction data).
-for script in ('seed_proc.py', 'seed_guide_health.py'):
+# Phase 112 guide data: vendors linked to purchase orders, pulse checks with
+# answers (the health computation below then has satisfaction data), documents
+# and diagrams, knowledge base review states, and vault requests and notes.
+for script in ('seed_proc.py', 'seed_guide_health.py', 'seed_kdoc.py', 'seed_kb.py', 'seed_vault.py'):
     print(script)
     runpy.run_path(str(ROOT / 'scripts' / 'demo' / script), run_name='__main__')
 # Derived data: the app's own commands project the seeded rows into the pages

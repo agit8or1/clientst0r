@@ -168,6 +168,10 @@ def secure_note_create(request):
             messages.error(request, 'Title and content are required.')
         elif not link_only and not recipient_ids:
             messages.error(request, 'Either select recipients or enable "Link Only" mode.')
+        elif require_password and not access_password:
+            # An empty access password hashes to a password that the empty
+            # form field matches, i.e. no protection at all.
+            messages.error(request, 'Enter the access password, or untick "Require password to decrypt".')
         else:
             # Create note
             note = SecureNote(
@@ -355,8 +359,18 @@ def secure_note_links_dashboard(request):
         label__isnull=False
     ).exclude(label='').values_list('label', flat=True).distinct()
 
+    # The summary cards count the listed links: views summed (the card used
+    # to print "1+0+0"), and "active" as the Status column shows it — not
+    # expired and below its view limit.
+    listed = list(notes)
+    total_views = sum(n.read_count for n in listed)
+    active_count = sum(1 for n in listed if not n.is_expired
+                       and not (n.max_views and n.read_count >= n.max_views))
+
     return render(request, 'core/secure_note_links_dashboard.html', {
         'notes': notes,
+        'total_views': total_views,
+        'active_count': active_count,
         'all_labels': all_labels,
         'label_filter': label_filter,
         'status_filter': status_filter,
