@@ -350,6 +350,14 @@ def _signers_digest():
         return ''
 
 
+def _is_tool_error(ok, msg):
+    """A failed check that says nothing about the tag: git could not run a
+    tool it needs (e.g. "error: cannot run ssh-keygen" when the service's PATH
+    held only the virtualenv). Such results are never cached, and ones cached
+    by older versions are checked again."""
+    return not ok and 'cannot run' in (msg or '')
+
+
 def signature_states(entries, cache):
     """Fill entry['signature'] (+ 'signature_detail') for every release."""
     digest = _signers_digest()
@@ -362,7 +370,7 @@ def signature_states(entries, cache):
             e['signature'], e['signature_detail'] = SIG_UNSIGNED, 'lightweight tag: it cannot carry a signature'
         else:
             key = f"{e['tag_object']}:{digest}"
-            if digest and key in sigs:
+            if digest and key in sigs and not _is_tool_error(*sigs[key]):
                 ok, msg = sigs[key]
                 e['signature'] = SIG_VERIFIED if ok else SIG_INVALID
                 e['signature_detail'] = msg
@@ -380,7 +388,11 @@ def signature_states(entries, cache):
         for e in entries:
             if e['tag'] in found:
                 ok, msg = found[e['tag']]
-                sigs[f"{e['tag_object']}:{digest}"] = [ok, msg]
+                key = f"{e['tag_object']}:{digest}"
+                if _is_tool_error(ok, msg):
+                    sigs.pop(key, None)
+                else:
+                    sigs[key] = [ok, msg]
                 e['signature'] = SIG_VERIFIED if ok else SIG_INVALID
                 e['signature_detail'] = msg if ok else f'not signed by a trusted release key ({msg})'
 

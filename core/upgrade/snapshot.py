@@ -169,8 +169,9 @@ def db_engine():
 
 def _git(*args, timeout=60):
     git = shutil.which('git') or '/usr/bin/git'
+    from .revision import git_env
     return subprocess.run([git, '-C', str(settings.BASE_DIR), *args],
-                          capture_output=True, text=True, timeout=timeout)
+                          capture_output=True, text=True, timeout=timeout, env=git_env())
 
 
 def current_revision():

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.781] - 2026-11-25
+
+### Fixed
+- **Settings → Updates showed "Unavailable" for older versions.** The release signature check could not find the
+  system's signing tool when it ran inside the web service, and the failure was remembered. The check now always finds
+  the tool, and a "could not run the check" result is never remembered. After updating, click **Check now** once.
+- A CRM web-form test no longer fails when its submissions cross a minute boundary on a busy machine.
+
 ## [3.17.780] - 2026-11-25
 
 ### Added

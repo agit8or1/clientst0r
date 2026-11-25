@@ -73,14 +73,33 @@ class Target:
         return asdict(self)
 
 
+# Directories git needs on PATH for the tools it runs itself (ssh-keygen for
+# SSH-signed tags). The web service's unit sets PATH to the virtualenv only, so
+# without these `git verify-tag` failed with "cannot run ssh-keygen" and every
+# older release showed as Unavailable on Settings -> Updates.
+SYSTEM_PATH_DIRS = ('/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin')
+
+
 def _git_bin():
     return shutil.which('git') or '/usr/bin/git'
+
+
+def git_env(base=None):
+    """The environment for git: the caller's, with the standard system
+    directories appended to PATH when missing (never put in front, so a
+    deliberately chosen binary still wins) and prompts switched off."""
+    env = dict(os.environ if base is None else base)
+    parts = [p for p in env.get('PATH', '').split(os.pathsep) if p]
+    parts += [d for d in SYSTEM_PATH_DIRS if d not in parts]
+    env['PATH'] = os.pathsep.join(parts)
+    env['GIT_TERMINAL_PROMPT'] = '0'
+    return env
 
 
 def git(*args, timeout=120, check=False, base_dir=None):
     r = subprocess.run([_git_bin(), '-C', str(base_dir or settings.BASE_DIR), *args],
                        capture_output=True, text=True, timeout=timeout,
-                       env={**os.environ, 'GIT_TERMINAL_PROMPT': '0'})
+                       env=git_env())
     if check and r.returncode != 0:
         raise RevisionError(f"git {' '.join(args[:2])} failed: {(r.stderr or r.stdout).strip()[:400]}")
     return r

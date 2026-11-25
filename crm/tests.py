@@ -639,8 +639,14 @@ class WebFormLeadCaptureTests(TestCase):
         self.assertIn('error', r.json())
 
     def test_rate_limit_returns_429(self):
+        from unittest import mock
         from django.core.cache import cache
         cache.clear()
+        # The limiter counts in fixed one-minute windows; on a loaded machine
+        # the eleven posts could straddle a window boundary. Hold the clock.
+        frozen = mock.patch('django_ratelimit.core.time.time', return_value=1_800_000_000.0)
+        frozen.start()
+        self.addCleanup(frozen.stop)
         c = Client()
         url = reverse('crm:lead_capture_web')
         # 10 successful submissions
