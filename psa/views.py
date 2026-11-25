@@ -8119,6 +8119,20 @@ def po_receive(request, pk):
         qs = qs.filter(organization=org)
     po = get_object_or_404(qs, pk=pk)
 
+    # Recording a delivery changes the order (quantities, status, back-orders)
+    # and creates assets, so it needs the right to edit purchase orders.
+    if request.method == 'POST':
+        from accounts.permission_utils import user_has_perm
+        if not user_has_perm(request.user, 'procurement_create_po'):
+            raise PermissionDenied
+
+    # Nothing arrives against an order that was never sent or has been closed
+    # out; the PO page only offers Receive Items for sent / acknowledged /
+    # partial orders, and the URL now holds to the same rule.
+    if po.status in ('draft', 'cancelled', 'void'):
+        messages.error(request, f'{po.po_number} is {po.get_status_display().lower()}; items cannot be received against it.')
+        return redirect('psa:po_detail', pk=po.pk)
+
     if request.method == 'POST':
         from decimal import Decimal
         from django.db import transaction
@@ -8176,9 +8190,20 @@ def po_receive(request, pk):
                 # Back-order if still short
                 still_short = (line.quantity or Decimal('0')) - (line.received_quantity or Decimal('0'))
                 if still_short > 0:
-                    POBackOrder.objects.create(
-                        po=po, po_line=line, quantity_outstanding=still_short,
-                    )
+                    # One open back-order per line: a later partial receipt
+                    # updates it rather than stacking a second one that
+                    # would double-count what is still owed.
+                    open_bo = line.back_orders.filter(status='open').order_by('pk').first()
+                    if open_bo is not None:
+                        open_bo.quantity_outstanding = still_short
+                        open_bo.save(update_fields=['quantity_outstanding'])
+                        line.back_orders.filter(status='open').exclude(pk=open_bo.pk).update(
+                            status='cancelled', closed_at=timezone.now(),
+                        )
+                    else:
+                        POBackOrder.objects.create(
+                            po=po, po_line=line, quantity_outstanding=still_short,
+                        )
 
             # Recompute PO status
             _recompute_po_status(po)

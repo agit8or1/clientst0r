@@ -146,10 +146,14 @@
     const taxEl = document.getElementById('quote-tax');
     const totEl = document.getElementById('quote-total');
 
+    // Half-up to the cent, like the server (QuoteLineItem.line_total, Quote.recompute_totals):
+    // toFixed() alone showed 346.69 where the saved tax is 346.70.
+    function r2(x) { return Math.round(x * 100 + 1e-6) / 100; }
+
     function recomputeRow(row) {
         const q = parseFloat(row.querySelector('.li-qty')?.value || 0);
         const p = parseFloat(row.querySelector('.li-price')?.value || 0);
-        const t = (q * p);
+        const t = r2(q * p);
         const cell = row.querySelector('.li-total');
         if (cell) cell.textContent = t.toFixed(2);
         return t;
@@ -159,10 +163,11 @@
         let sub = 0;
         tbody.querySelectorAll('tr.li-row').forEach(row => { sub += recomputeRow(row); });
         const rate = parseFloat(taxInput?.value || 0);
-        const tax = sub * rate;
+        sub = r2(sub);
+        const tax = r2(sub * rate);
         subEl.textContent = sub.toFixed(2);
         taxEl.textContent = tax.toFixed(2);
-        totEl.textContent = (sub + tax).toFixed(2);
+        totEl.textContent = r2(sub + tax).toFixed(2);
     }
 
     function wireRow(row) {

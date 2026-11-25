@@ -183,6 +183,17 @@ class DispatchTechnicianTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, '>Service Management</a>')
 
+    def test_dispatch_board_layout(self):
+        # Breadcrumb names the sidebar section; the grid keeps a readable
+        # minimum width (scrolls sideways on a phone) and empty cells stay blank.
+        r = self._login(self.dispatcher).get('/psa/dispatch/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, '>Service Desk</a>')
+        self.assertNotContains(r, '>PSA</a>')
+        self.assertContains(r, 'dispatch-other-col')
+        self.assertContains(r, '.dispatch-grid { min-width: 64rem; }')
+        self.assertNotContains(r, '<span class="text-muted">·</span>')
+
     def test_workflow_template_empty_state_is_accurate(self):
         from django.urls import reverse
         resp = self._login(self.dispatcher).get(reverse('psa:workflow_template_list'))

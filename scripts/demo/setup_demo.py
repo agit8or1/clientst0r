@@ -92,6 +92,11 @@ for step in (seed_demo.seed_named_approvers, seed_demo.seed_readiness_custom_fie
              seed_demo.seed_connected_apps):
     print(step.__name__)
     step()
+# Phase 112.4 guide data: vendors linked to purchase orders, and pulse checks
+# with answers (the health computation below then has satisfaction data).
+for script in ('seed_proc.py', 'seed_guide_health.py'):
+    print(script)
+    runpy.run_path(str(ROOT / 'scripts' / 'demo' / script), run_name='__main__')
 # Derived data: the app's own commands project the seeded rows into the pages
 # that are computed (client health, pricing advisor findings, security events).
 for command in ('compute_health_scores', 'run_advisor', 'events_tick'):

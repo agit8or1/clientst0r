@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.776] - 2026-11-25
+
+### Added
+- **Business guides with annotated screenshots** (Clientst0r Docs → Business and billing):
+  - *CRM*: leads, opportunities, the pipeline board, campaigns, and how commissions are worked out.
+  - *Quotes and Licensing*: building, sending and e-signing quotes; customer software subscriptions, seats and
+    renewals.
+  - *Procurement*: requisitions, purchase orders, receiving, back-orders and vendors.
+  - *Client Health*: how the score is built from its six dimensions, what the colours mean, and the weights.
+  - *Pulse Checks* gains its figures.
+  - Documentation coverage now reaches 34 of 54 sections and 22 of 53 guides with a figure.
+
+### Changed
+- **Business Overview:** every card now sits in one grid, so rows fill edge to edge instead of leaving gaps after
+  short sections; each card names its section above its title. Backup failure types read as words
+  ("Repeated failures").
+- **Dispatch Board:** the Other column is wide enough to read, the grid keeps a readable width and scrolls sideways
+  on a phone with the technician column pinned, the title no longer wraps, and the breadcrumb says Service Desk.
+- **Recording a delivery on a purchase order needs *Create purchase orders*.** With only *View procurement* you can
+  open the receiving page but not save it.
+
+### Fixed
+- **Commissions:**
+  - Closing a deal again never changes a commission that was already approved or paid.
+  - Moving a deal out of Closed Won cancels its pending commission (with a note) and clears the close date.
+    Approved or paid commissions are left alone, with a warning naming them.
+  - Setting a deal to Closed Won or Closed Lost from the edit form now stamps the close date and works out the
+    commission, as dragging the card does.
+- The campaign page no longer fails to open, and its totals count every lead and deal.
+- **Back-orders:** a second partial delivery updates the line's open back-order instead of adding another, so a
+  purchase order no longer shows the same shortfall twice.
+- A draft, cancelled or void purchase order can no longer be received through its address.
+- Vendor spend shows two decimals instead of a long run of zeros.
+- The quote editor's running tax and total round to the cent the same way the saved quote does.
+
 ## [3.17.775] - 2026-11-25
 
 ### Fixed

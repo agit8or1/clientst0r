@@ -46,6 +46,12 @@ SECTION_GUIDES = {
     'psa_invoices': 'billing',
     'psa_billing': 'billing',
     'mod_pulse': 'pulse-checks',
+    'mod_crm': 'crm',
+    'psa_quotes': 'quotes-and-licensing',
+    'mod_licensing': 'quotes-and-licensing',
+    'psa_procurement': 'procurement',
+    'psa_vendors': 'procurement',
+    'mod_health': 'client-health',
     'settings_access': 'roles-and-access',
     'settings_integrations': 'integrations',
     'settings_system': 'auto-update',
@@ -56,8 +62,6 @@ SECTION_GUIDES = {
 
 # Sections without a guide yet, by roadmap batch.
 PENDING_SECTIONS = frozenset({
-    # 112.4 Business
-    'mod_crm', 'mod_licensing', 'psa_quotes', 'psa_procurement', 'psa_vendors', 'mod_health',
     # 112.5 Knowledge and vault
     'docs_documents', 'docs_kb', 'docs_diagrams', 'docs_review', 'docs_readiness', 'vault_passwords',
     'vault_personal', 'vault_notes',
@@ -76,7 +80,7 @@ PENDING_SECTIONS = frozenset({
 GUIDES_WITHOUT_FIGURE = frozenset({
     'what-is-clientst0r', 'features', 'admin-guide', 'screenshots', 'faq',
     'ticket-routing', 'msp-documentation', 'office-documents',
-    'pulse-checks', 'ai-troubleshoot',
+    'ai-troubleshoot',
     'payments', 'tax',
     'technician-access', 'client-data-protection', 'azure-sso', 'oidc-sso', 'security-policy',
     'integrations', 'api-access', 'api-multi-org', 'graphql-api', 'browser-extension-api',

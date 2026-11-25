@@ -562,6 +562,15 @@ class AccessTests(Base):
         for p in providers.PROVIDERS:
             self.assertIn(f'id="card-{p.key}"', html)
 
+    def test_cards_share_one_grid_so_rows_fill(self):
+        # One grid for every card: a section with one or two cards no longer
+        # leaves the rest of its row empty. Each card names its section.
+        self.client.force_login(self.su)
+        html = self.client.get(reverse('executive:overview')).content.decode()
+        self.assertEqual(html.count('<div class="bo-grid">'), 1)
+        self.assertNotIn('class="bo-section"', html)
+        self.assertEqual(html.count('class="bo-eyebrow"'), len(providers.PROVIDERS))
+
     def test_metric_json_shape(self):
         data = self.get_json(self.su, 'executive:metric', 'revenue_trend').json()
         for k in ('value', 'unit', 'trend', 'is_complete', 'unknown_reason', 'source', 'as_of',

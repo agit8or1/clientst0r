@@ -342,6 +342,46 @@ class POReceivingTests(TestCase):
         self.line1.refresh_from_db()
         self.assertEqual(self.line1.received_quantity, 10)
 
+    def test_second_partial_receipt_updates_the_back_order(self):
+        # 4 then 3 of 10: one open back-order for the 3 still owed, not 6 + 3.
+        from decimal import Decimal
+        from psa.models import POBackOrder
+        self._post_receive({f'qty_line_{self.line1.pk}': '4'})
+        self._post_receive({f'qty_line_{self.line1.pk}': '3'})
+        open_bos = POBackOrder.objects.filter(po_line=self.line1, status='open')
+        self.assertEqual(open_bos.count(), 1)
+        self.assertEqual(open_bos.first().quantity_outstanding, Decimal('3'))
+
+    def test_view_only_user_cannot_record_a_delivery(self):
+        from accounts.models import RoleTemplate
+        viewer_role = RoleTemplate.objects.create(
+            name='ProcViewer', is_system_template=False, procurement_view=True,
+        )
+        viewer = _make_msp_tech(User.objects.create_user(
+            username='proc-viewer', password='pw', email='v@x.com'))
+        Membership.objects.create(
+            user=viewer, organization=self.org, role=Role.ADMIN,
+            role_template=viewer_role, is_active=True,
+        )
+        c = Client()
+        c.force_login(viewer)
+        url = f'/psa/purchase-orders/{self.po.pk}/receive/'
+        self.assertEqual(c.get(url).status_code, 200)
+        resp = c.post(url, {f'qty_line_{self.line1.pk}': '5'})
+        self.assertEqual(resp.status_code, 403)
+        self.line1.refresh_from_db()
+        self.assertEqual(self.line1.received_quantity, 0)
+
+    def test_draft_po_cannot_be_received(self):
+        from psa.models import POReceipt
+        self.po.status = 'draft'
+        self.po.save(update_fields=['status'])
+        resp = self._post_receive({f'qty_line_{self.line1.pk}': '5'})
+        self.assertEqual(resp.status_code, 302)
+        self.line1.refresh_from_db()
+        self.assertEqual(self.line1.received_quantity, 0)
+        self.assertFalse(POReceipt.objects.filter(po=self.po).exists())
+
     def test_back_order_cancel(self):
         # Receive partial → open BO → cancel it
         from psa.models import POBackOrder

@@ -7,6 +7,10 @@ circular imports.
 """
 from decimal import Decimal
 
+# Commission states a person has already acted on; the engine never rewrites them.
+DECIDED_COMMISSION_STATUSES = ('approved', 'paid')
+REOPEN_NOTE = 'Cancelled automatically: the deal was moved out of Closed Won.'
+
 
 def compute_commission_for_opportunity(opportunity):
     """
@@ -15,11 +19,19 @@ def compute_commission_for_opportunity(opportunity):
     Commission instance (or None if no rule matched / no assignee).
 
     Idempotent: if a Commission already exists for (opportunity, assignee),
-    update its amount and rule but don't double-create.
+    update its amount and rule but don't double-create. A commission that was
+    already approved or paid is never changed by closing the deal again (None is
+    returned); one
+    cancelled because the deal was reopened becomes pending again.
     """
     from .models import CommissionRule, Commission
     if not opportunity.assigned_to_id:
         return None
+    existing = Commission.objects.filter(
+        opportunity=opportunity, user=opportunity.assigned_to,
+    ).first()
+    if existing is not None and existing.status in DECIDED_COMMISSION_STATUSES:
+        return None  # already approved or paid: nothing to create or change
     rules = CommissionRule.objects.filter(
         organization=opportunity.organization, is_active=True,
     ).order_by('priority', 'pk')
@@ -34,6 +46,25 @@ def compute_commission_for_opportunity(opportunity):
         defaults={'rule': rule, 'amount': amount, 'status': 'pending'},
     )
     return obj
+
+
+def reopen_opportunity_commissions(opportunity):
+    """The deal left Closed Won. Cancel its pending commissions (with a note)
+    and return the approved or paid ones, which are left alone for a person to
+    deal with. Returns (cancelled_count, decided_commissions)."""
+    from .models import Commission
+    pending = Commission.objects.filter(opportunity=opportunity, status='pending')
+    cancelled = 0
+    for commission in pending:
+        commission.status = 'cancelled'
+        commission.notes = (f'{commission.notes}\n{REOPEN_NOTE}'.strip()
+                            if commission.notes else REOPEN_NOTE)
+        commission.save(update_fields=['status', 'notes'])
+        cancelled += 1
+    decided = list(Commission.objects.filter(
+        opportunity=opportunity, status__in=DECIDED_COMMISSION_STATUSES,
+    ).select_related('user'))
+    return cancelled, decided
 
 
 def score_lead(lead):

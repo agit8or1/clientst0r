@@ -382,6 +382,9 @@ def opportunity_form(request, pk=None):
     if pk:
         instance = get_object_or_404(_scope_qs(request, Opportunity.objects.all()), pk=pk)
     if request.method == 'POST':
+        # Read the stage before validation: is_valid() copies the posted values
+        # onto `instance`, after which it already holds the new stage.
+        old_stage = instance.stage if instance else None
         form = OpportunityForm(request.POST, instance=instance)
         org = _current_org(request)
         if org:
@@ -391,13 +394,34 @@ def opportunity_form(request, pk=None):
             if not instance:
                 obj.organization = org
                 obj.created_by = request.user
+            # Closing through the edit form must behave like dragging the card:
+            # stamp the close date and run the commission engine.
+            closing = (obj.stage in ('closed_won', 'closed_lost')
+                       and obj.stage != old_stage)
+            if closing and not obj.actual_close_date:
+                obj.actual_close_date = timezone.localdate()
+            if obj.stage not in ('closed_won', 'closed_lost'):
+                obj.actual_close_date = None  # reopened: no longer closed
             obj.save()
+            if old_stage == 'closed_won' and obj.stage != 'closed_won':
+                _warn_reopened(request, obj)
             _audit(
                 request,
                 action='update' if instance else 'create',
                 obj=obj,
                 description=f'{"Updated" if instance else "Created"} opportunity {obj.name}',
             )
+            if closing and obj.stage == 'closed_won':
+                from .services import compute_commission_for_opportunity
+                commission = compute_commission_for_opportunity(obj)
+                if commission is not None:
+                    _audit(
+                        request, action='create', obj=commission,
+                        description=(f'Commission created for "{obj.name}": '
+                                     f'${commission.amount} → {commission.user.username}'),
+                        extra={'opportunity_id': obj.pk, 'commission_id': commission.pk,
+                               'amount': str(commission.amount), 'rule_id': commission.rule_id},
+                    )
             messages.success(request, 'Opportunity saved.')
             return redirect('crm:opportunity_detail', pk=obj.pk)
     else:
@@ -410,6 +434,27 @@ def opportunity_form(request, pk=None):
         'instance': instance,
         'title': 'Edit Opportunity' if instance else 'New Opportunity',
     })
+
+
+def _warn_reopened(request, opp, add_message=True):
+    """The deal left Closed Won: cancel its pending commissions and warn about
+    approved or paid ones, which are left for a person to reverse."""
+    from .services import reopen_opportunity_commissions
+    cancelled, decided = reopen_opportunity_commissions(opp)
+    if cancelled:
+        _audit(
+            request, action='update', obj=opp,
+            description=f'Cancelled {cancelled} pending commission(s) on reopened opportunity "{opp.name}"',
+            extra={'opportunity_id': opp.pk, 'cancelled': cancelled},
+        )
+    warning = ''
+    if decided:
+        who = ', '.join(f'{c.user.username} (${c.amount}, {c.get_status_display().lower()})' for c in decided)
+        warning = (f'This deal is no longer Closed Won, but its commission was already approved or paid '
+                   f'and has not been changed: {who}. Review it under Commissions.')
+        if add_message:
+            messages.warning(request, warning)
+    return warning
 
 
 @login_required
@@ -432,7 +477,13 @@ def opportunity_set_stage(request, pk):
     if new_stage in ('closed_won', 'closed_lost') and not opp.actual_close_date:
         opp.actual_close_date = timezone.localdate()
         update_fields.append('actual_close_date')
+    elif new_stage not in ('closed_won', 'closed_lost') and opp.actual_close_date:
+        opp.actual_close_date = None  # reopened: no longer closed
+        update_fields.append('actual_close_date')
     opp.save(update_fields=update_fields)
+    reopen_warning = ''
+    if old_stage == 'closed_won':
+        reopen_warning = _warn_reopened(request, opp, add_message=False)
 
     _audit(
         request, action='update', obj=opp,
@@ -474,6 +525,7 @@ def opportunity_set_stage(request, pk):
         'stage_label': opp.get_stage_display(),
         'weighted_value': str(opp.weighted_value.quantize(Decimal('0.01'))),
         'commission': commission_info,
+        'warning': reopen_warning,
     })
 
 
@@ -573,16 +625,16 @@ def campaign_form(request, pk=None):
 @require_perm('crm_manage_campaigns')
 def campaign_detail(request, pk):
     campaign = get_object_or_404(_scope_qs(request, Campaign.objects.all()), pk=pk)
-    leads = campaign.leads.all().order_by('-created_at')[:200]
+    all_leads = campaign.leads.all()
+    leads = all_leads.order_by('-created_at')[:200]
     opps = campaign.opportunities.select_related('client_org').all().order_by('-created_at')[:200]
 
-    converted = leads.filter(status='converted').count()
-    won_value = Decimal('0')
-    won_count = 0
-    for o in opps:
-        if o.stage == 'closed_won':
-            won_count += 1
-            won_value += o.estimated_value or Decimal('0')
+    # Totals cover every lead and deal of the campaign, not just the 200 listed.
+    lead_count = all_leads.count()
+    converted = all_leads.filter(status='converted').count()
+    won = campaign.opportunities.filter(stage='closed_won')
+    won_count = won.count()
+    won_value = won.aggregate(t=Sum('estimated_value'))['t'] or Decimal('0')
 
     roi = None
     if campaign.budget and campaign.budget > 0:
@@ -592,7 +644,7 @@ def campaign_detail(request, pk):
         'campaign': campaign,
         'leads': leads,
         'opps': opps,
-        'lead_count': leads.count(),
+        'lead_count': lead_count,
         'converted_count': converted,
         'won_count': won_count,
         'won_value': won_value.quantize(Decimal('0.01')),

@@ -50,7 +50,7 @@
                     <td>{{ v.get_payment_terms_display|default:'—' }}</td>
                     <td>{{ v.default_lead_time_days }}d</td>
                     <td class="text-end">{{ v.open_pos_count|default:0 }}</td>
-                    <td class="text-end">${{ v.spend_30d|default:'0.00' }}</td>
+                    <td class="text-end">${{ v.spend_30d|default:0|floatformat:2 }}</td>
                     <td>
                         {% if v.is_active %}
                         <span class="badge text-bg-success">Active</span>

@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 {% load static docs_extras %}
-{% block title %}PSA — Dispatch Board{% endblock %}
+{% block title %}Dispatch Board{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/ticket_workspace.css' %}">{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb mb-2">
-        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">Service Desk</a></li>
         <li class="breadcrumb-item active">Dispatch Board</li>
     </ol>
 </nav>
 
-<div class="d-flex justify-content-between align-items-baseline mb-2">
-    <h4 class="mb-0"><i class="fas fa-table-list me-2"></i>Dispatch Board</h4>
-    <small class="text-muted"><a href="{{ unassigned_url }}" class="me-1" data-unassigned-link><i class="fas fa-user-plus me-1"></i>Unassigned queue ({{ unassigned_open_count }})</a>
+<div class="dispatch-head mb-2">
+    <h4 class="mb-0 text-nowrap"><i class="fas fa-table-list me-2"></i>Dispatch Board</h4>
+    <small class="text-muted dispatch-help"><a href="{{ unassigned_url }}" class="me-1" data-unassigned-link><i class="fas fa-user-plus me-1"></i>Unassigned queue ({{ unassigned_open_count }})</a>
         · <i class="fas fa-arrows-alt me-1"></i>Drag a ticket card to a tech row{% if technicians %}, or pick a technician on an unassigned card,{% endif %} to reassign
         · <a href="{% url 'resourcing:shift_schedule' %}"><i class="fas fa-user-clock me-1"></i>Shift schedule</a>
         {% if geo_enabled %}· <span title="Distances use technicians' last shared positions (opt-in) and are estimates"><i class="fas fa-location-dot me-1"></i>Travel estimates on</span>{% endif %}
@@ -57,13 +57,13 @@
     <table class="table table-sm table-bordered align-top mb-0 dispatch-grid">
         <thead>
             <tr>
-                <th class="dispatch-tech-col">Tech</th>
+                <th class="dispatch-tech-col dispatch-sticky">Tech</th>
                 {% for d in days %}
                 <th class="text-center">
                     {{ d|date:'D' }} <small class="text-muted">{{ d|date:'M j' }}</small>
                 </th>
                 {% endfor %}
-                <th class="text-center">Other<br><small class="text-muted">no due / outside window</small></th>
+                <th class="text-center dispatch-other-col">Other<br><small class="text-muted">no due date or outside these days</small></th>
             </tr>
         </thead>
         <tbody>
@@ -83,7 +83,7 @@
                         {% if t.can_assign %}<div class="dispatch-assign">{% include "psa/_assign_picker.html" with compact=True picker_suffix="-db" %}</div>{% endif %}
                     </div>
                     {% empty %}
-                    <span class="text-muted">·</span>
+                    
                     {% endfor %}
                 </td>
                 {% endfor %}
@@ -98,7 +98,7 @@
                         {% if t.can_assign %}<div class="dispatch-assign">{% include "psa/_assign_picker.html" with compact=True picker_suffix="-db" %}</div>{% endif %}
                     </div>
                     {% empty %}
-                    <span class="text-muted">·</span>
+                    
                     {% endfor %}
                 </td>
             </tr>
@@ -132,7 +132,7 @@
                         {% with near=nearest_by_ticket|get_item:t.pk %}{% if near %}<div class="dispatch-nearest small text-muted" title="Nearest technician by last shared position (straight-line estimate)"><i class="fas fa-route me-1"></i>{{ near }}</div>{% endif %}{% endwith %}
                     </div>
                     {% empty %}
-                    <span class="text-muted">·</span>
+                    
                     {% endfor %}
                 </td>
                 {% endfor %}
@@ -146,7 +146,7 @@
                         {% with near=nearest_by_ticket|get_item:t.pk %}{% if near %}<div class="dispatch-nearest small text-muted" title="Nearest technician by last shared position (straight-line estimate)"><i class="fas fa-route me-1"></i>{{ near }}</div>{% endif %}{% endwith %}
                     </div>
                     {% empty %}
-                    <span class="text-muted">·</span>
+                    
                     {% endfor %}
                 </td>
             </tr>
@@ -172,7 +172,18 @@
     padding: .25rem .35rem; vertical-align: top;
     border-color: var(--bs-border-color);
 }
-.dispatch-tech-col { width: 110px; }
+.dispatch-head { display: flex; flex-wrap: wrap; gap: .25rem 1rem; align-items: baseline; justify-content: space-between; }
+.dispatch-help { flex: 1 1 100%; }
+/* Fixed columns that never squeeze below a readable width: on a narrow screen
+   the grid scrolls sideways inside .table-responsive with the Tech column
+   pinned, instead of crushing nine columns into the window. */
+.dispatch-grid { min-width: 64rem; }
+.dispatch-tech-col { width: 9rem; }
+.dispatch-other-col { width: 17rem; }
+.dispatch-sticky, .dispatch-row-label { position: sticky; left: 0; z-index: 1; }
+.dispatch-row-label { vertical-align: top !important; }
+.dispatch-card-link { white-space: nowrap; }
+.dispatch-card { overflow: hidden; }
 .dispatch-cell-locked { background: var(--bs-warning-bg-subtle); }
 .dispatch-row-label { background: var(--bs-tertiary-bg); font-size: .8rem; }
 .dispatch-cell { min-height: 36px; transition: background 120ms; }

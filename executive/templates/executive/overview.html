@@ -41,6 +41,8 @@
 .bo-slot-date { padding-top: .25rem; align-self: end; }
 .bo-card-h { display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem; }
 .bo-card-t { font-size: .9rem; font-weight: 600; margin: 0; }
+.bo-card-hl { min-width: 0; }
+.bo-eyebrow { font-size: .66rem; text-transform: uppercase; letter-spacing: .05em; color: var(--bo-muted); margin-bottom: .1rem; }
 .bo-card-t i { color: var(--bo-muted); margin-right: .35rem; }
 .bo-label { font-size: .7rem; color: var(--bo-muted); font-style: italic; }
 .bo-value { font-size: 1.9rem; font-weight: 700; line-height: 1.15; margin-top: .35rem; font-variant-numeric: tabular-nums; }
@@ -104,15 +106,17 @@
       <a href="{% url 'executive:overview' %}" class="btn btn-link btn-sm">Reset</a></div>
   </form>
 
+  {% if sections %}
+  <div class="bo-grid">
   {% for section in sections %}
-  <section class="bo-section" aria-labelledby="bo-s-{{ forloop.counter }}">
-    <h2 id="bo-s-{{ forloop.counter }}">{{ section.name }}</h2>
-    <div class="bo-grid">
       {% for c in section.cards %}
       <article class="bo-card" id="card-{{ c.key }}" data-metric="{{ c.key }}" data-url="{{ c.url }}"
-               data-unit="{{ c.unit }}" data-chart="{{ c.chart }}" aria-busy="true">
+               data-unit="{{ c.unit }}" data-chart="{{ c.chart }}" data-section="{{ section.name }}" aria-busy="true">
         <div class="bo-card-h">
-          <h3 class="bo-card-t"><i class="fas {{ c.icon }}" aria-hidden="true"></i>{{ c.title }}</h3>
+          <div class="bo-card-hl">
+            <div class="bo-eyebrow">{{ section.name }}</div>
+            <h3 class="bo-card-t"><i class="fas {{ c.icon }}" aria-hidden="true"></i>{{ c.title }}</h3>
+          </div>
           <span class="bo-badge bo-badge-ok d-none" data-badge></span>
         </div>
         <div class="bo-label">{{ c.label }}</div>
@@ -131,11 +135,11 @@
         <div class="bo-foot-row bo-slot-date"><span data-asof></span><a href="{{ c.records_url }}" class="d-none" data-records>View records <i class="fas fa-arrow-right" aria-hidden="true"></i></a></div>
       </article>
       {% endfor %}
-    </div>
-  </section>
-  {% empty %}
-  <p class="text-muted">Your role does not include any Business Overview metric.</p>
   {% endfor %}
+  </div>
+  {% else %}
+  <p class="text-muted">Your role does not include any Business Overview metric.</p>
+  {% endif %}
   {% if hidden_count %}<p class="bo-sub">{{ hidden_count }} metric{{ hidden_count|pluralize }} not shown: your role does not include {{ hidden_count|pluralize:"it,them" }}.</p>{% endif %}
 </div>
 

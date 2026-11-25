@@ -1576,6 +1576,956 @@
         }
       ],
       "caption": "Assets & Network → Backup Monitoring → Alerts."
+    },
+    {
+      "name": "guide-crm-overview",
+      "guide": "docs/CRM.md",
+      "route": "/crm/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The CRM overview with numbered callouts on the open count, the weighted forecast, new leads, the conversion rate and the recent lists",
+      "annotate": [
+        {
+          "selector": ".row.g-3.mb-4 .col-md-3 >> nth=0",
+          "note": "Open opportunities: every deal not yet closed won or lost."
+        },
+        {
+          "selector": "div.card:has-text('Weighted Forecast')",
+          "note": "Weighted forecast: estimated value times probability, summed over open deals. Shown only with the forecast permission."
+        },
+        {
+          "selector": "div.card:has-text('New Leads (7d)')",
+          "note": "Leads created in the last seven days."
+        },
+        {
+          "selector": "div.card:has-text('Conversion Rate')",
+          "note": "Leads created in the last 30 days that are now converted, as a share of all created in that period."
+        },
+        {
+          "selector": "div.card:has-text('Recent Leads')",
+          "note": "Recent Leads: the eight newest. Recent Opportunities, beside it, lists the eight newest deals."
+        }
+      ],
+      "caption": "CRM → Overview.",
+      "organization": "Beacon Managed IT"
+    },
+    {
+      "name": "guide-crm-pipeline",
+      "guide": "docs/CRM.md",
+      "route": "/crm/pipeline/",
+      "theme": "light",
+      "max_h": 640,
+      "alt": "The pipeline board with numbered callouts on a stage column, its count, a deal card and the weighted value",
+      "annotate": [
+        {
+          "selector": ".kanban-col >> nth=0",
+          "note": "One column per stage, from Discovery to Closed Lost."
+        },
+        {
+          "selector": ".kanban-col-header .badge >> nth=2",
+          "note": "How many deals are in the stage."
+        },
+        {
+          "selector": ".kanban-card >> nth=0",
+          "note": "A deal card: name, customer, weighted value, probability and owner. Drag it to another column to change its stage."
+        },
+        {
+          "selector": ".kanban-col >> nth=4",
+          "note": "Dropping a card here closes the deal as won and works out the commission."
+        }
+      ],
+      "caption": "CRM → Pipeline.",
+      "organization": "Beacon Managed IT"
+    },
+    {
+      "name": "guide-crm-leads",
+      "guide": "docs/CRM.md",
+      "route": "/crm/leads/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The lead list with numbered callouts on the search box, the status filter, a status badge, the score and the owner",
+      "annotate": [
+        {
+          "selector": "main input[name=q]",
+          "note": "Search company, contact name, email or industry."
+        },
+        {
+          "selector": "select[name=status]",
+          "note": "Filter by lead status."
+        },
+        {
+          "selector": "a.btn:has-text('New Lead')",
+          "note": "Create a lead."
+        },
+        {
+          "selector": "table tbody tr:nth-child(1) td:nth-child(4) .badge",
+          "note": "Status of the lead."
+        },
+        {
+          "selector": "table tbody tr:nth-child(2) td:nth-child(5)",
+          "note": "Score, 0 to 100, worked out from how complete and promising the lead is."
+        }
+      ],
+      "caption": "CRM → Leads.",
+      "organization": "Beacon Managed IT"
+    },
+    {
+      "name": "guide-crm-lead-detail",
+      "guide": "docs/CRM.md",
+      "route": "/crm/leads/1/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "A lead with numbered callouts on the score, the contact details, the activity timeline and the Convert and Disqualify actions",
+      "annotate": [
+        {
+          "selector": ".badge:has-text('Score')",
+          "note": "The lead score."
+        },
+        {
+          "selector": "dl.row",
+          "note": "Contact, company details, source, campaign and owner."
+        },
+        {
+          "selector": "div.card:has-text('Activity timeline')",
+          "note": "Calls, emails and notes logged against the lead. Web form and API leads add an Inbound entry themselves."
+        },
+        {
+          "selector": "button:has-text('Convert to Org')",
+          "note": "Create the customer organization and the first opportunity."
+        },
+        {
+          "selector": "button:has-text('Disqualify')",
+          "note": "Mark the lead disqualified, with an optional reason added to its notes."
+        }
+      ],
+      "caption": "A lead's page.",
+      "organization": "Beacon Managed IT"
+    },
+    {
+      "name": "guide-crm-opportunities",
+      "guide": "docs/CRM.md",
+      "route": "/crm/opportunities/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The opportunity list with numbered callouts on the stage filter, a stage badge, the value and weighted columns and the Pipeline and New Opportunity buttons",
+      "annotate": [
+        {
+          "selector": "select[name=stage]",
+          "note": "Filter by stage."
+        },
+        {
+          "selector": "a.btn:has-text('New Opportunity')",
+          "note": "Create a deal against an existing customer organization."
+        },
+        {
+          "selector": "table tbody tr:nth-child(1) .badge",
+          "note": "The deal's stage."
+        },
+        {
+          "selector": "table thead th:nth-child(5)",
+          "note": "Weighted: value times probability."
+        }
+      ],
+      "caption": "CRM → Opportunities.",
+      "organization": "Beacon Managed IT"
+    },
+    {
+      "name": "guide-crm-opportunity-detail",
+      "guide": "docs/CRM.md",
+      "route": "/crm/opportunities/1/",
+      "theme": "light",
+      "max_h": 900,
+      "alt": "An opportunity with numbered callouts on the client, the weighted value, and the Convert to Quote button",
+      "annotate": [
+        {
+          "selector": "dt:text-is('Client') + dd",
+          "note": "The customer organization the deal is with."
+        },
+        {
+          "selector": "dt:text-is('Weighted value') + dd",
+          "note": "Estimated value times probability."
+        },
+        {
+          "selector": "button:has-text('Convert to Quote')",
+          "note": "Draft a quote for this customer from the deal. Offered in Proposal, Negotiation and Closed Won."
+        },
+        {
+          "selector": "a.btn:has-text('Edit')",
+          "note": "Edit every field, including stage."
+        }
+      ],
+      "caption": "An opportunity's page.",
+      "organization": "Beacon Managed IT"
+    },
+    {
+      "name": "guide-crm-campaigns",
+      "guide": "docs/CRM.md",
+      "route": "/crm/campaigns/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The campaign list with numbered callouts on a campaign name, the channel, the budget and the lead and opportunity counts",
+      "annotate": [
+        {
+          "selector": "table tbody tr:nth-child(1) a",
+          "note": "Open the campaign for its leads, deals, won value and ROI."
+        },
+        {
+          "selector": "table thead th:nth-child(2)",
+          "note": "Channel."
+        },
+        {
+          "selector": "table thead th:nth-child(4)",
+          "note": "Budget, used for the ROI figure."
+        },
+        {
+          "selector": "table thead th:nth-child(7)",
+          "note": "Leads attributed to the campaign."
+        },
+        {
+          "selector": "a.btn:has-text('New Campaign')",
+          "note": "Create a campaign."
+        }
+      ],
+      "caption": "CRM → Campaigns.",
+      "organization": "Beacon Managed IT"
+    },
+    {
+      "name": "guide-crm-commissions",
+      "guide": "docs/CRM.md",
+      "route": "/crm/commissions/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The commission list with numbered callouts on the status totals, the filters, the rule column and the approve, cancel and mark paid buttons",
+      "annotate": [
+        {
+          "selector": ".row.mb-3.g-2",
+          "note": "Totals by status for the rows listed."
+        },
+        {
+          "selector": "select[name=status]",
+          "note": "Filter by status or by user name."
+        },
+        {
+          "selector": "table thead th:nth-child(3)",
+          "note": "The rule that produced the amount."
+        },
+        {
+          "selector": "form[action*='decide'] >> nth=0",
+          "note": "Approved commissions get a payroll reference box and Mark Paid; pending ones get Approve and Cancel."
+        },
+        {
+          "selector": "a:has-text('Manage Rules')",
+          "note": "The commission rules."
+        }
+      ],
+      "caption": "CRM → Commissions.",
+      "organization": "Beacon Managed IT"
+    },
+    {
+      "name": "guide-crm-commission-rules",
+      "guide": "docs/CRM.md",
+      "route": "/crm/commission-rules/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The commission rules list with numbered callouts on the priority, the applies-to column, the minimum value, the rate and the flat amount",
+      "annotate": [
+        {
+          "selector": "table thead th:nth-child(1)",
+          "note": "Priority: the lowest number is tried first."
+        },
+        {
+          "selector": "table thead th:nth-child(4)",
+          "note": "A named user, or anyone."
+        },
+        {
+          "selector": "table thead th:nth-child(5)",
+          "note": "The deal must be worth at least this."
+        },
+        {
+          "selector": "table thead th:nth-child(6)",
+          "note": "Percent of the deal's estimated value."
+        },
+        {
+          "selector": "a.btn:has-text('New Rule')",
+          "note": "Add a rule."
+        }
+      ],
+      "caption": "CRM → Commission Rules.",
+      "organization": "Beacon Managed IT"
+    },
+    {
+      "name": "guide-quote-list",
+      "guide": "docs/QUOTES_AND_LICENSING.md",
+      "route": "/psa/quotes/",
+      "organization": "Beacon Managed IT",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "The quote list with numbered callouts on the status filter, a quote number, the status badge, the total, the row buttons and New Quote",
+      "annotate": [
+        {
+          "selector": "select[name=status]",
+          "note": "Filter by status: Draft, Sent, Accepted, Rejected or Expired."
+        },
+        {
+          "selector": "tbody tr:first-child td:first-child a",
+          "note": "The quote number opens the quote."
+        },
+        {
+          "selector": "tbody tr:first-child td:nth-child(4)",
+          "note": "Status. A Viewed badge appears once the customer has opened the sign link."
+        },
+        {
+          "selector": "tbody tr:first-child td:nth-child(5)",
+          "note": "Total, including tax."
+        },
+        {
+          "selector": "tbody tr:first-child td:last-child",
+          "note": "View, Edit, PDF, Download, Email, Copy sign link, and Accept once the customer has signed."
+        },
+        {
+          "selector": "a.btn-primary:has-text(\"New Quote\")",
+          "note": "Start a new quote."
+        }
+      ],
+      "caption": "Quotes → Quotes."
+    },
+    {
+      "name": "guide-quote-form",
+      "guide": "docs/QUOTES_AND_LICENSING.md",
+      "route": "/psa/quotes/3/edit/",
+      "organization": "Beacon Managed IT",
+      "theme": "light",
+      "max_h": 1300,
+      "alt": "The quote editor with numbered callouts on the two client fields, the title, status, valid until, tax rate and the line items",
+      "annotate": [
+        {
+          "selector": "select[name=client_org_id]",
+          "note": "The organization the quote is filed under."
+        },
+        {
+          "selector": "input[name=title]",
+          "note": "Title shown on the quote and its PDF."
+        },
+        {
+          "selector": "select[name=client_org]",
+          "note": "The customer being quoted."
+        },
+        {
+          "selector": "input[name=valid_until]",
+          "note": "Valid until. The sign link refuses to accept a quote after this date."
+        },
+        {
+          "selector": "input[name=tax_rate]",
+          "note": "Tax rate as a fraction (0.0875 is 8.75%)."
+        },
+        {
+          "selector": "#add-line",
+          "note": "Add a line item: description, quantity and unit price."
+        }
+      ],
+      "caption": "Quotes → Quotes → Edit."
+    },
+    {
+      "name": "guide-quote-detail",
+      "guide": "docs/QUOTES_AND_LICENSING.md",
+      "route": "/psa/quotes/1/",
+      "organization": "Beacon Managed IT",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "A sent quote with numbered callouts on the action buttons, the summary card, the sign and progress panel, the line items and the totals",
+      "annotate": [
+        {
+          "selector": ".btn-group",
+          "note": "Edit, View PDF, Download, Email, Copy Sign URL and Send for Approval."
+        },
+        {
+          "selector": ".col-md-4 .card:first-child",
+          "note": "Client, dates, subtotal, tax and total. After signing it also shows who signed and whether the signature still matches this quote."
+        },
+        {
+          "selector": ".card:has(> .card-header:has-text(\"Customer progress\"))",
+          "note": "Customer progress: Sent, Viewed, Signed, Accepted."
+        },
+        {
+          "selector": ".card:has(> .card-header strong:text-is(\"Accept\"))",
+          "note": "Accept. Until the customer has signed it only says so: the quote is accepted when they sign."
+        },
+        {
+          "selector": ".col-md-8 .card:first-child",
+          "note": "Line items with quantity, unit price and line total."
+        }
+      ],
+      "caption": "Quotes → Quote detail."
+    },
+    {
+      "name": "guide-quote-lic-overview",
+      "guide": "docs/QUOTES_AND_LICENSING.md",
+      "route": "/licensing/",
+      "organization": "Northwind Logistics",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "The licensing overview with numbered callouts on the tabs, the totals line, the Needs attention list and the customer table",
+      "annotate": [
+        {
+          "selector": "ul.nav-tabs",
+          "note": "Overview, Renewals, Vendor customer mapping, and Export CSV for every customer you may see."
+        },
+        {
+          "selector": "p:has-text(\"licenses purchased\")",
+          "note": "Totals over live (Active or Trial) subscriptions."
+        },
+        {
+          "selector": ".card:has-text(\"Needs attention\")",
+          "note": "Renewals within 30, 60 or 90 days, unused licenses and over-allocation."
+        },
+        {
+          "selector": "table.table tbody tr:first-child td:first-child a",
+          "note": "A customer opens its subscriptions."
+        },
+        {
+          "selector": "table.table th:has-text(\"Next renewal\")",
+          "note": "The nearest future renewal date among that customer's live subscriptions."
+        }
+      ],
+      "caption": "Licensing → Overview."
+    },
+    {
+      "name": "guide-quote-lic-customer",
+      "guide": "docs/QUOTES_AND_LICENSING.md",
+      "route": "/licensing/customer/5/",
+      "organization": "Northwind Logistics",
+      "theme": "light",
+      "max_h": 900,
+      "alt": "One customer's subscriptions with numbered callouts on the export, sync and add buttons, the totals, an over-allocated badge and the renewal column",
+      "annotate": [
+        {
+          "selector": "a:has-text(\"Export CSV\")",
+          "note": "Export this customer's subscriptions as CSV."
+        },
+        {
+          "selector": "button:has-text(\"Sync Microsoft 365\")",
+          "note": "Sync Microsoft 365: pull subscribed SKUs and assignments (needs an active Microsoft 365 connection)."
+        },
+        {
+          "selector": "a:has-text(\"Add subscription\")",
+          "note": "Add a subscription by hand."
+        },
+        {
+          "selector": "p:has-text(\"purchased\")",
+          "note": "Purchased, assigned, unused and over-allocated totals."
+        },
+        {
+          "selector": ".badge.bg-danger",
+          "note": "More seats assigned than purchased."
+        },
+        {
+          "selector": "table th:has-text(\"Renews\")",
+          "note": "Renewal date."
+        }
+      ],
+      "caption": "Licensing → customer."
+    },
+    {
+      "name": "guide-quote-lic-subscription",
+      "guide": "docs/QUOTES_AND_LICENSING.md",
+      "route": "/licensing/subscriptions/5/",
+      "organization": "Northwind Logistics",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "A subscription with numbered callouts on the Edit and Delete buttons, the details list, the assignments table and the assign form",
+      "annotate": [
+        {
+          "selector": ".btn-outline-primary:has-text(\"Edit\")",
+          "note": "Edit or delete the subscription (needs manage licensing)."
+        },
+        {
+          "selector": "dl.row",
+          "note": "Source, status, purchased and assigned counts, price, term and notes."
+        },
+        {
+          "selector": "table.table",
+          "note": "Who holds a seat: a person, a mailbox or a device."
+        },
+        {
+          "selector": "form[action*=\"assign\"]",
+          "note": "Add an assignment: name, optional contact and asset, and the date."
+        }
+      ],
+      "caption": "Licensing → subscription."
+    },
+    {
+      "name": "guide-quote-lic-renewals",
+      "guide": "docs/QUOTES_AND_LICENSING.md",
+      "route": "/licensing/renewals/",
+      "organization": "Northwind Logistics",
+      "theme": "light",
+      "max_h": 800,
+      "alt": "The renewals page with numbered callouts on the window and customer filters and the renewal table",
+      "annotate": [
+        {
+          "selector": "select[name=days]",
+          "note": "How far ahead to look: 30, 60, 90, 180 days or a year."
+        },
+        {
+          "selector": "select[name=customer]",
+          "note": "Limit to one customer."
+        },
+        {
+          "selector": "table.table th:has-text(\"Auto-renew\")",
+          "note": "Whether the subscription renews by itself."
+        }
+      ],
+      "caption": "Licensing → Renewals."
+    },
+    {
+      "name": "guide-proc-requisitions",
+      "guide": "docs/PROCUREMENT.md",
+      "route": "/psa/requisitions/",
+      "organization": "Beacon Managed IT",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "The requisition list with numbered callouts on the filter tabs, the status filter, a requisition number, a status badge and New Requisition",
+      "annotate": [
+        {
+          "selector": "main ul.nav-pills.small",
+          "note": "Approvers see All, Pending approval and My requisitions. Everyone else sees only their own requisitions."
+        },
+        {
+          "selector": "main select[name=status]",
+          "note": "Filter by status: Draft, Submitted, Approved, Rejected, Converted or Cancelled."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=0",
+          "note": "The requisition number opens it. Numbers run PR-year-00001."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=3",
+          "note": "Where it is in the approval path."
+        },
+        {
+          "selector": "main a.btn:has-text('New Requisition')",
+          "note": "Start a new requisition."
+        }
+      ],
+      "caption": "Procurement → Requisitions."
+    },
+    {
+      "name": "guide-proc-requisition",
+      "guide": "docs/PROCUREMENT.md",
+      "route": "/psa/requisitions/3/",
+      "organization": "Beacon Managed IT",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "A submitted requisition with numbered callouts on the status, Approve and Reject buttons, the summary and the line items",
+      "annotate": [
+        {
+          "selector": "main h2",
+          "note": "The number, title and status."
+        },
+        {
+          "selector": "main .btn-group button:has-text('Approve')",
+          "note": "Approve, with an optional note."
+        },
+        {
+          "selector": "main .btn-group button:has-text('Reject')",
+          "note": "Reject. A reason is required."
+        },
+        {
+          "selector": "main .col-md-4 .card >> nth=0",
+          "note": "Who asked, for which customer, and the totals."
+        },
+        {
+          "selector": "main .card:has(.card-header:has-text('Line items'))",
+          "note": "The lines: description, vendor SKU, distributor hint, quantity and unit price."
+        }
+      ],
+      "caption": "A submitted requisition, as an approver sees it."
+    },
+    {
+      "name": "guide-proc-pos",
+      "guide": "docs/PROCUREMENT.md",
+      "route": "/psa/purchase-orders/",
+      "organization": "Beacon Managed IT",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "The purchase order list with numbered callouts on the status filter, a PO number, the vendor, a status badge and the PDF buttons",
+      "annotate": [
+        {
+          "selector": "main select[name=status]",
+          "note": "Filter by status."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=0",
+          "note": "The PO number opens the order."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=1",
+          "note": "The vendor named on the order."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=4",
+          "note": "Draft, Sent, Acknowledged, Partial, Received, Cancelled or Void."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=7",
+          "note": "View, open the PDF, or download it."
+        },
+        {
+          "selector": "main a.btn:has-text('New PO')",
+          "note": "Create an order without a requisition."
+        }
+      ],
+      "caption": "Procurement → Purchase Orders."
+    },
+    {
+      "name": "guide-proc-po",
+      "guide": "docs/PROCUREMENT.md",
+      "route": "/psa/purchase-orders/1/",
+      "organization": "Beacon Managed IT",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "A partly received purchase order with numbered callouts on the status, the buttons, the vendor, the order details, the line items and the receipts",
+      "annotate": [
+        {
+          "selector": "main h2",
+          "note": "The number and status. Partial means some lines have arrived."
+        },
+        {
+          "selector": "main .btn-group.flex-wrap",
+          "note": "Edit, view or download the PDF, send it to the vendor, and Receive Items."
+        },
+        {
+          "selector": "main .col-md-4 .card >> nth=0",
+          "note": "The vendor as it was when the order was saved."
+        },
+        {
+          "selector": "main .col-md-4 .card >> nth=1",
+          "note": "Dates, drop-ship, the requisition or quote it came from, and totals."
+        },
+        {
+          "selector": "main .card:has(.card-header:has-text('Line items'))",
+          "note": "The lines being bought."
+        },
+        {
+          "selector": "main .card:has(.card-header:has-text('Receipts'))",
+          "note": "Each delivery recorded against the order."
+        }
+      ],
+      "caption": "A partly received purchase order."
+    },
+    {
+      "name": "guide-proc-receive",
+      "guide": "docs/PROCUREMENT.md",
+      "route": "/psa/purchase-orders/1/receive/",
+      "organization": "Beacon Managed IT",
+      "theme": "light",
+      "max_h": 1300,
+      "alt": "The receiving form with numbered callouts on the shipment details, ordered and received quantities, the quantity box, the serial numbers box and Record receipt",
+      "annotate": [
+        {
+          "selector": "main .card:has(.card-header:has-text('Shipment details'))",
+          "note": "Carrier, tracking number and notes for this delivery."
+        },
+        {
+          "selector": "main .card:has(.card-header:has-text('Line items')) thead",
+          "note": "Ordered, already received and what is still outstanding."
+        },
+        {
+          "selector": "main input[name^=qty_line_] >> nth=0",
+          "note": "How many arrived in this delivery. Anything over what is outstanding is cut back."
+        },
+        {
+          "selector": "main textarea[name^=serials_line_] >> nth=0",
+          "note": "Serial numbers, one per line or comma-separated. Each creates an asset."
+        },
+        {
+          "selector": "main button:has-text('Record receipt')",
+          "note": "Save the receipt."
+        }
+      ],
+      "caption": "Receiving against a purchase order."
+    },
+    {
+      "name": "guide-proc-backorders",
+      "guide": "docs/PROCUREMENT.md",
+      "route": "/psa/back-orders/?status=all",
+      "organization": "Beacon Managed IT",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "The back-orders page with numbered callouts on the status buttons, the PO number, the outstanding quantity, a status badge and the row buttons",
+      "annotate": [
+        {
+          "selector": "main .btn-group",
+          "note": "Open is the default. Filled and Cancelled show what has been closed."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=0",
+          "note": "The purchase order the shortfall belongs to."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=2",
+          "note": "How many units are still owed."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=5",
+          "note": "Open, Filled or Cancelled."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=6",
+          "note": "Cancel the back-order, or open the receiving form."
+        }
+      ],
+      "caption": "Procurement → Back-orders."
+    },
+    {
+      "name": "guide-proc-vendors",
+      "guide": "docs/PROCUREMENT.md",
+      "route": "/psa/vendors/",
+      "organization": "Beacon Managed IT",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "The vendor list with numbered callouts on the Show inactive box, a vendor name and distributor badge, the payment terms, the open order count and the spend",
+      "annotate": [
+        {
+          "selector": "main #show_inactive",
+          "note": "Show vendors that have been marked inactive."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=0",
+          "note": "The vendor name opens it. A badge shows the linked distributor."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=1",
+          "note": "Payment terms and typical lead time."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=3",
+          "note": "Orders still draft, sent, acknowledged or partly received."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=4",
+          "note": "Total of orders created in the last 30 days."
+        },
+        {
+          "selector": "main a.btn:has-text('New Vendor')",
+          "note": "Add a vendor."
+        }
+      ],
+      "caption": "Vendors."
+    },
+    {
+      "name": "guide-proc-vendor",
+      "guide": "docs/PROCUREMENT.md",
+      "route": "/psa/vendors/2/",
+      "organization": "Beacon Managed IT",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "A vendor page with numbered callouts on the purchasing details, the 90 day spend, the open orders and the recent closed orders",
+      "annotate": [
+        {
+          "selector": "main .col-md-8 .card >> nth=0",
+          "note": "Lead time, payment terms, contact details, billing address and account number."
+        },
+        {
+          "selector": "main .col-md-4 .card >> nth=0",
+          "note": "Spend on orders created in the last 90 days."
+        },
+        {
+          "selector": "main .col-md-4 .card >> nth=1",
+          "note": "How many open and recently closed orders."
+        },
+        {
+          "selector": "main .card:has(.card-header:has-text('Open POs'))",
+          "note": "Orders still draft, sent, acknowledged or partly received."
+        },
+        {
+          "selector": "main a.btn:has-text('Edit')",
+          "note": "Edit the vendor."
+        }
+      ],
+      "caption": "A vendor page."
+    },
+    {
+      "name": "guide-health-list",
+      "guide": "docs/CLIENT_HEALTH.md",
+      "route": "/client-health/",
+      "theme": "light",
+      "max_h": 900,
+      "alt": "The Client Health list with numbered callouts on the Weights button, the filter, the sort, a client's overall score, its coverage, a dimension score and the computed date",
+      "annotate": [
+        {
+          "selector": "main .card a:has-text('Weights')",
+          "note": "Weights: opens the default weights and thresholds. Shown only to people who may change them."
+        },
+        {
+          "selector": "select[name=filter]",
+          "note": "Filter: all clients, those with incomplete or unknown data, those with stale data, or those that need attention or are at risk."
+        },
+        {
+          "selector": "select[name=sort]",
+          "note": "Sort: worst overall first, by name, or by one dimension."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=1",
+          "note": "The overall score, coloured by the thresholds."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=2",
+          "note": "Coverage: how many of the six dimensions had data to score."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=4",
+          "note": "One dimension's score. Grey means Unknown or Stale: no score, and not counted as healthy."
+        }
+      ],
+      "caption": "Client Health → Client Health."
+    },
+    {
+      "name": "guide-health-detail",
+      "guide": "docs/CLIENT_HEALTH.md",
+      "route": "/client-health/2/",
+      "theme": "light",
+      "max_h": 1500,
+      "alt": "One client's health page with numbered callouts on Recompute now, Weights, the overall score and coverage, what changed, and a dimension with its signals",
+      "annotate": [
+        {
+          "selector": "main button:has-text('Recompute now')",
+          "note": "Recompute now: computes today's snapshot immediately instead of waiting for the nightly run."
+        },
+        {
+          "selector": "main a:has-text('Weights')",
+          "note": "Weights for this client only (people with the weights permission)."
+        },
+        {
+          "selector": "main .card.card-body >> nth=1",
+          "note": "The overall score, its colour and its coverage, with the change since the previous snapshot."
+        },
+        {
+          "selector": "main h3:has-text('Why it changed')",
+          "note": "Why it changed: the signals that moved since the previous snapshot, with the records that appeared or went away."
+        },
+        {
+          "selector": "#dim-security",
+          "note": "A dimension: its score, weight and how many of its signals had data, then each signal with its own score, explanation, data date, source and contributing records."
+        }
+      ],
+      "caption": "Client Health → a client."
+    },
+    {
+      "name": "guide-health-weights",
+      "guide": "docs/CLIENT_HEALTH.md",
+      "route": "/client-health/settings/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The weights page with numbered callouts on the two thresholds, a dimension weight and a signal weight",
+      "annotate": [
+        {
+          "selector": "#ok_threshold",
+          "note": "Healthy at or above: the lowest score shown as Healthy (green)."
+        },
+        {
+          "selector": "#warn_threshold",
+          "note": "At risk below: scores under this are At risk (red); between the two thresholds is Needs attention (amber)."
+        },
+        {
+          "selector": "#dim_technical",
+          "note": "A dimension's weight. 0 turns the whole dimension off."
+        },
+        {
+          "selector": "input[name=sig_rmm_online]",
+          "note": "A signal's weight inside its dimension. 0 turns that signal off."
+        }
+      ],
+      "caption": "Client Health → Weights."
+    },
+    {
+      "name": "guide-health-pulse-list",
+      "guide": "docs/PULSE_CHECKS.md",
+      "route": "/pulse/",
+      "theme": "light",
+      "max_h": 900,
+      "alt": "The Pulse Checks list with numbered callouts on Opt-outs, New pulse check, the audience and schedule, the response rate and the On or Off status",
+      "annotate": [
+        {
+          "selector": "main .card a:has-text('Opt-outs')",
+          "note": "Opt-outs: the addresses that asked not to get pulse checks, with how many."
+        },
+        {
+          "selector": "main a:has-text('New pulse check')",
+          "note": "New pulse check: name, up to twelve questions, audience and schedule."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=1",
+          "note": "Who it goes to, and whether it covers all clients."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=2",
+          "note": "Not repeated, Monthly or Quarterly."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=5",
+          "note": "Response rate across every send: answered over sent."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=6",
+          "note": "On or Off. A check that is Off is never sent, by hand or by schedule."
+        }
+      ],
+      "caption": "Business → Pulse Checks → Pulse Checks."
+    },
+    {
+      "name": "guide-health-pulse-results",
+      "guide": "docs/PULSE_CHECKS.md",
+      "route": "/pulse/1/",
+      "theme": "light",
+      "max_h": 900,
+      "alt": "A pulse check page with numbered callouts on the actions, the response rate, the average rating, the NPS and the sends table",
+      "annotate": [
+        {
+          "selector": "main h2",
+          "note": "The pulse check, with its audience, schedule and question count. Edit, Turn off and Send now… are on the right."
+        },
+        {
+          "selector": "main .card >> nth=1",
+          "note": "Response rate, average rating and NPS across every send, within your clients."
+        },
+        {
+          "selector": "main select",
+          "note": "Filter the results by organization."
+        },
+        {
+          "selector": "main .card:has-text('By question')",
+          "note": "Results question by question: answers, the average for ratings, the NPS for 0-10 questions and the number of comments."
+        }
+      ],
+      "caption": "Business → Pulse Checks → a pulse check."
+    },
+    {
+      "name": "guide-health-pulse-optouts",
+      "guide": "docs/PULSE_CHECKS.md",
+      "route": "/pulse/opt-outs/",
+      "theme": "light",
+      "max_h": 900,
+      "alt": "The Opt-outs tab with numbered callouts on the explanation and the list of addresses, how they opted out and since when",
+      "annotate": [
+        {
+          "selector": "main p.small",
+          "note": "Who is on this list and why: they used the e-mail link or the portal Feedback page."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=0",
+          "note": "The address. It is left out of every send."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=1",
+          "note": "How they opted out."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=2",
+          "note": "Since when."
+        }
+      ],
+      "caption": "Business → Pulse Checks → Opt-outs."
     }
   ]
 }

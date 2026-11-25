@@ -432,3 +432,20 @@ class TaxRateRangeTests(_Base):
         inv.refresh_from_db()
         self.assertEqual(inv.tax_rate, Decimal('0.0875'))
         self.assertTrue(any('tax rate' in w for w in self._warnings(r)))
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class QuoteFormPreviewRoundingTests(_Base):
+    def test_editor_preview_rounds_half_up_like_the_server(self):
+        """The editor's running totals round to the cent half-up (server rule),
+        not with toFixed(), which showed 346.69 for a saved 346.70."""
+        quote = Quote.objects.create(organization=self.org, client_org=self.org, title='Rounding',
+                                     tax_rate=Decimal('0.0725'))
+        QuoteLineItem.objects.create(quote=quote, description='Workstations', quantity=3, unit_price=879)
+        QuoteLineItem.objects.create(quote=quote, description='Displays', quantity=3, unit_price=265)
+        QuoteLineItem.objects.create(quote=quote, description='Build', quantity=9, unit_price=150)
+        quote.recompute_totals()
+        self.assertEqual(quote.tax_amount, Decimal('346.70'))
+        r = self.c.get(reverse('psa:quote_edit', kwargs={'pk': quote.pk}))
+        self.assertContains(r, 'function r2(x)')
+        self.assertContains(r, 'const tax = r2(sub * rate);')

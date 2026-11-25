@@ -1,5 +1,7 @@
 # Pulse checks
 
+The sidebar entry is **Business → Pulse Checks** (MSP staff only, and only while the module is on), with two tabs: **Pulse Checks** and **Opt-outs**. Results also feed the Satisfaction part of [Client Health](CLIENT_HEALTH.md). Every screenshot is a capture of the application against a demo database; the customers and people in it are invented.
+
 Pulse checks are short service-feedback surveys you send to people at your
 client organizations: "How are we doing overall?", "How likely are you to
 recommend us?", "Anything we could do better?". Send one by hand, or let it
@@ -27,7 +29,19 @@ e-mailed.
 
 ## Creating a pulse check
 
-MSP staff open **Business → Pulse Checks → New pulse check**.
+MSP staff open **Business → Pulse Checks → Pulse Checks** (`/pulse/`) and click **New pulse check**. The list shows each check's audience, schedule, number of sends, last send, response rate across all its sends and whether it is On or Off.
+
+<!-- guide-figure: guide-health-pulse-list -->
+![The Pulse Checks list with numbered callouts on Opt-outs, New pulse check, the audience and schedule, the response rate and the On or Off status](images/guides/guide-health-pulse-list.png "Business → Pulse Checks → Pulse Checks.")
+
+1. Opt-outs: the addresses that asked not to get pulse checks, with how many.
+2. New pulse check: name, up to twelve questions, audience and schedule.
+3. Who it goes to, and whether it covers all clients.
+4. Not repeated, Monthly or Quarterly.
+5. Response rate across every send: answered over sent.
+6. On or Off. A check that is Off is never sent, by hand or by schedule.
+<!-- /guide-figure -->
+
 
 - **Name and intro text** — the intro is shown above the questions and in
   the e-mail.
@@ -104,7 +118,17 @@ requests or answers.
 Every e-mail has a "Don't want these feedback requests?" link that stops all
 pulse check e-mails for that address. Portal users can also switch them off
 and on again on the **Feedback** page. Staff can see the list under
-**Business → Pulse Checks → Opt-outs**; only the person can turn requests back on.
+**Business → Pulse Checks → Opt-outs** (`/pulse/opt-outs/`; staff limited to some clients see only the addresses of people at those clients); only the person can turn requests back on.
+
+<!-- guide-figure: guide-health-pulse-optouts -->
+![The Opt-outs tab with numbered callouts on the explanation and the list of addresses, how they opted out and since when](images/guides/guide-health-pulse-optouts.png "Business → Pulse Checks → Opt-outs.")
+
+1. Who is on this list and why: they used the e-mail link or the portal Feedback page.
+2. The address. It is left out of every send.
+3. How they opted out.
+4. Since when.
+<!-- /guide-figure -->
+
 Other e-mail (ticket notifications, CSAT) is not affected.
 
 ## Results
@@ -117,6 +141,15 @@ Other e-mail (ticket notifications, CSAT) is not affected.
   e-mail went out, and when they answered.
 - **Client record:** a *Pulse checks* card with the last six sends that
   reached that client — date, response rate, average rating and NPS.
+
+<!-- guide-figure: guide-health-pulse-results -->
+![A pulse check page with numbered callouts on the actions, the response rate, the average rating, the NPS and the sends table](images/guides/guide-health-pulse-results.png "Business → Pulse Checks → a pulse check.")
+
+1. The pulse check, with its audience, schedule and question count. Edit, Turn off and Send now… are on the right.
+2. Response rate, average rating and NPS across every send, within your clients.
+3. Filter the results by organization.
+4. Results question by question: answers, the average for ratings, the NPS for 0-10 questions and the number of comments.
+<!-- /guide-figure -->
 
 Only MSP staff see results. Staff limited to some clients see only those
 clients' answers, cannot edit or send a pulse check that reaches other

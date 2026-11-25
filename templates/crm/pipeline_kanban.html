@@ -172,7 +172,9 @@
             fetch(`/crm/opportunities/${encodeURIComponent(oppId)}/stage/`, {method: 'POST', body: fd})
                 .then(r => r.json())
                 .then(data => {
-                    if (data.ok) {
+                    if (data.ok && data.warning) {
+                        showToast(data.warning, true);
+                    } else if (data.ok) {
                         showToast(`Moved to ${data.stage_label || targetStage}`);
                     } else {
                         showToast('Failed: ' + (data.error || 'unknown'), true);

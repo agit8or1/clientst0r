@@ -796,3 +796,130 @@ class OpportunityCloseDateLocalDayTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         opp.refresh_from_db()
         self.assertEqual(opp.actual_close_date, date(2026, 11, 11))
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class CampaignDetailTests(TestCase):
+    """The campaign page used to filter an already-sliced queryset and crash."""
+
+    def test_campaign_detail_totals(self):
+        from core.models import Organization
+        from crm.models import Campaign, Lead, Opportunity
+        msp = Organization.objects.create(name='CampMSP', slug='campmsp')
+        cust = Organization.objects.create(name='CampCust', slug='campcust')
+        camp = Campaign.objects.create(organization=msp, name='Spring', budget=Decimal('1000'))
+        Lead.objects.create(organization=msp, company_name='A', campaign=camp, status='converted')
+        Lead.objects.create(organization=msp, company_name='B', campaign=camp)
+        Opportunity.objects.create(organization=msp, client_org=cust, name='Won', campaign=camp,
+                                   stage='closed_won', estimated_value=Decimal('3000'))
+        root = User.objects.create_user('camp-root', password='pw', is_superuser=True, is_staff=True)
+        c = Client()
+        c.force_login(root)
+        _bypass_2fa(c)
+        resp = c.get(reverse('crm:campaign_detail', args=[camp.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['lead_count'], 2)
+        self.assertEqual(resp.context['converted_count'], 1)
+        self.assertEqual(resp.context['won_count'], 1)
+        self.assertEqual(resp.context['won_value'], Decimal('3000.00'))
+        self.assertEqual(resp.context['roi'], Decimal('200.0'))
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class OpportunityEditClosesWonTests(TestCase):
+    """Setting the stage to Closed Won in the edit form counts as closing the deal."""
+
+    def test_edit_form_close_creates_commission_and_date(self):
+        from core.models import Organization
+        from crm.models import Commission, CommissionRule, Opportunity
+        msp = Organization.objects.create(name='EditMSP', slug='editmsp')
+        cust = Organization.objects.create(name='EditCust', slug='editcust')
+        rep = User.objects.create_user('edit-rep', password='pw')
+        CommissionRule.objects.create(organization=msp, name='Std', rate_pct=Decimal('5'))
+        opp = Opportunity.objects.create(organization=msp, client_org=cust, name='Deal',
+                                         estimated_value=Decimal('2000'), assigned_to=rep)
+        root = User.objects.create_user('edit-root', password='pw', is_superuser=True, is_staff=True)
+        c = Client()
+        c.force_login(root)
+        _bypass_2fa(c)
+        resp = c.post(reverse('crm:opportunity_edit', args=[opp.pk]), {
+            'name': 'Deal', 'client_org': cust.pk, 'stage': 'closed_won',
+            'estimated_value': '2000', 'probability_pct': '100',
+            'assigned_to': rep.pk,
+        })
+        self.assertEqual(resp.status_code, 302, getattr(resp, 'context', None) and resp.context['form'].errors)
+        opp.refresh_from_db()
+        self.assertIsNotNone(opp.actual_close_date)
+        self.assertEqual(Commission.objects.get(opportunity=opp).amount, Decimal('100.00'))
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class CommissionReopenTests(TestCase):
+    """Closing a deal again never rewrites a commission someone already approved or
+    paid; moving a deal out of Closed Won cancels pending commissions and clears
+    the close date."""
+
+    def setUp(self):
+        from core.models import Organization
+        from crm.models import CommissionRule, Opportunity
+        self.msp = Organization.objects.create(name='ReMSP', slug='remsp')
+        self.cust = Organization.objects.create(name='ReCust', slug='recust')
+        self.rep = User.objects.create_user('re-rep', password='pw')
+        CommissionRule.objects.create(organization=self.msp, name='Std', rate_pct=Decimal('5'))
+        self.opp = Opportunity.objects.create(
+            organization=self.msp, client_org=self.cust, name='Deal',
+            estimated_value=Decimal('2000'), assigned_to=self.rep)
+        root = User.objects.create_user('re-root', password='pw', is_superuser=True, is_staff=True)
+        self.c = Client()
+        self.c.force_login(root)
+        _bypass_2fa(self.c)
+
+    def _move(self, stage):
+        resp = self.c.post(reverse('crm:opportunity_set_stage', args=[self.opp.pk]), {'stage': stage})
+        self.assertEqual(resp.status_code, 200)
+        self.opp.refresh_from_db()
+        return resp.json()
+
+    def test_reclosing_keeps_a_paid_commission(self):
+        from crm.models import Commission
+        self._move('closed_won')
+        com = Commission.objects.get(opportunity=self.opp)
+        com.status = 'paid'
+        com.save()
+        self.opp.estimated_value = Decimal('9000')
+        self.opp.save()
+        data = self._move('negotiation')
+        self.assertIn('already approved or paid', data['warning'])
+        self._move('closed_won')
+        com.refresh_from_db()
+        self.assertEqual(com.status, 'paid')
+        self.assertEqual(com.amount, Decimal('100.00'))
+
+    def test_reopening_cancels_pending_and_clears_close_date(self):
+        from crm.models import Commission
+        self._move('closed_won')
+        self.assertIsNotNone(self.opp.actual_close_date)
+        data = self._move('negotiation')
+        self.assertEqual(data['warning'], '')
+        self.assertIsNone(self.opp.actual_close_date)
+        com = Commission.objects.get(opportunity=self.opp)
+        self.assertEqual(com.status, 'cancelled')
+        self.assertIn('moved out of Closed Won', com.notes)
+        # Winning it again brings the commission back for review.
+        self._move('closed_won')
+        com.refresh_from_db()
+        self.assertEqual(com.status, 'pending')
+        self.assertIsNotNone(self.opp.actual_close_date)
+
+    def test_edit_form_reopen_warns_about_approved_commission(self):
+        from crm.models import Commission
+        self._move('closed_won')
+        Commission.objects.filter(opportunity=self.opp).update(status='approved')
+        resp = self.c.post(reverse('crm:opportunity_edit', args=[self.opp.pk]), {
+            'name': 'Deal', 'client_org': self.cust.pk, 'stage': 'negotiation',
+            'estimated_value': '2000', 'probability_pct': '50', 'assigned_to': self.rep.pk,
+        }, follow=True)
+        self.assertContains(resp, 'already approved or paid')
+        self.opp.refresh_from_db()
+        self.assertIsNone(self.opp.actual_close_date)
+        self.assertEqual(Commission.objects.get(opportunity=self.opp).status, 'approved')

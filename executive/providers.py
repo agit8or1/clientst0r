@@ -855,7 +855,9 @@ class BackupFailures(MetricProvider):
         rows, kinds = [], OrderedDict()
         for a in qs.select_related('organization').order_by('-pk'):
             kind = getattr(a, 'kind', '') or 'other'
-            kinds[kind] = kinds.get(kind, 0) + 1
+            kind_label = (a.get_kind_display() if hasattr(a, 'get_kind_display') and kind != 'other'
+                          else kind.replace('_', ' ').capitalize())
+            kinds[kind_label] = kinds.get(kind_label, 0) + 1
             job_id = getattr(a, 'job_id', None)
             rows.append({'id': a.pk, 'label': a.title, 'client_name': a.organization.name, 'kind': kind,
                          'severity': getattr(a, 'severity', ''), 'last_seen': getattr(a, 'last_seen_at', None),
