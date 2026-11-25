@@ -54,6 +54,6 @@
     </table>
 </div>
 {% else %}
-<div class="alert alert-info">No templates yet. Save useful workflow patterns as templates from the rule edit page.</div>
+<div class="alert alert-info">There are no workflow templates yet. Templates are ready-made rule patterns; when one is available it will be listed here, and you can copy it onto a customer with "Use Template". In the meantime you can <a href="{% url 'psa:workflow_rule_list' %}">create a rule directly</a>.</div>
 {% endif %}
 {% endblock %}

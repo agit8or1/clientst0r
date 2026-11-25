@@ -269,3 +269,106 @@ class LocalDayTests(TestCase):
             far = self.TODAY + timedelta(days=31)
             self.assertFalse(ServiceVehicle(insurance_expires_at=far).is_insurance_expiring_soon)
             self.assertFalse(ServiceVehicle(registration_expires_at=far).is_registration_expiring_soon)
+
+
+class ScheduledServiceAlertTests(TestCase):
+    """Service alerts used to be created only when someone opened the
+    vehicle's page; the scheduler (vehicles_service_alerts) now runs the
+    same check for every vehicle, and the two never duplicate."""
+
+    def setUp(self):
+        from vehicles.models import VehicleServiceSchedule
+        self.van = ServiceVehicle.objects.create(
+            name='Van S', vehicle_type='van', make='Ford', model='Transit',
+            year=2022, license_plate='SCHED1', current_mileage=10_000)
+        self.schedule = VehicleServiceSchedule.objects.create(
+            vehicle=self.van, name='Oil change', interval_miles=5000,
+            warning_miles=500, last_service_mileage=5_000)
+        self.not_due = ServiceVehicle.objects.create(
+            name='Van N', vehicle_type='van', make='Ford', model='Transit',
+            year=2022, license_plate='SCHED2', current_mileage=1_000)
+        VehicleServiceSchedule.objects.create(
+            vehicle=self.not_due, name='Oil change', interval_miles=5000,
+            warning_miles=500, last_service_mileage=1_000)
+
+    def _alerts(self):
+        from vehicles.models import VehicleServiceAlert
+        return VehicleServiceAlert.objects.filter(status='pending')
+
+    def test_command_creates_alert_without_opening_the_page(self):
+        from io import StringIO
+        from django.core.management import call_command
+        call_command('vehicles_service_alerts', stdout=StringIO())
+        alerts = list(self._alerts())
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts[0].vehicle, self.van)
+        self.assertEqual(alerts[0].due_mileage, 10_000)
+
+    def test_repeated_runs_do_not_duplicate(self):
+        from vehicles.services.service_alerts import (
+            generate_all_service_alerts, generate_vehicle_service_alerts)
+        self.assertEqual(generate_all_service_alerts(), 1)
+        self.assertEqual(generate_all_service_alerts(), 0)
+        self.assertEqual(generate_vehicle_service_alerts(self.van), [])
+        self.assertEqual(self._alerts().count(), 1)
+
+    def test_date_based_schedule_triggers(self):
+        from vehicles.models import VehicleServiceSchedule
+        from vehicles.services.service_alerts import generate_all_service_alerts
+        VehicleServiceSchedule.objects.create(
+            vehicle=self.not_due, name='Inspection', interval_days=90,
+            warning_days=7, last_service_date=timezone.localdate() - timedelta(days=85))
+        self.assertEqual(generate_all_service_alerts(), 2)
+
+    def test_retired_vehicle_is_skipped_by_the_sweep(self):
+        from vehicles.services.service_alerts import generate_all_service_alerts
+        self.van.status = 'retired'
+        self.van.save()
+        self.assertEqual(generate_all_service_alerts(), 0)
+
+    def test_acknowledged_alert_allows_a_new_one(self):
+        from vehicles.services.service_alerts import generate_all_service_alerts
+        generate_all_service_alerts()
+        self._alerts().update(status='acknowledged')
+        self.assertEqual(generate_all_service_alerts(), 1)
+
+    def test_registered_with_the_scheduler(self):
+        from core.management.commands.run_scheduler import COMMAND_TASKS
+        from core.models import ScheduledTask
+        self.assertEqual(COMMAND_TASKS['vehicles_service_alerts'], ('vehicles_service_alerts', []))
+        defaults = {d['task_type']: d for d in ScheduledTask.PERIODIC_COMMAND_DEFAULTS}
+        self.assertEqual(defaults['vehicles_service_alerts']['interval_minutes'], 60)
+
+
+from psa.tests._base import TEST_MIDDLEWARE, _make_msp_tech  # noqa: E402
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class VehiclePageServiceAlertTests(TestCase):
+    """Opening the vehicle page still generates alerts, through the same
+    function, and doesn't add a second one after the scheduled run."""
+
+    def setUp(self):
+        from django.contrib.auth.models import User
+        from vehicles.models import VehicleServiceSchedule
+        self.tech = _make_msp_tech(User.objects.create_user('veh-alert-tech', 'va@x.test', 'pw'))
+        self.van = ServiceVehicle.objects.create(
+            name='Van P', vehicle_type='van', make='Ford', model='Transit',
+            year=2022, license_plate='PAGE1', current_mileage=10_000)
+        VehicleServiceSchedule.objects.create(
+            vehicle=self.van, name='Oil change', interval_miles=5000,
+            warning_miles=500, last_service_mileage=5_000)
+
+    def test_page_and_scheduler_share_one_alert(self):
+        from django.test import Client
+        from django.urls import reverse
+        from vehicles.models import VehicleServiceAlert
+        from vehicles.services.service_alerts import generate_all_service_alerts
+        c = Client()
+        c.force_login(self.tech)
+        r = c.get(reverse('vehicles:vehicle_detail', args=[self.van.pk]))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(VehicleServiceAlert.objects.filter(vehicle=self.van, status='pending').count(), 1)
+        self.assertEqual(generate_all_service_alerts(), 0)
+        c.get(reverse('vehicles:vehicle_detail', args=[self.van.pk]))
+        self.assertEqual(VehicleServiceAlert.objects.filter(vehicle=self.van, status='pending').count(), 1)

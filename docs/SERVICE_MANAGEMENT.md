@@ -79,7 +79,7 @@ changes across all customers you can reach, newest first, filtered by status and
 1. The change's risk and where it stands.
 2. Implementation plan, rollback plan and impact assessment.
 3. The planned window and, once work starts, the actual start and end.
-4. Each required approver and their vote. All must approve, and none reject, before work can begin.
+4. Each required approver and their vote. All must approve, and none reject, before work can begin. With no required approvers, one approval is enough.
 5. The next step: submit to CAB, begin implementation, or record the outcome.
 <!-- /guide-figure -->
 
@@ -91,8 +91,9 @@ changes across all customers you can reach, newest first, filtered by status and
 2. **Submit to CAB.** Needs an implementation plan; high and emergency changes also need a rollback plan.
 3. **CAB vote.** Only the required approvers can vote, and they also need *Sit on the CAB and vote on changes*.
    Each votes Approve, Reject or Abstain, with an optional note. One rejection rejects the change. When every
-   required approver has approved, it becomes **Approved — ready to implement**. Add at least one required
-   approver, otherwise nobody can vote.
+   required approver has approved, it becomes **Approved — ready to implement**. With no required approvers,
+   anyone who may sit on the CAB for that customer can vote, and a single Approve approves it; the person who
+   submitted the change cannot approve it themselves (superusers excepted).
 4. **Begin Implementation** (needs *Move an approved change into Implementing*) records the actual start and puts
    the ticket in progress. It is refused until the CAB has approved.
 5. **Verify (Successful)** records the outcome and closes the ticket. The ticket's closeout rules apply as they do

@@ -761,7 +761,7 @@
         },
         {
           "selector": "main .card:has(.card-header strong:text-is('CAB Approval'))",
-          "note": "Each required approver and their vote. All must approve, and none reject, before work can begin."
+          "note": "Each required approver and their vote. All must approve, and none reject, before work can begin. With no required approvers, one approval is enough."
         },
         {
           "selector": "main .card:has(.card-header strong:text-is('Actions'))",

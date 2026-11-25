@@ -48,7 +48,7 @@ class DispatchTechnicianTests(TestCase):
     def _ticket(self, **kw):
         return Ticket.objects.create(
             organization=self.org, subject=kw.pop('subject', 'disp'), queue=self.queue,
-            priority=self.priority, ticket_type=self.ttype, status=self.status,
+            priority=self.priority, ticket_type=self.ttype, status=kw.pop('status', self.status),
             resolution_due_at=timezone.now() + timedelta(days=1), **kw)
 
     def _login(self, user):
@@ -163,3 +163,30 @@ class DispatchTechnicianTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         t.refresh_from_db()
         self.assertEqual(t.assigned_to, self.tech)
+
+    # --- heatmap and breadcrumbs -----------------------------------------
+
+    def test_heatmap_ignores_closed_tickets(self):
+        closed = TicketStatus.objects.filter(is_terminal=True).first()
+        self._ticket(assigned_to=self.tech)
+        self._ticket(assigned_to=self.tech, status=closed)
+        resp = self._login(self.dispatcher).get('/psa/dispatch/heatmap/')
+        row = [r for r in resp.context['rows'] if r['tech'].id == self.tech.id][0]
+        self.assertEqual(sum(c['count'] for c in row['cells']), 1)
+
+    def test_timesheet_and_change_request_breadcrumbs(self):
+        c = self._login(self.dispatcher)
+        r = c.get('/psa/timesheet/')
+        self.assertContains(r, '>My Work</a>')
+        self.assertNotContains(r, '>PSA</a>')
+        r = c.get('/psa/changes/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, '>Service Management</a>')
+
+    def test_workflow_template_empty_state_is_accurate(self):
+        from django.urls import reverse
+        resp = self._login(self.dispatcher).get(reverse('psa:workflow_template_list'))
+        self.assertEqual(resp.status_code, 200)
+        if not resp.context['templates']:
+            self.assertContains(resp, 'There are no workflow templates yet')
+        self.assertNotContains(resp, 'rule edit page')

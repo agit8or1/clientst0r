@@ -654,6 +654,12 @@ class ViewTests(Fixture):
         self.assertNotContains(r, reverse('backup_monitoring:customer_detail', args=[self.org_b.pk]))
         self.assertNotContains(r, 'RepoB')
 
+    def test_show_every_customer_link_only_when_it_does_something(self):
+        url = reverse('backup_monitoring:dashboard')
+        link = 'Show every customer you can see'
+        self.assertContains(self.client_for(self.admin, self.org_a).get(url), link)
+        self.assertNotContains(self.client_for(self.admin, self.org_a).get(url + '?customer=all'), link)
+
     def test_superuser_sees_both(self):
         r = self.client_for(self.admin).get(reverse('backup_monitoring:dashboard') + '?customer=all')
         self.assertContains(r, reverse('backup_monitoring:customer_detail', args=[self.org_a.pk]))

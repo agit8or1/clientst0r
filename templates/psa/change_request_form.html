@@ -3,7 +3,7 @@
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:service_catalog' %}">Service Management</a></li>
         <li class="breadcrumb-item"><a href="{% url 'psa:change_request_list' %}">Change Requests</a></li>
         <li class="breadcrumb-item"><a href="{% url 'psa:change_request_detail' ticket.ticket_number %}">{{ ticket.ticket_number }}</a></li>
         <li class="breadcrumb-item active">Edit</li>
@@ -65,7 +65,7 @@
     <div class="card mb-3">
         <div class="card-header"><strong>Required Approvers (CAB)</strong></div>
         <div class="card-body">
-            <p class="small text-muted">Each selected user must vote Approve before the change can be implemented. Empty = single-approval fallback.</p>
+            <p class="small text-muted">Each selected user must vote Approve before the change can be implemented. Leave empty for single approval: one Approve vote from anyone with the change approval permission, other than the submitter.</p>
             <select name="required_approvers" class="form-select" multiple size="10">
                 {% for u in candidate_users %}
                 <option value="{{ u.id }}" {% if u.id in selected_approver_ids %}selected{% endif %}>{{ u.username }}{% if u.email %} <{{ u.email }}>{% endif %}</option>

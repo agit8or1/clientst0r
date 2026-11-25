@@ -246,8 +246,8 @@ busiest cell in the window. Use it to spot a technician with far more due on one
 rebalance on the Dispatch Board.
 
 It uses the same scope as the Dispatch Board (the selected customer, or everyone in Global View), reads the
-2,000 most recent tickets, and counts only assigned tickets with a deadline. Tickets already closed are
-counted on their due day too. MSP staff only.
+2,000 most recent tickets, and counts only open, assigned tickets with a deadline; closed and resolved tickets are left out. MSP staff
+only.
 
 ## Projects
 

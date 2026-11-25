@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.775] - 2026-11-25
+
+### Fixed
+- **Stock Out removes stock.** Adjust Stock with *Stock Out* used to add the number typed when it was positive;
+  it now always takes it away, and stock still cannot go below zero.
+- **Change requests with no required approvers can be approved.** Anyone who may sit on the CAB for that
+  customer can now vote, and one approval approves the change, as the page described. The person who
+  submitted it cannot approve it themselves.
+- **Vehicle service alerts are raised on schedule.** Service schedules are now checked every hour for every
+  vehicle that isn't retired, not only when someone opens the vehicle's page. Each schedule gets at most one
+  pending alert.
+- **New Ticket from a project attaches the ticket to that project**, with the project's customer filled in.
+- **VLANs show in Global View** for MSP staff, limited to the customers they may view.
+- **The network closet page fits the window**; the device table scrolls sideways on narrow screens.
+- **Patch panel pages list the customer's real assets** in the sidebar instead of made-up sample names.
+- **The Load Heatmap counts open tickets only**, as its description says; closed tickets were counted too.
+- **Breadcrumbs:** My Timesheet now sits under My Work, and change requests under Service Management, instead
+  of "PSA".
+- **Backup monitoring** shows *Show every customer you can see* only when the page is filtered to one customer.
+- **Workflow Templates** no longer describes saving a rule as a template, which isn't possible; the empty page
+  says there are no templates yet and links to Workflow Rules.
+- The demo data uses a valid status for assigned IP addresses.
+- The guides for inventory, vehicles, tickets, service management, infrastructure, IPAM and workflows describe
+  the fixed behaviour.
+
 ## [3.17.774] - 2026-11-25
 
 ### Added

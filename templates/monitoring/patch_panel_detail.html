@@ -317,27 +317,14 @@
         </div>
 
         <div id="available-assets">
-            <!-- Sample asset items - in production, load from database -->
-            <div class="asset-item" data-asset-name="Server-01" draggable="true">
+            {% for asset in available_assets %}
+            <div class="asset-item" data-asset-id="{{ asset.id }}" data-asset-name="{{ asset.name }}" draggable="true">
                 <i class="fas fa-server icon"></i>
-                <span class="name">Server-01</span>
+                <span class="name">{{ asset.name }}</span>
             </div>
-            <div class="asset-item" data-asset-name="Switch-Core" draggable="true">
-                <i class="fas fa-network-wired icon"></i>
-                <span class="name">Switch-Core</span>
-            </div>
-            <div class="asset-item" data-asset-name="Printer-Floor2" draggable="true">
-                <i class="fas fa-print icon"></i>
-                <span class="name">Printer-Floor2</span>
-            </div>
-            <div class="asset-item" data-asset-name="Camera-01" draggable="true">
-                <i class="fas fa-video icon"></i>
-                <span class="name">Camera-01</span>
-            </div>
-            <div class="asset-item" data-asset-name="AP-Lobby" draggable="true">
-                <i class="fas fa-wifi icon"></i>
-                <span class="name">AP-Lobby</span>
-            </div>
+            {% empty %}
+            <div class="text-muted small p-2">No assets recorded for this customer yet. Add assets first, then drag them onto ports.</div>
+            {% endfor %}
         </div>
 
         <div class="mt-3 pt-3 border-top">

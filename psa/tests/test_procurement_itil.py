@@ -945,6 +945,79 @@ class ChangeRequestPermissionTests(TestCase):
         r = c.post(f'/psa/t/{self.ticket.ticket_number}/change/implement/')
         self.assertEqual(r.status_code, 403)
 
+    # -- Single-approval fallback (no required approvers) -------------------
+
+    def _make_single_approval(self, submitted_by=None):
+        self.cr.required_approvers.clear()
+        self.cr.submitted_by = submitted_by or self.tech
+        self.cr.save()
+
+    def test_single_approval_one_vote_approves(self):
+        self._make_single_approval()
+        c = self._client_for(self.cab_member)
+        r = c.post(f'/psa/t/{self.ticket.ticket_number}/change/vote/', {
+            'decision': 'approved',
+        })
+        self.assertEqual(r.status_code, 302)
+        self.cr.refresh_from_db()
+        self.assertEqual(self.cr.implementation_status, 'approved')
+        self.assertEqual(self.cr.decided_by, self.cab_member)
+        self.assertTrue(self.cr.can_implement())
+
+    def test_single_approval_still_requires_cab_perm(self):
+        self._make_single_approval()
+        c = self._client_for(self.implementer)
+        r = c.post(f'/psa/t/{self.ticket.ticket_number}/change/vote/', {
+            'decision': 'approved',
+        })
+        self.assertEqual(r.status_code, 403)
+        self.cr.refresh_from_db()
+        self.assertEqual(self.cr.implementation_status, 'pending_cab')
+
+    def test_single_approval_submitter_cannot_approve_own_change(self):
+        self._make_single_approval(submitted_by=self.cab_member)
+        c = self._client_for(self.cab_member)
+        r = c.post(f'/psa/t/{self.ticket.ticket_number}/change/vote/', {
+            'decision': 'approved',
+        })
+        self.assertEqual(r.status_code, 302)
+        self.cr.refresh_from_db()
+        self.assertEqual(self.cr.implementation_status, 'pending_cab')
+        self.assertFalse(self.cr.cab_votes.exists())
+
+    def test_single_approval_reject_rejects(self):
+        self._make_single_approval()
+        c = self._client_for(self.cab_member)
+        c.post(f'/psa/t/{self.ticket.ticket_number}/change/vote/', {
+            'decision': 'rejected',
+        })
+        self.cr.refresh_from_db()
+        self.assertEqual(self.cr.implementation_status, 'rejected')
+
+    def test_single_approval_detail_offers_vote_form(self):
+        self._make_single_approval()
+        c = self._client_for(self.cab_member)
+        r = c.get(f'/psa/t/{self.ticket.ticket_number}/change/')
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.context['can_vote'])
+        self.assertContains(r, 'single approval applies')
+        self.assertContains(r, 'value="approved"')
+
+    def test_multi_approver_non_member_still_blocked(self):
+        """With required approvers set, a CAB-perm user outside the list
+        still can't vote (multi-approver path unchanged)."""
+        other = _make_msp_tech(User.objects.create_user(
+            username='ch_cab2', password='pw', email='cab2@x.com'))
+        Membership.objects.create(
+            user=other, organization=self.org, role=Role.ADMIN,
+            role_template=self.cab_role, is_active=True,
+        )
+        c = self._client_for(other)
+        r = c.post(f'/psa/t/{self.ticket.ticket_number}/change/vote/', {
+            'decision': 'approved',
+        })
+        self.assertEqual(r.status_code, 403)
+
 
 # ---------------------------------------------------------------------------
 # Phase 6.2 — Problem records + root-cause analysis

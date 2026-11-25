@@ -222,7 +222,8 @@ A subnet has a name, network (for example `192.168.1.0/24`), description, VLAN, 
 
 ## IPAM: VLANs
 
-**Assets & Network → IPAM → VLANs** (`/monitoring/vlans/`). The customer's VLAN register.
+**Assets & Network → IPAM → VLANs** (`/monitoring/vlans/`). The customer's VLAN register. In Global View, MSP staff see the VLANs of every customer
+they may view.
 
 <!-- guide-figure: guide-assets-vlans -->
 ![The VLAN list with numbered callouts on Add VLAN, a VLAN number and name, its colour, its subnet count and the view and edit buttons](images/guides/guide-assets-vlans.png "Assets & Network → IPAM → VLANs.")

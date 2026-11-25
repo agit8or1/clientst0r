@@ -141,8 +141,7 @@ with another type is stored as a network closet.
   A port is *Patched* when a Wiring connection on the rack uses that port number, otherwise *Empty*. The map
   is worked out from names and wiring; it is not the panel mapping of a hardware patch panel.
 
-**Limit.** On a normal laptop screen the right-hand column of the closet page runs wider than the window,
-so the end of the device table and the port map are cut off; widen the window or zoom out to see them.
+On a narrow window the device table scrolls sideways inside its card.
 
 ## Patch Panels
 
@@ -157,7 +156,8 @@ screenshot.
 - A panel's page shows its ports as a grid with counts of available and connected ports. Click one port and
   then another to record a connection between them; right-click an in-use port to disconnect
   it. **Clear All Connections**, **Export Config** (a JSON download) and **Toggle Labels** are in the toolbar,
-  with a choice of cable colour.
+  with a choice of cable colour. The sidebar lists the customer's assets (those you may view) to name what a
+  port connects to.
 - **Edit** changes the panel's details and its port list.
 
 For new documentation, model panels as hardware devices instead: they get catalog artwork, real cables,

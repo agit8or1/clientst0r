@@ -1197,40 +1197,13 @@ def end_inventory_session(request, vehicle_id):
 # ============================================================================
 
 def _generate_vehicle_service_alerts(vehicle):
-    """Check all active service schedules and create pending alerts if needed."""
-    from datetime import timedelta
-    today = timezone.localdate()
+    """Create pending service alerts that have come due (idempotent).
 
-    for schedule in vehicle.service_schedules.filter(is_active=True):
-        # Skip if a pending alert already exists for this schedule
-        if schedule.alerts.filter(status='pending').exists():
-            continue
-
-        triggered = False
-        due_mileage = None
-        due_date = None
-
-        if schedule.interval_miles and schedule.last_service_mileage is not None:
-            next_mi = schedule.last_service_mileage + schedule.interval_miles
-            if vehicle.current_mileage >= next_mi - schedule.warning_miles:
-                triggered = True
-                due_mileage = next_mi
-
-        if schedule.interval_days and schedule.last_service_date:
-            next_dt = schedule.last_service_date + timedelta(days=schedule.interval_days)
-            if today >= next_dt - timedelta(days=schedule.warning_days):
-                triggered = True
-                due_date = next_dt
-
-        if triggered:
-            VehicleServiceAlert.objects.create(
-                vehicle=vehicle,
-                schedule=schedule,
-                title=f'{schedule.name} due',
-                due_mileage=due_mileage,
-                due_date=due_date,
-                status='pending',
-            )
+    Kept as a view-level name for the vehicle page; the logic lives in
+    vehicles.services.service_alerts so the scheduler runs the same check.
+    """
+    from vehicles.services.service_alerts import generate_vehicle_service_alerts
+    return generate_vehicle_service_alerts(vehicle)
 
 
 @login_required

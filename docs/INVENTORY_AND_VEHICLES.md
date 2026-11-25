@@ -87,8 +87,7 @@ notes, a reference, who made it and when. Stock moves in three ways:
 - **Adjust Stock** (or **Add Transaction**). Pick a type, enter the change (a positive number adds, a
   negative one removes), and optionally notes and a reference such as a PO or ticket number. Use *Stock In*
   when goods arrive, *Stock Out* when they leave, *Adjustment* after a count. Stock cannot go below zero.
-  The type is a label only: the number you enter is what changes the count, so a *Stock Out* of `+3` adds
-  three. Leave *Reserved for a ticket* and *Reservation released* to tickets; they are listed but meant for
+  *Stock Out* always removes stock, so `3` and `-3` both take three away. Leave *Reserved for a ticket* and *Reservation released* to tickets; they are listed but meant for
   ticket items.
 - **Tickets**: see the next section.
 - **The mobile app** can also record stock in, stock out and adjustments.
@@ -198,9 +197,8 @@ whole fleet, plus the last 20 completed. The demo has none pending, so there is 
 - An alert comes from a **service schedule** on the vehicle's Service tab: an interval in miles, days or both,
   the last service, and a warning margin (default 500 miles and 7 days). When the vehicle comes within the
   margin, a "*Name* due" alert is raised, marked *Due Soon*, or *Overdue* once the date or mileage passes.
-- Alerts are raised when someone **opens the vehicle's page**. This list does not check schedules itself, so
-  a vehicle nobody has opened lately can be due without an alert here. The Service tab's schedule table
-  always shows the current state.
+- Schedules are checked **every hour** for every vehicle that is not retired, and again whenever someone opens
+  a vehicle's page. A schedule gets one pending alert at a time, however often it is checked.
 - **Acknowledge** opens a form. With *Record service as completed now* ticked (the default) it creates a maintenance
   record from the date, mileage, notes and who did it, moves the schedule's last service to that date and
   mileage, and completes the alert. Unticked, the alert is only acknowledged and leaves this list; the

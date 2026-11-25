@@ -872,10 +872,10 @@ def seed_visual():
             defaults=dict(name=name, vlan=vlan_objs[vid], gateway=gw, location=loc,
                           dns_servers=['10.42.1.10', '10.42.1.12'], description=f'{name} — {loc}'))
     servers = Subnet.objects.get(organization=nwl, network='10.42.1.0/24')
-    HOSTS = [('10.42.1.1', 'allocated', 'gw-core', None),
-             ('10.42.1.10', 'allocated', 'dc01', 'NWL-DC01'),
-             ('10.42.1.12', 'allocated', 'fs01', 'NWL-FS01'),
-             ('10.42.1.40', 'allocated', 'nas01', 'NWL-NAS01'),
+    HOSTS = [('10.42.1.1', 'assigned', 'gw-core', None),
+             ('10.42.1.10', 'assigned', 'dc01', 'NWL-DC01'),
+             ('10.42.1.12', 'assigned', 'fs01', 'NWL-FS01'),
+             ('10.42.1.40', 'assigned', 'nas01', 'NWL-NAS01'),
              ('10.42.1.50', 'reserved', 'hv-spare', None),
              ('10.42.1.51', 'available', '', None),
              ('10.42.1.52', 'available', '', None)]
@@ -885,7 +885,7 @@ def seed_visual():
             subnet=servers, ip_address=ip,
             defaults=dict(status=status, hostname=host, asset=asset,
                           last_seen_at=(now - timedelta(minutes=random.randint(2, 90))
-                                        if status == 'allocated' else None)))
+                                        if status == 'assigned' else None)))
     print('  visual: rack pk', rack.pk, '| subnets', Subnet.objects.filter(organization=nwl).count())
 
 

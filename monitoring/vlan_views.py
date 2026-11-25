@@ -15,7 +15,12 @@ from .forms import VLANForm
 def vlan_list(request):
     """List all VLANs."""
     org = get_request_organization(request)
-    vlans = VLAN.objects.filter(organization=org).order_by('vlan_id')
+    is_staff = getattr(request.user, 'is_staff', False) or getattr(request, 'is_staff_user', False)
+    if not org and (request.user.is_superuser or is_staff):
+        from .views import _global_rows
+        vlans = _global_rows(request, VLAN.objects.all()).select_related('organization').order_by('organization__name', 'vlan_id')
+    else:
+        vlans = VLAN.objects.filter(organization=org).order_by('vlan_id')
 
     return render(request, 'monitoring/vlan_list.html', {
         'vlans': vlans,

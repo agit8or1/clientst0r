@@ -69,7 +69,7 @@ def dashboard(request):
     summaries.sort(key=lambda s: -{'failed': 5, 'missed': 4, 'stale': 3, 'warning': 2, 'unknown': 1,
                                    'ok': 0}[s['state']])
     return render(request, 'backup_monitoring/dashboard.html', _ctx(
-        request, summaries=summaries, filtered=bool(wanted.isdigit() or current)))
+        request, summaries=summaries, filtered=bool(wanted.isdigit() or (current and wanted != 'all'))))
 
 
 @login_required

@@ -189,6 +189,9 @@ def item_adjust(request, pk):
         form = InventoryAdjustForm(request.POST)
         if form.is_valid():
             qty_change = form.cleaned_data['quantity_change']
+            # Stock Out always removes stock, whichever sign was typed.
+            if form.cleaned_data['transaction_type'] == 'stock_out':
+                qty_change = -abs(qty_change)
             new_qty = item.quantity + qty_change
             if new_qty < 0:
                 messages.error(request, 'Cannot reduce stock below zero.')

@@ -737,6 +737,21 @@ def ticket_conversation(request, ticket_number):
     })
 
 
+def _visible_project_or_none(request, raw):
+    """The PSA project with id `raw`, only if this user may see it (same rule
+    as project_list/project_detail); otherwise None."""
+    raw = str(raw or '').strip()
+    if not raw.isdigit() or len(raw) > 12:
+        return None
+    qs = Project.objects.select_related('client_org')
+    org = get_request_organization(request)
+    if org is not None:
+        qs = qs.filter(organization=org)
+    elif not (request.user.is_superuser or getattr(request, 'is_staff_user', False)):
+        return None
+    return qs.filter(pk=int(raw)).first()
+
+
 @login_required
 @require_write
 @require_psa_enabled
@@ -857,6 +872,7 @@ def ticket_create(request):
             updated_by=request.user,
             assigned_to=initial_assignee,
             related_asset=related_asset,
+            project=_visible_project_or_none(request, request.POST.get('project')),
         )
         # Compute SLA due-dates from the priority's targets
         apply_due_dates(ticket)
@@ -960,6 +976,13 @@ def ticket_create(request):
     if (not alert_id and preselected_asset_id is None and client_param.isdigit()
             and len(client_param) <= 12 and eligible_clients.filter(id=int(client_param)).exists()):
         preselected_id = int(client_param)
+    # ?project=<id> (project page "New Ticket"): attach to that project when
+    # the user can see it, and default the client to the project's customer.
+    preselected_project = _visible_project_or_none(request, request.GET.get('project'))
+    if (preselected_project is not None and preselected_asset_id is None
+            and not client_param and preselected_project.client_org_id
+            and eligible_clients.filter(id=preselected_project.client_org_id).exists()):
+        preselected_id = preselected_project.client_org_id
     if not prefill_subject:
         prefill_subject = text_param(request, 'subject', max_length=300)
     from assets.models import Asset
@@ -1025,6 +1048,7 @@ def ticket_create(request):
         'types': types,
         'eligible_clients': eligible_clients,
         'preselected_client_id': preselected_id,
+        'preselected_project': preselected_project,
         'preselected_asset_id': preselected_asset_id,
         'client_assets': client_assets,
         'prefill_subject': prefill_subject,
@@ -7298,7 +7322,7 @@ def dispatch_heatmap(request):
     Phase 11.3: per-tech / per-day load heatmap.
 
     Aggregates open tickets by (assigned_to, due_date) over a 14-day
-    window — including 7 days back (already overdue or completed) and
+    window — including 7 days back (already overdue) and
     7 days forward. Cells render with color intensity proportional to
     ticket count so dispatchers can see distribution at a glance.
 
@@ -7311,6 +7335,8 @@ def dispatch_heatmap(request):
 
     org = get_request_organization(request)
     qs = Ticket.objects.select_related('assigned_to', 'priority', 'status')
+    # Open load only: closed/resolved tickets are not workload.
+    qs = qs.filter(closed_at__isnull=True, status__is_terminal=False)
     if org is not None:
         qs = qs.filter(organization=org)
 
@@ -8580,6 +8606,12 @@ def change_request_detail(request, ticket_number):
     _require_org_perm(request, cr.organization_id, 'change_view')
     user_is_required_approver = cr.required_approvers.filter(pk=request.user.pk).exists()
     user_vote = cr.cab_votes.filter(user=request.user).first()
+    single_approval = not cr.required_approvers.exists()
+    user_is_submitter = (
+        cr.submitted_by_id is not None
+        and cr.submitted_by_id == request.user.pk
+        and not request.user.is_superuser
+    )
     return render(request, 'psa/change_request_detail.html', {
         'ticket': ticket,
         'cr': cr,
@@ -8588,7 +8620,14 @@ def change_request_detail(request, ticket_number):
         'user_is_required_approver': user_is_required_approver,
         'user_vote': user_vote,
         'can_create': user_has_perm(request.user, 'change_create'),
-        'can_vote': user_has_perm(request.user, 'change_approve_cab') and user_is_required_approver,
+        'single_approval': single_approval,
+        'user_is_submitter': user_is_submitter,
+        # With required approvers only they vote; with none (single
+        # approval) anyone holding change_approve_cab can.
+        'can_vote': (
+            user_has_perm(request.user, 'change_approve_cab')
+            and (user_is_required_approver or single_approval)
+        ),
         'can_implement': user_has_perm(request.user, 'change_implement') and cr.can_implement(),
         'can_edit': (
             user_has_perm(request.user, 'change_create')
@@ -8708,7 +8747,8 @@ def change_request_vote(request, ticket_number):
         raise PermissionDenied("You don't have the 'change_approve_cab' permission.")
     ticket, cr = _get_change_for_ticket(request, ticket_number)
     _require_org_perm(request, cr.organization_id, 'change_approve_cab')
-    if not cr.required_approvers.filter(pk=request.user.pk).exists():
+    single_approval = not cr.required_approvers.exists()
+    if not single_approval and not cr.required_approvers.filter(pk=request.user.pk).exists():
         raise PermissionDenied('You are not a required approver for this change.')
     if cr.implementation_status not in {'pending_cab', 'approved', 'rejected'}:
         messages.error(
@@ -8720,6 +8760,13 @@ def change_request_vote(request, ticket_number):
     note = (request.POST.get('note') or '').strip()
     if decision not in {'approved', 'rejected', 'abstained'}:
         messages.error(request, 'Pick Approve, Reject, or Abstain.')
+        return redirect('psa:change_request_detail', ticket_number=ticket_number)
+    if (single_approval and decision == 'approved'
+            and cr.submitted_by_id == request.user.pk
+            and not request.user.is_superuser):
+        # Single approval is a second person's sign-off, same rule as
+        # PSAApproval: the submitter can't approve their own change.
+        messages.error(request, 'You submitted this change, so someone else has to approve it.')
         return redirect('psa:change_request_detail', ticket_number=ticket_number)
     vote, _ = CABVote.objects.update_or_create(
         change_request=cr, user=request.user,

@@ -61,6 +61,7 @@ PERIODIC_COMMANDS = {
     'run_scheduled_reports',
     'poll_security_alerts',
     'psa_ticket_reminders',
+    'vehicles_service_alerts',
 }
 
 # The crontab cadences these had, kept by the scheduler defaults.

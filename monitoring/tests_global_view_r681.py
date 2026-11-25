@@ -206,3 +206,39 @@ class TechnicianWriteTests(_Data):
         r = c.post(reverse('monitoring:website_monitor_create'), self.FORM)
         self.assertIn(r.status_code, (302, 403))
         self.assertIsNone(self._created())
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class VlanGlobalViewTests(_Data):
+
+    def test_vlan_list_global_view_shows_every_client(self):
+        from monitoring.models import VLAN
+        VLAN.objects.create(organization=self.a, vlan_id=10, name='vlan-alpha-qzx')
+        VLAN.objects.create(organization=self.b, vlan_id=20, name='vlan-bravo-qzx')
+        r = self.login(self.manager).get(reverse('monitoring:vlan_list'))
+        self.assertContains(r, 'vlan-alpha-qzx')
+        self.assertContains(r, 'vlan-bravo-qzx')
+
+    def test_vlan_list_global_view_hides_unreachable_client(self):
+        from monitoring.models import VLAN
+        VLAN.objects.create(organization=self.b, vlan_id=20, name='vlan-bravo-qzx')
+        r = self.login(self.scoped).get(reverse('monitoring:vlan_list'))
+        self.assertNotContains(r, 'vlan-bravo-qzx')
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class PatchPanelAssetsTests(_Data):
+
+    def test_detail_lists_real_assets_not_samples(self):
+        from assets.models import Asset
+        from monitoring.models import Rack, RackResource
+        rack = Rack.objects.create(organization=self.a, name='pp-rack', units=42)
+        panel = RackResource.objects.create(rack=rack, name='PP1', resource_type='patch_panel')
+        c = self.login(self.manager, self.a)
+        r = c.get(reverse('monitoring:patch_panel_detail', args=[panel.pk]))
+        self.assertNotContains(r, 'Server-01')
+        Asset.objects.create(organization=self.a, name='real-asset-qzx')
+        Asset.objects.create(organization=self.b, name='other-client-asset-qzx')
+        r = c.get(reverse('monitoring:patch_panel_detail', args=[panel.pk]))
+        self.assertContains(r, 'real-asset-qzx')
+        self.assertNotContains(r, 'other-client-asset-qzx')

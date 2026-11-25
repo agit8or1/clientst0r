@@ -41,8 +41,19 @@ def patch_panel_detail(request, pk):
     if not patch_panel.port_configuration:
         patch_panel.port_configuration = {'ports': []}
 
+    # Real assets this customer owns (and the user may view), for the
+    # drag-to-assign list.
+    from assets.models import Asset
+    from accounts.permission_utils import filter_by_org_perm
+    available_assets = list(
+        filter_by_org_perm(
+            Asset.objects.filter(organization=org), request.user, 'assets_view',
+        ).order_by('name').values('id', 'name', 'asset_type')[:500]
+    )
+
     return render(request, 'monitoring/patch_panel_detail.html', {
         'patch_panel': patch_panel,
+        'available_assets': available_assets,
     })
 
 

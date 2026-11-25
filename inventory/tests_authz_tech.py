@@ -222,3 +222,27 @@ class ItemQrCodeTests(_Base):
     def test_customer_user_is_refused(self):
         c = self.login(self.customer(Role.OWNER))
         self.assertEqual(c.get(reverse('inventory:item_qr_image', args=[self.item.pk])).status_code, 403)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class AdjustStockDirectionTests(_Base):
+    """Stock Out removes stock whichever sign is typed; Stock In adds."""
+
+    def _adjust(self, kind, qty):
+        c = self.login(self.tech())
+        c.post(reverse('inventory:item_adjust', args=[self.item.pk]),
+               {'transaction_type': kind, 'quantity_change': qty})
+        self.item.refresh_from_db()
+        return self.item.quantity
+
+    def test_stock_out_positive_number_removes(self):
+        self.assertEqual(self._adjust('stock_out', 3), 7)
+
+    def test_stock_out_negative_number_still_removes(self):
+        self.assertEqual(self._adjust('stock_out', -3), 7)
+
+    def test_stock_out_cannot_go_below_zero(self):
+        self.assertEqual(self._adjust('stock_out', 11), 10)
+
+    def test_stock_in_adds(self):
+        self.assertEqual(self._adjust('stock_in', 4), 14)

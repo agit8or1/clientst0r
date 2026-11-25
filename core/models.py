@@ -1373,6 +1373,7 @@ class ScheduledTask(models.Model):
         ('events_tick', 'Shared Event Layer Ingestion'),
         ('audit_chain', 'Audit Log Seal and Tamper Check'),
         ('psa_ticket_reminders', 'PSA Ticket Reminders'),
+        ('vehicles_service_alerts', 'Vehicle Service Alerts'),
         # Phase 94.3 / SR-17: encrypted backups of this install to another
         # host, plus weekly restore verification. Does nothing until a
         # destination and backup key are set up in Settings -> Off-host Backups.
@@ -2091,6 +2092,13 @@ class ScheduledTask(models.Model):
             'task_type': 'psa_ticket_reminders',
             'description': 'Mark ticket reminders that have come due as fired, so they show in My Work and the bell',
             'interval_minutes': 1,
+            'enabled': True,
+        },
+        {
+            'task_type': 'vehicles_service_alerts',
+            'description': 'Create service alerts for fleet vehicles whose service schedule is coming due '
+                           '(by mileage or date), without waiting for someone to open the vehicle',
+            'interval_minutes': 60,
             'enabled': True,
         },
         {

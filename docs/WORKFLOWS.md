@@ -95,7 +95,8 @@ workflow rule, for one customer or MSP-wide, and opens the rule editor so you ca
   and offers only the customers you may write rules for; **MSP-wide** is offered only to people whose client scope
   is not restricted.
 - Clientst0r ships no templates and has no page for saving a rule as a template, so on most installations this
-  list is empty. The demo database has none either, so there is no figure.
+  list is empty and says so, with a link to Workflow Rules. The demo database has none either, so there is no
+  figure.
 
 Workflow rules themselves are under **Service Desk → Tickets → Configure → Workflow Rules**.
 

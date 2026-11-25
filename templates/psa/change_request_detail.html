@@ -3,7 +3,7 @@
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:service_catalog' %}">Service Management</a></li>
         <li class="breadcrumb-item"><a href="{% url 'psa:change_request_list' %}">Change Requests</a></li>
         <li class="breadcrumb-item"><a href="{% url 'psa:ticket_detail' ticket.ticket_number %}">{{ ticket.ticket_number }}</a></li>
         <li class="breadcrumb-item active">Change Management</li>
@@ -74,7 +74,7 @@
                 {% if required_approvers %}
                 <p class="small text-muted mb-2">{{ required_approvers|length }} required approver(s). All must approve and zero must reject before the change can be implemented.</p>
                 {% else %}
-                <p class="small text-muted mb-2">No required approvers configured. Falls back to the single-approval pattern (any approve vote satisfies the gate).</p>
+                <p class="small text-muted mb-2">No required approvers configured, so single approval applies: one Approve vote from anyone with the change approval permission approves the change, except the person who submitted it. Any Reject vote rejects it.</p>
                 {% endif %}
                 <table class="table table-sm mb-0">
                     <thead><tr><th>Approver</th><th>Decision</th><th>Voted</th><th>Note</th></tr></thead>
@@ -100,7 +100,7 @@
                         {% for v in votes %}
                         {% if v.user not in required_approvers %}
                         <tr class="text-muted">
-                            <td>{{ v.user.username }} <small>(non-required)</small></td>
+                            <td>{{ v.user.username }}{% if required_approvers %} <small>(non-required)</small>{% endif %}</td>
                             <td>
                                 {% if v.decision == 'approved' %}<span class="badge text-bg-success">Approved</span>
                                 {% elif v.decision == 'rejected' %}<span class="badge text-bg-danger">Rejected</span>
@@ -120,7 +120,11 @@
                 <form method="post" action="{% url 'psa:change_request_vote' ticket.ticket_number %}">
                     {% csrf_token %}
                     <textarea name="note" class="form-control form-control-sm mb-2" rows="2" placeholder="Optional vote rationale">{% if user_vote %}{{ user_vote.note }}{% endif %}</textarea>
+                    {% if single_approval and user_is_submitter %}
+                    <p class="small text-muted mb-2">You submitted this change, so someone else has to approve it.</p>
+                    {% else %}
                     <button type="submit" name="decision" value="approved" class="btn btn-sm btn-success">Approve</button>
+                    {% endif %}
                     <button type="submit" name="decision" value="rejected" class="btn btn-sm btn-danger">Reject</button>
                     <button type="submit" name="decision" value="abstained" class="btn btn-sm btn-outline-secondary">Abstain</button>
                 </form>

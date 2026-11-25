@@ -80,6 +80,7 @@ COMMAND_TASKS = {
     'connect_monitor': ('connect_monitor', []),
     'compute_health_scores': ('compute_health_scores', []),
     'psa_ticket_reminders': ('psa_ticket_reminders', []),
+    'vehicles_service_alerts': ('vehicles_service_alerts', []),
     # Phase 94.3 / SR-17: does nothing until set up in Settings -> Off-host Backups.
     'offhost_backup': ('offhost_backup', ['tick']),
 }

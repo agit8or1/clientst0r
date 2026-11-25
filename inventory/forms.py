@@ -33,7 +33,7 @@ class InventoryItemForm(forms.ModelForm):
 class InventoryAdjustForm(forms.Form):
     transaction_type = forms.ChoiceField(choices=InventoryTransaction.TRANSACTION_TYPES)
     quantity_change = forms.IntegerField(
-        help_text='Use positive number to add stock, negative to remove.'
+        help_text='Stock In adds the number entered; Stock Out removes it. For other types use a positive number to add stock, negative to remove.'
     )
     notes = forms.CharField(
         widget=forms.Textarea(attrs={'rows': 3}),
