@@ -1571,6 +1571,42 @@ See separate section below for copy/paste implementation guide.
 
 ---
 
+## Dependency advisories
+
+Floors for indirect dependencies live at the end of `requirements.txt`. The update process (Settings → Updates →
+Install, `deploy/update_instructions.sh`) runs `pip install -r requirements.txt` without `--upgrade`, so a raised floor
+is what makes existing installations upgrade a package; the upgrade preflight dry-runs the same install first. Fresh
+installs (`install.sh`, `scripts/bootstrap_ubuntu.sh`, the Docker image) resolve to the newest allowed release.
+
+### 2026-11 — pyasn1 0.6.5 and oauthlib 4.0.1
+
+| Advisory | Package | Fixed in | Introduced by | Exposure in Clientst0r |
+|---|---|---|---|---|
+| CVE-2026-119194 / GHSA-fm9c-5rcf-2q5p | pyasn1 | 0.6.5 | python-ldap (optional LDAP/AD), pyasn1-modules | low |
+| CVE-2026-119195 / GHSA-9m75-vc3g-4x39 | pyasn1 | 0.6.5 | same | low |
+| CVE-2026-119196 / GHSA-2qm8-x737-gmw5 | pyasn1 | 0.6.5 | same | low |
+| CVE-2026-119197 / GHSA-mm57-4v3p-rchx | pyasn1 | 0.6.5 | same | low |
+| CVE-2026-49272 / GHSA-3jp2-3mrg-2vxc | oauthlib | 4.0.1 | requests-oauthlib | none found |
+
+- **pyasn1 (BER/DER decoding denial of service).** Clientst0r's own code never imports pyasn1. It is reached only
+  through python-ldap, which decodes LDAP response controls (for example paged results) from the directory server an
+  administrator configured for LDAP/Active Directory sign-in. Users and visitors cannot send ASN.1 to it; a malicious
+  or impersonated directory server could. Use `ldaps://` or StartTLS with certificate checks. pyasn1-modules also
+  arrives through google-auth when the Google API client is installed by hand; it is not in Clientst0r's requirements.
+- **oauthlib (device authorization endpoint).** The fix is on the OAuth provider side. Clientst0r does not import
+  oauthlib or requests-oauthlib in its code and implements no OAuth device authorization grant and no oauthlib-based
+  provider. It is an OAuth/OIDC *client* only: Microsoft Entra sign-in uses msal, OIDC sign-in, Microsoft 365, Xero,
+  QuickBooks Online, Halo, Pax8 and Ingram use their own `requests` calls (authorization code, refresh token, client
+  credentials). The Agit8or Connect token endpoint accepts only `client_credentials` with `private_key_jwt` and does
+  not use oauthlib.
+- **Remediation.** Floors raised to `pyasn1>=0.6.5` and `oauthlib>=4.0.1`. Verified with `pip check` and `pip-audit`
+  on a fresh install and on an upgrade of the current package set; rolling an update back does not downgrade them.
+- **Still open.** paramiko 3.5.1, PYSEC-2026-2858 / CVE-2026-44405 (RSA keys may sign with SHA-1), no fixed release
+  yet. paramiko is used only for outbound SSH to hosts an administrator adds: network-device configuration collection and
+  SFTP off-host backups (both with host-key approval). Clientst0r runs no SSH server.
+
+---
+
 ## Phase 2 Roadmap (Configuration Committed, Requires Activation)
 
 ### CI Security Pipeline

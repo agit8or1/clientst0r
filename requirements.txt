@@ -55,13 +55,13 @@ python-dateutil>=2.9,<3  # advisor/facts.py, psa, contracts (relativedelta); was
 
 # Transitive security floors — pinned to avoid pip-audit findings on indirect deps.
 # Do NOT remove without re-running `pip-audit` to confirm the floor is no longer needed.
-pyasn1>=0.6.4             # 0.6.4 clears three advisories; 0.6.5 (four quadratic-decode DoS fixes) to follow once two weeks old
+pyasn1>=0.6.5             # via python-ldap (optional LDAP), pyasn1-modules — 0.6.5 fixes CVE-2026-119194..119197 (GHSA-fm9c-5rcf-2q5p, GHSA-9m75-vc3g-4x39, GHSA-2qm8-x737-gmw5, GHSA-mm57-4v3p-rchx: quadratic BER/DER decode DoS); 0.6.4 cleared the three earlier ones
 # Transitive dependencies with advisories (v3.17.640). Pinned here because the
 # update flow runs `pip install -r` without --upgrade, so an installed version
 # that still satisfies its parent is never replaced; a floor here forces it.
 sqlparse>=0.6.0           # via Django — five advisories against 0.5.x
 PyJWT>=2.15.0             # via msal — 16 advisories against 2.12.x
-oauthlib>=4.0.0           # via requests-oauthlib — 4.0.1 (device-code fix, provider side only) to follow
+oauthlib>=4.0.1           # via requests-oauthlib — 4.0.1 fixes CVE-2026-49272 (GHSA-3jp2-3mrg-2vxc, device authorization endpoint; provider side — Clientst0r only acts as an OAuth client)
 idna>=3.15                # via requests
 certifi>=2026.10.18       # via requests — CA bundle refresh
 anyio>=4.14.2             # via anthropic/httpx

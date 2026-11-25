@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.782] - 2026-11-25
+
+### Fixed
+- **Dependency updates: pyasn1 0.6.5 and oauthlib 4.0.1.** The minimum versions in `requirements.txt` are raised, so the
+  normal update (Settings → Updates → Install) upgrades existing installations; new installs get them directly.
+  - pyasn1 0.6.5 fixes CVE-2026-119194, CVE-2026-119195, CVE-2026-119196 and CVE-2026-119197 (GHSA-fm9c-5rcf-2q5p,
+    GHSA-9m75-vc3g-4x39, GHSA-2qm8-x737-gmw5, GHSA-mm57-4v3p-rchx: slow decoding of crafted BER/DER data). Clientst0r
+    reaches pyasn1 only through the optional LDAP/Active Directory support, when it reads replies from the directory
+    server an administrator configured.
+  - oauthlib 4.0.1 fixes CVE-2026-49272 (GHSA-3jp2-3mrg-2vxc) in the OAuth device authorization endpoint, which is
+    provider-side. Clientst0r is an OAuth client only and does not use that code.
+  - No other package changes. `pip check` is clean and `pip-audit` reports none of these advisories after updating.
+    One advisory remains with no fixed release yet: paramiko PYSEC-2026-2858 (CVE-2026-44405), used only for outbound
+    SSH to hosts an administrator adds.
+  - Details, dependency paths and exposure: SECURITY.md → Dependency advisories.
+
 ## [3.17.781] - 2026-11-25
 
 ### Fixed
