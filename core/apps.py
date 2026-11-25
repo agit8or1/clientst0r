@@ -24,3 +24,7 @@ class CoreConfig(AppConfig):
         from django.contrib.auth.signals import user_logged_in
         from core.dashboard_views import note_sign_in
         user_logged_in.connect(note_sign_in, dispatch_uid='core.dashboard_landing')
+        # Roadmap 113.10: drop the application switcher's cached entries when
+        # a connection, customer mapping or RMM connection changes here.
+        from core import app_switcher
+        app_switcher.connect_signals()

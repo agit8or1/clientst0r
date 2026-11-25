@@ -4041,7 +4041,7 @@ increment is tested with no peer application and no RMM configured. Hiding a lin
   or on phones, "Service Desk" and "Customer" used consistently, less space above content.
 - **113.9 Technician speed** *(planned)* — timer in the first screen without a page reload, invoice draft in three clicks
   with its confirmation kept, workspace presets (presentation only, never extra permissions).
-- **113.10 Optional application switcher** *(planned)* — shown only when a peer is paired and the user may open it;
+- **113.10 Optional application switcher** *(partial — switcher with stored status, verified home links and per-customer greying shipped v3.17.784; customer deep links wait on contract proposals CX-1–CX-3, sent to the Rem0te session 2026-11-25)* — shown only when a peer is paired and the user may open it;
   depends on the contract proposals agreed with the peer.
 - **113.11 Later** *(planned)* — component showcase, role dashboards, customer onboarding and setup wizard, migration
   previews, search ranking and saved searches, bulk-action previews, security-center views, training paths.

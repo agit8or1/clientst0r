@@ -33,7 +33,7 @@ Targets, not claims. Baselines from the 2026-11-25 run; "security steps" are cou
 | Create a customer within 2 minutes | about 9 s name only, about 48 s with 12 fields (estimate) | met |
 | Customer health report in 3 clicks | 3 clicks | met |
 | Invoice draft from approved charges in 3 clicks | 5 clicks plus confirmation | not met (113.9) |
-| Switch configured applications in one click | no switcher | not measurable (113.10) |
+| Switch configured applications in one click | no switcher | met for the home page (v3.17.784); with customer context once CX-1 is agreed |
 | Pair compatible applications within 5 minutes | Connect off on the demo | not measurable |
 | Return from a linked application without losing context | 2 clicks back to the ticket panel | met |
 

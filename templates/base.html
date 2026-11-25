@@ -82,6 +82,7 @@
                     <img src="{% static 'images/logo-light.svg' %}" alt="{{ system_settings.custom_company_name|default:'Clientst0r' }}" height="30">
                 {% endif %}
             </a>
+            {% include "core/_app_switcher.html" %}
             {% if update_badge %}
             {# Update available (superusers; core.context_processors._update_badge, fed by the scheduled update check). Outside the collapsible area so it shows at every width. #}
             <a class="update-pill{% if update_badge.security %} update-pill--security{% endif %}" href="{% url 'core:system_updates' %}" id="navUpdateBadge"

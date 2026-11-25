@@ -68,6 +68,38 @@ per connection and status every 30 minutes. Each connection has an Alerts card: 
 Incidents also appear in the Events list under the source *Connected applications*, and the webhook
 `connected_app.status_changed` is sent.
 
+## Application switcher
+
+When at least one other application is ready to open, a **Switch application** button (a grid icon) appears in
+the top bar, right of the logo. Without one there is no button and no empty space.
+
+The menu lists:
+
+- connections that are **Connected**, **Degraded** or **Offline**, for people with the connected-applications view permission (`view_app_connections`);
+- RMM connections whose console address passes the console-link check, for people with **View integrations** (`integrations_view`)
+  who can reach that connection's customer.
+
+Suspended, Security Blocked, revoked and unfinished connections are not listed, and customer users never see
+the menu.
+
+Each entry shows:
+
+- the application's name;
+- its status from the last stored check, with the time of that check. A result that is too old reads
+  **Status unknown**, never Connected.
+
+Opening the menu never contacts the other application. An Offline entry still links, because the browser may
+reach it when this server cannot.
+
+Links open the other application's home page in a new tab, using the address approved at pairing (or the RMM
+console address). Only the scheme, host and port are used: no path, query, customer, user or credential is
+added. The other application asks for its own sign-in.
+
+When a customer is selected, an application where that customer is not mapped is shown disabled, with the
+reason. Opening a specific customer in the other application needs a link format the other application
+advertises. None is agreed yet (proposals CX-1/CX-2 in `docs/ux/CROSS_APP_UX_CONTRACT.md`), so the
+`APP_SWITCHER_CUSTOMER_LINKS` setting stays off and has no effect until then.
+
 ## Diagnostics
 
 **Run diagnostics** on a connection checks fifteen steps (DNS, approved destination, TCP, TLS, certificate,

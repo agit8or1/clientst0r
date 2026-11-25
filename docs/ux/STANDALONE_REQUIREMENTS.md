@@ -134,7 +134,7 @@ standalone requirement only: **high** = can block local work, **medium** = misle
 | `security_alerts/overview.py:246-249` | F6 | meets | — | "Not configured" state with no RMM connection; tested (`security_alerts/tests_overview.py:182`). | — |
 | `templates/assets/asset_list.html:124`, `templates/integrations/rmm_devices.html:150` | S6 | meets | — | Empty-state pointer "Connect an RMM" (provider-neutral, only when the list is empty). No product advertising found (grep for Rem0te/"install"/"try" phrases in `templates/`). | — |
 | `core/readiness.py:213`, `onboarding/steps/` | I3 | meets | — | No readiness check or onboarding step mentions a peer. | — |
-| Application switcher | S1 | meets (absent) | — | No switcher exists today (no template or nav code). Specified in the contract before one is built. | — |
+| Application switcher | S1 | meets | — | Since v3.17.784 the switcher renders nothing without a usable paired peer (`core/tests/test_app_switcher.py`). | — |
 
 ### 3.3 Stale data
 

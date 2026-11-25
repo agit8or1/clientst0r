@@ -57,7 +57,7 @@ different places.
 ## 3. Application switcher
 
 Status: **local rule** for Clientst0r's presentation; the entries other applications show for Clientst0r are
-**proposed — needs Rem0te agreement via INTEGRATION_COORDINATION.md**. No switcher exists in Clientst0r today.
+**proposed — needs Rem0te agreement via INTEGRATION_COORDINATION.md**. Clientst0r ships the switcher from v3.17.784 (home links, stored status); customer deep links stay off until CX-1–CX-3 are agreed.
 
 ### 3.1 When it appears
 

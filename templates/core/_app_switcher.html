@@ -1,0 +1,56 @@
+{% load i18n app_switcher_tags %}{% comment %}
+Optional application switcher (roadmap 113.10; docs/ux/CROSS_APP_UX_CONTRACT.md §3,
+docs/ux/SHARED_DESIGN_SYSTEM.md §10). Included once from base.html, right of the
+app identity in the top bar.
+
+Renders nothing at all unless the signed-in user may open at least one other
+application (core.app_switcher.entries_for): no button, no placeholder, no space.
+Entries come from stored state only; status is the last stored result with its
+time and is never shown as Connected when that result is old. Links are the
+origin stored and checked at pairing / on the RMM connection, built on the
+server; they open in a new tab so this page keeps its place.
+{% endcomment %}{% if user.is_authenticated %}{% app_switcher as sw %}{% if sw %}
+<div class="dropdown app-switcher" id="appSwitcher" data-app-switcher>
+    <button type="button" class="btn btn-link nav-link nav-util app-switcher__toggle" id="appSwitcherButton"
+            data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="menu" aria-controls="appSwitcherMenu"
+            aria-label="{% trans 'Switch application' %}" title="{% trans 'Switch application' %}">
+        <i class="{{ sw.icon }} fa-fw" aria-hidden="true"></i>
+    </button>
+    <ul class="dropdown-menu app-switcher__menu" id="appSwitcherMenu" role="menu" aria-labelledby="appSwitcherButton">
+        <li role="none">
+            <span class="dropdown-item-text d-flex align-items-center gap-2 fw-semibold" role="menuitemradio" aria-checked="true" aria-current="true">
+                <i class="{{ sw.confirm_icon }} fa-fw" aria-hidden="true"></i>Clientst0r
+                <span class="visually-hidden">{% trans "(current application)" %}</span>
+            </span>
+        </li>
+        <li role="none"><hr class="dropdown-divider"></li>
+        {% for e in sw.entries %}
+        <li role="none">
+            {% if e.href %}
+            <a class="dropdown-item app-switcher__item d-flex align-items-start gap-2" role="menuitem"
+               href="{{ e.href }}" target="_blank" rel="noopener noreferrer" data-app-entry="{{ e.key }}"
+               aria-label="{% blocktrans with name=e.name status=e.status_label %}Open {{ name }} ({{ status }}) in a new tab{% endblocktrans %}">
+            {% else %}
+            <span class="dropdown-item app-switcher__item d-flex align-items-start gap-2 disabled" role="menuitem"
+                  aria-disabled="true" data-app-entry="{{ e.key }}">
+            {% endif %}
+                <i class="{{ e.icon }} fa-fw mt-1" aria-hidden="true"></i>
+                <span class="d-flex flex-column">
+                    <span class="d-flex align-items-center gap-2">
+                        <span class="app-switcher__name">{{ e.name }}</span>
+                        <span class="badge rounded-pill text-bg-{{ e.status_severity }}" data-app-status="{{ e.status }}">
+                            <i class="{{ e.status_icon }}" aria-hidden="true"></i> {{ e.status_label }}
+                        </span>
+                        {% if e.href %}<i class="{{ sw.external_icon }} small" aria-hidden="true"></i>{% endif %}
+                    </span>
+                    <span class="small text-body-secondary">{{ e.kind }}{% if e.status_at %} · {{ e.status_verb }}
+                        <time datetime="{{ e.status_at|date:'c' }}" title="{{ e.status_at|date:'DATETIME_FORMAT' }}">{% blocktrans with t=e.status_at|timesince %}{{ t }} ago{% endblocktrans %}</time>{% endif %}</span>
+                    {% if e.disabled_reason %}<span class="small text-body-secondary text-wrap">{{ e.disabled_reason }}</span>{% endif %}
+                    {% if e.href %}<span class="small text-body-secondary">{% if e.customer_context %}{% trans "Opens this customer in a new tab" %}{% else %}{% trans "Opens its home page in a new tab" %}{% endif %}</span>{% endif %}
+                </span>
+            {% if e.href %}</a>{% else %}</span>{% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}{% endif %}

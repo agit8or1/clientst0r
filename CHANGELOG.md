@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.784] - 2026-11-25
+
+### Added
+- **Application switcher** in the top bar, shown only when there is somewhere to switch to: an active Agit8or Connect
+  pairing (for people with permission to view app connections) or an active RMM connection with a verified console
+  address (for people with integration access to that connection's customer). With nothing paired, nothing is shown —
+  no menu, no empty space. Customer users never see it.
+  - Each entry shows the last stored status — Connected, Degraded, Offline, or "Status unknown" when the last check is
+    old — and when it was checked. Pages never contact the other application to draw the menu, so a peer that is down
+    never slows a page; an Offline entry still links.
+  - Links go only to the https address verified at pairing (no path, query or credentials from anywhere else) and open
+    in a new tab, so the ticket you were on stays open.
+  - When the customer you are looking at is not mapped on that connection, the entry is greyed out with the reason.
+  - Links straight to the same customer in the other application are built but switched off until the other
+    application publishes where its customer pages are (contract proposals CX-1 to CX-3, sent to the Rem0te session).
+
+### Changed
+- Roadmap: 113.10 partly shipped; usability documents updated for the switcher.
+
 ## [3.17.783] - 2026-11-25
 
 ### Changed
