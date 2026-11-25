@@ -176,18 +176,10 @@
                     <hr>
                     <h6 class="border-bottom pb-2 mb-3"><i class="fas fa-chart-pie"></i> CRM Module</h6>
 
-                    <div class="mb-3">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="crm_enabled" name="crm_enabled" {% if settings.crm_enabled %}checked{% endif %}>
-                            <label class="form-check-label" for="crm_enabled">
-                                <strong><i class="fas fa-chart-pie text-warning"></i> Enable CRM / Sales Pipeline</strong>
-                                <span class="badge bg-warning text-dark ms-1">off by default</span>
-                            </label>
-                        </div>
-                        <div class="form-text">
-                            Enable the CRM module (leads, opportunities, campaigns, commissions). When off, the CRM dropdown is hidden from the navigation. Existing CRM URLs still work for direct access.
-                        </div>
-                    </div>
+                    <p class="form-text mb-3">
+                        <i class="fas fa-chart-pie" aria-hidden="true"></i>
+                        CRM and every other module are turned on or off on <a href="{% url 'core:settings_features' %}">Modules → Feature Toggles</a>.
+                    </p>
 
                     <hr>
 

@@ -35,10 +35,71 @@ is in its default state until an administrator changes it. Feature guides:
 | Portal for a customer | Settings → General → PSA → per-customer settings (`/psa/settings/client/`) | As before | su |
 | Requesters' default sites | `/psa/requester-sites/` | None | Staff with `tickets_edit` for that customer |
 | Release channel | Settings → System → System Updates | New installs: Stable. Existing installs: Preview (keep following `main`) | su |
-| Optional modules overview | Settings → Modules → Optional Modules (`/core/settings/modules/`) | Shows each module's current state | su |
+| Module switches | Settings → Modules → Feature Toggles (`/core/settings/features/`); overview on Optional Modules (`/core/settings/modules/`) | Every module on for a new install; upgrades keep each module as it was. See [Modules](#modules-turning-features-on-and-off) | su |
 | File upload and delete | Settings → Users & Access → Roles → `files_upload`, `files_delete` | Custom roles with `files_view` get both on upgrade; built-in Editor has no delete, Read-Only neither | Administrators who manage roles |
 | Invoice editing and payments | Settings → Users & Access → Roles → `billing_send_invoices`, `billing_record_payments` | Owner and Admin roles | Administrators who manage roles |
 | Knowledge base in customer portals | Global KB (`/docs/kb/`): the Portal column and the bulk actions Show in all portals / Make staff only | New global articles default to shown in every customer portal; existing live global articles were switched on once by migration. Customer-scoped documents default to staff only and show only in their own customer's portal when ticked (the document form's "Show in this customer's portal"). | Staff with `kb_edit_articles` and publish rights |
+
+## Modules: turning features on and off
+
+**Settings → Modules → Feature Toggles** (`/core/settings/features/`, superusers only) has one
+switch per module. **Settings → Modules → Optional Modules** (`/core/settings/modules/`) shows the
+same modules with what each one needs, what people see when it is on and where its settings are,
+and can switch them one at a time.
+
+- Every module is **on** for a new install.
+- Upgrading never changes a module: switches added for modules that were always available are
+  added on, and an install that had PSA, CRM or pulse checks off keeps them off.
+- A module that is off disappears from the sidebar, tab strips, dashboard cards, quick actions,
+  shortcut pins and the Go to palette; its pages answer "Page not found"; its scheduled jobs are
+  skipped (Settings → Automation → Task Scheduler shows them as skipped while the module is off).
+- Turning a module off never deletes anything. Turning it back on shows every record again, and
+  its scheduled jobs run on the next scheduler tick.
+- Some modules need another one (for example Projects needs PSA). Optional Modules refuses to
+  turn one on while what it needs is off.
+
+| Group | Module | Switch | What it covers |
+|---|---|---|---|
+| Service desk | PSA / Service desk | `psa_enabled` | Tickets, queues, SLA, dispatch, invoices and billing; everything below marked "needs PSA" |
+| Service desk | Projects (needs PSA) | `projects_enabled` | Projects, project templates and tasks, also in the mobile app |
+| Service desk | Quotes (needs PSA) | `quotes_enabled` | Quote pages; signing links already sent to customers keep working |
+| Service desk | Change, problem and release management (needs PSA) | `change_management_enabled` | Change requests, problems and releases |
+| Service desk | Procurement and vendors (needs PSA) | `procurement_enabled` | Requisitions, purchase orders, back-orders, vendors; recurring purchases and the distributor health probe |
+| Service desk | Security alerts and incidents (needs PSA) | `security_alerts_enabled` | Security Overview, alerts, incidents, playbooks, SIEM endpoints, weekly digests and alert polling; unsubscribe links keep working |
+| Service desk | Pulse checks | `pulse_enabled` | Feedback surveys, the portal Feedback page and scheduled sends |
+| Business | Client health | `client_health_enabled` | Client Health pages, the health card on client records and daily snapshots |
+| Business | CRM | `crm_enabled` | Leads, pipeline, opportunities, campaigns, commissions and the sales dashboard cards |
+| Business | Contract documents | `contracts_enabled` | Contract drafting, templates, clauses, reminders; signing links already sent keep working |
+| Business | Software licensing | `licensing_enabled` | Subscriptions, renewals, license sync and alerts |
+| Operations | Monitoring | `monitoring_enabled` | Website, SSL, domain and WAN monitoring and expirations (racks, IPAM and VLANs stay) |
+| Operations | Status pages (menu under Monitoring) | `status_pages_enabled` | Status pages, public pages and the portal's Service Status |
+| Operations | Configuration backups (menu under Monitoring) | `netconfig_enabled` | Network device configuration backups, also in the mobile app |
+| Operations | Backup monitoring | `backup_monitoring_enabled` | Customer backup jobs, alerts, restore tests and polling |
+| Operations | Workflows | `workflows_enabled` | Runbooks and tracked runs, also in the mobile app |
+| Operations | Scheduling | `scheduling_enabled` | Scheduled tasks, calendar, wallboard and task alerts |
+| Operations | Inventory | `inventory_enabled` | Stock, tools and low-stock reports, also in the mobile app |
+| Operations | Service vehicles | `vehicles_enabled` | Fleet, mileage, maintenance, fuel, vehicle stock and service alerts; expense receipts stay |
+| Operations | Field operations | `field_ops_enabled` | Timeclock, location sharing, geo-aware dispatch and field visit notes; people can still see and delete their own location history |
+| Operations | Customer onboarding | `onboarding_enabled` | The onboarding wizard |
+| Operations | Webhooks | `webhooks_enabled` | Event delivery to your endpoints |
+| Operations | Reports & Analytics | `reports_enabled` | Reports, dashboards, wallboards, scheduled reports and the Pricing Advisor |
+| Documentation and vault | Global knowledge base | `global_kb_enabled` | The staff-only shared knowledge base (customer documents are not affected) |
+| Documentation and vault | Diagrams | `diagrams_enabled` | Drawings and diagram templates in the documentation |
+| Documentation and vault | Documentation readiness | `readiness_enabled` | Readiness checks per customer |
+| Documentation and vault | Secure Notes | `secure_notes_enabled` | Secure notes inbox, sent and secret links; links already sent still open |
+| Documentation and vault | Location maps | `locations_map_enabled` | Maps and address lookup on location pages |
+
+Not modules, and not on this page: clients, users and access, tickets inside PSA, the password
+vault, settings, the audit log and help are always available. These keep their own setting and
+their own default:
+
+- AI features **OPTIONAL AI** (`psa_ai_enabled`, Settings → General → PSA): off until you turn
+  them on.
+- Customer portal switches (announcements, votes, escalation, customer approvals): Settings →
+  Customer portal, off by default.
+- Satisfaction survey e-mails (`psa_csat_enabled`), late fees, invoice auto-send and autopay,
+  asset age warnings, warranty lookups and firmware checks: each on its own settings page, with
+  its existing default.
 
 ## Safety rules that no setting changes
 

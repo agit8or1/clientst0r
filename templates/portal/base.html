@@ -47,8 +47,10 @@
                 {% if request|portal_can_bill %}
                 <a href="{% url 'portal:billing_home' %}" {% if current and current|slice:':8' == 'billing_' %}aria-current="page"{% endif %}><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i> Billing</a>
                 {% endif %}
-                {# Phase 40.5 (v3.17.543). Always linked: the view 404s when nothing is published, which is the same answer as hiding it but without a template query. #}
+                {# Phase 40.5 (v3.17.543). Linked while Status pages is on: the view 404s when nothing is published, which is the same answer as hiding it but without a template query. #}
+                {% if status_pages_enabled %}
                 <a href="{% url 'portal:status' %}" {% if current == 'status' %}aria-current="page"{% endif %}><i class="fas fa-heart-pulse" aria-hidden="true"></i> Service Status</a>
+                {% endif %}
                 {% if pulse_enabled %}
                 <a href="{% url 'portal:pulse_feedback' %}" {% if current == 'pulse_feedback' or current == 'pulse_answer' %}aria-current="page"{% endif %}><i class="fas fa-comment-dots" aria-hidden="true"></i> Feedback</a>
                 {% endif %}

@@ -24,9 +24,12 @@ from django.urls import NoReverseMatch, reverse
 
 def _url(name, *args):
     try:
-        return reverse(name, args=args)
+        href = reverse(name, args=args)
     except NoReverseMatch:
         return ''
+    # Settings → Modules: no link into a module that is turned off.
+    from core.feature_gates import path_enabled
+    return href if path_enabled(href) else ''
 
 
 def _org(request):

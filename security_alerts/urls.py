@@ -40,3 +40,10 @@ urlpatterns = [
     path('digest/', views.digest_subscriptions, name='digest_subscriptions'),
     path('digest/unsubscribe/<str:token>/', views.digest_unsubscribe, name='digest_unsubscribe'),
 ]
+
+# Settings → Modules: every route 404s while the module is off
+# (core/feature_gates.py).
+# The digest unsubscribe link keeps working while the module is off.
+from core.feature_gates import gate_patterns  # noqa: E402
+
+gate_patterns(urlpatterns, 'security_alerts_enabled', exclude=('digest_unsubscribe',))

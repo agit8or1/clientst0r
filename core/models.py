@@ -1024,9 +1024,29 @@ class SystemSetting(models.Model):
     vehicles_enabled = models.BooleanField(default=True, help_text='Enable service vehicle fleet management features')
     inventory_enabled = models.BooleanField(default=True, help_text='Enable Inventory management')
     scheduling_enabled = models.BooleanField(default=True, help_text='Enable Scheduling and Task Management')
-    psa_enabled = models.BooleanField(default=False, help_text='Enable native PSA / Service Desk feature (off by default)')
-    crm_enabled = models.BooleanField(default=False, help_text='Enable CRM / sales pipeline (leads, opportunities, campaigns, commissions). Off by default.')
-    pulse_enabled = models.BooleanField(default=False, help_text='Enable pulse checks: periodic service-feedback surveys sent to people at client organizations. Off by default.')
+    # On for a new install. Migration core 0125 changed these three defaults
+    # from off; existing rows keep the value they had.
+    psa_enabled = models.BooleanField(default=True, help_text='Enable native PSA / Service Desk feature')
+    crm_enabled = models.BooleanField(default=True, help_text='Enable CRM / sales pipeline (leads, opportunities, campaigns, commissions)')
+    pulse_enabled = models.BooleanField(default=True, help_text='Enable pulse checks: periodic service-feedback surveys sent to people at client organizations')
+    # Module switches added in migration core 0125 for modules that used to
+    # be always available: on by default, so an upgrade changes nothing.
+    # core/feature_gates.py enforces them (routes 404, menus hide, jobs skip).
+    projects_enabled = models.BooleanField(default=True, help_text='Projects, project templates and project tasks (PSA)')
+    quotes_enabled = models.BooleanField(default=True, help_text='Quotes: drafting, sending and accepting (PSA)')
+    change_management_enabled = models.BooleanField(default=True, help_text='Change requests, problems and releases (PSA)')
+    procurement_enabled = models.BooleanField(default=True, help_text='Requisitions, purchase orders, back-orders and vendors (PSA)')
+    security_alerts_enabled = models.BooleanField(default=True, help_text='Security alerts, incidents, SIEM endpoints and weekly digests')
+    client_health_enabled = models.BooleanField(default=True, help_text='Client health scores')
+    contracts_enabled = models.BooleanField(default=True, help_text='Contract documents: drafting, templates, clauses and signing')
+    licensing_enabled = models.BooleanField(default=True, help_text='Software licensing: subscriptions, renewals and license sync')
+    status_pages_enabled = models.BooleanField(default=True, help_text='Status pages (public and customer portal)')
+    netconfig_enabled = models.BooleanField(default=True, help_text='Network device configuration backups')
+    backup_monitoring_enabled = models.BooleanField(default=True, help_text='Customer backup monitoring, alerts and restore tests')
+    field_ops_enabled = models.BooleanField(default=True, help_text='Field operations: timeclock, location sharing and geo-aware dispatch')
+    onboarding_enabled = models.BooleanField(default=True, help_text='Customer onboarding wizard')
+    diagrams_enabled = models.BooleanField(default=True, help_text='Diagrams in documentation (drawings and floor plans)')
+    readiness_enabled = models.BooleanField(default=True, help_text='Documentation readiness checks')
     psa_csat_enabled = models.BooleanField(
         default=False,
         help_text='Email a 1-5 star CSAT survey link to the requester when '

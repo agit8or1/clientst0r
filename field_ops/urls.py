@@ -36,3 +36,11 @@ urlpatterns = [
     path('dispatch-sharing/', dispatch_views.dispatch_sharing, name='dispatch_sharing'),
     path('dispatch-geo/', dispatch_views.dispatch_geo_settings, name='dispatch_geo_settings'),
 ]
+
+# Settings → Modules: every route 404s while the module is off
+# (core/feature_gates.py).
+# Settings and a user's own location history (view / delete) stay
+# available while the module is off.
+from core.feature_gates import gate_patterns  # noqa: E402
+
+gate_patterns(urlpatterns, 'field_ops_enabled', exclude=('my_location_delete', 'my_location_delete_all', 'my_location_history', 'settings'))

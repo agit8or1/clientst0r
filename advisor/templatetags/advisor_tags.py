@@ -9,6 +9,9 @@ register = template.Library()
 def org_advisor(context, organization):
     request = context.get('request')
     user = getattr(request, 'user', None)
+    from core.feature_gates import feature_on
+    if not feature_on('reports_enabled'):  # the Pricing Advisor is part of Reports
+        return {'show': False}
     from advisor import permissions as perms
     if user is None or organization is None or not perms.can_view_client(user, organization):
         return {'show': False}

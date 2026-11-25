@@ -102,3 +102,15 @@ urlpatterns = [
     path('api/patch-panels/<int:pk>/ports/<int:port_num>/disconnect/', api_views.patch_panel_port_disconnect, name='api_patch_panel_port_disconnect'),
     path('api/patch-panels/<int:pk>/ports/<int:port_num>/', api_views.patch_panel_port_update, name='api_patch_panel_port_update'),
 ]
+
+# Settings → Modules (core/feature_gates.py): website, WAN and expiration
+# monitoring 404 while Monitoring is off. Racks, closets, patch panels, IPAM
+# and VLANs are asset documentation and stay available.
+from core.feature_gates import gate_patterns  # noqa: E402
+
+gate_patterns(urlpatterns, 'monitoring_enabled', only={
+    'website_monitor_list', 'website_monitor_create', 'website_monitor_detail',
+    'website_monitor_edit', 'website_monitor_delete', 'website_monitor_check',
+    'wan_monitor_list', 'expiration_list', 'expiration_create', 'expiration_edit',
+    'expiration_delete',
+})

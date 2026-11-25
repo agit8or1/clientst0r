@@ -44,3 +44,9 @@ urlpatterns = [
     path('clauses/<int:pk>/', views.clause_edit, name='clause_edit'),
     path('settings/', views.settings_view, name='settings'),
 ]
+
+# Settings → Modules: every route 404s while the module is off
+# (core/feature_gates.py).
+from core.feature_gates import gate_patterns  # noqa: E402
+
+gate_patterns(urlpatterns, 'contracts_enabled')

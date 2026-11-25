@@ -15,9 +15,13 @@ visual tour, and the [roadmap](docs/ROADMAP.md) for planned work.
 
 **Configuration** names where to switch or set the feature up. "Settings → X → Y" means
 **Administration** (or the gear in the top bar) → settings center category X → page Y. Module
-switches live in **Settings → Modules → Feature Toggles**; defaults: `psa_enabled`,
-`psa_ai_enabled`, `crm_enabled` and `pulse_enabled` are **off**; monitoring, global KB, workflows,
-secure notes, reports, webhooks, vehicles, inventory and scheduling are **on**.
+switches (`*_enabled`) live in **Settings → Modules → Feature Toggles**, superusers only. Every
+module switch is **on** for a new install; upgrading keeps each module as it was. A module that is
+off is hidden from every menu, its pages answer "Page not found" and its scheduled jobs pause;
+nothing is deleted. The full list is in
+[ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md#modules-turning-features-on-and-off). `psa_ai_enabled`
+(**OPTIONAL AI**), the customer portal switches and CSAT e-mails are not module switches and stay
+**off** until turned on.
 
 **Access model.** Every user is **MSP staff** (superuser, staff flag, or User Type *Staff*) or a
 **customer user**. Staff work across customers within their global role. Customer users see only
@@ -74,7 +78,7 @@ third-party PSA sync in [category 17](#17-api-integrations-and-administration).
 | Time entries, timers, expenses, timesheets and approval | Available | `psa_enabled` | | — |
 | Email-to-ticket (IMAP, Microsoft 365 Graph), reply threading | Available | Service Desk email configs; scheduler (every 5 min) | | — |
 | Service catalog with guided request forms, conditional questions, approvers per customer | Available | Service Desk → Service Management | | — |
-| Problems, changes with CAB, approvals inbox | Available | `psa_enabled` | Approvals inbox covers quote chains; other flows have their own review | — |
+| Problems, changes with CAB, approvals inbox | Available | `psa_enabled`, `change_management_enabled` | Approvals inbox covers quote chains; other flows have their own review | — |
 | Workflow rules (created, updated, status, comment, SLA threshold) | Limited | Service Desk → Workflows | No loop guard between chained rules; charges and chaining only in raw JSON | — |
 | Process templates (runbooks with stages and sign-off, attached to a ticket) | Limited | `workflows_enabled` | Deleting a stage while editing deletes its sign-offs on existing runs | — |
 | Customer follow-up and confirm-or-close: follow-up email, optional second reminder, then automatic close with a recorded reason; per-customer override, pause per ticket | Available | PSA settings → Customer follow-up and confirm-or-close | **Off by default**; never contacts staff, people with email notifications off, or customers opted out of the PSA | [SUPPORT_WORKFLOWS.md](docs/SUPPORT_WORKFLOWS.md#customer-follow-up-and-confirm-or-close) |
@@ -89,9 +93,9 @@ third-party PSA sync in [category 17](#17-api-integrations-and-administration).
 |---|---|---|---|---|
 | Organizations (customers), unlimited, parent/child, multi-location | Available | None | | — |
 | Customer Operations page: SLA risks, uptime incidents, renewals, overdue invoices, aging assets | Available | Sections follow the viewer's role | Rows per section capped (stated on the page) | — |
-| Customer onboarding wizard and lifecycle changes (plan change, add users/devices, renewal, price increase, offboarding) | Available | Clients → Onboard Customer; role permission `manage_customer_onboarding` | Outputs are drafts that go through approval; accounting step links an existing provider customer but does not create one | — |
+| Customer onboarding wizard and lifecycle changes (plan change, add users/devices, renewal, price increase, offboarding) | Available | Clients → Onboard Customer; `onboarding_enabled`; role permission `manage_customer_onboarding` | Outputs are drafts that go through approval; accounting step links an existing provider customer but does not create one | — |
 | Contacts | Available | Follows View assets permission | | — |
-| Locations, geocoding (Google, OpenStreetMap fallback), navigation links by email/SMS | Available | Geocoding key optional | | — |
+| Locations, geocoding (Google, OpenStreetMap fallback), navigation links by email/SMS | Available | `locations_map_enabled` (maps); geocoding key optional | | — |
 | Per-organization branding | Limited | Organization edit page | Portal logo and accent color only; site name and logo are install-wide | — |
 | Importers: IT Glue, Hudu, CSV/xlsx, MagicPlan | Limited | Imports; source API key | IT Glue and Hudu: contacts, locations, networks, attachments and relationships are not imported | [importing-from-it-glue.md](docs/importing-from-it-glue.md), [importing-from-hudu.md](docs/importing-from-hudu.md) |
 
@@ -103,8 +107,8 @@ third-party PSA sync in [category 17](#17-api-integrations-and-administration).
 | Versions with view, compare and restore; owners and review dates; drafts; Submit for review → Approve; archive; template drift | Available | Publish permissions per role | | — |
 | Global knowledge base shared with all, selected customers or customer groups; bulk audience changes; Make global | Available | `global_kb_enabled` | | — |
 | KB analytics (most viewed, never viewed, past review, zero-result searches) | Available | MSP staff | | — |
-| Documentation readiness: standards, per-customer score, repair queue, exceptions | Available | Knowledge & Vault → Documentation Readiness | | — |
-| Diagrams (draw.io) | Available | None | | — |
+| Documentation readiness: standards, per-customer score, repair queue, exceptions | Available | `readiness_enabled`; Knowledge & Vault → Documentation Readiness | | — |
+| Diagrams (draw.io) | Available | `diagrams_enabled` | | — |
 | Agreements and policy acknowledgments bound to an exact document version, with evidence download | Available | Document → Agreement | Uploaded-file documents can't be agreements | — |
 | Export: Markdown, HTML, DOCX, PDF | Available | None | | — |
 | Office document editing: ONLYOFFICE, Collabora, Microsoft 365 (SharePoint/OneDrive) | Limited | Settings → Integrations → Office Documents | Not yet verified against real editor services; customer-portal editing and Google Docs planned | [OFFICE_DOCUMENTS.md](docs/OFFICE_DOCUMENTS.md) |
@@ -143,11 +147,11 @@ third-party PSA sync in [category 17](#17-api-integrations-and-administration).
 | Website and SSL monitors; email and webhooks on down (after 2 failed checks) and recovery | Limited | `monitoring_enabled` | Checks at most every 5 minutes | — |
 | WAN monitors (server-side ping) | Available | `monitoring_enabled` | Needs `ping` on the server and a reachable target | — |
 | Domain and certificate expiry tracking | Limited | `monitoring_enabled` | No WHOIS; domain expiry entered by hand | — |
-| Status pages (public token pages, per customer, incident posts) | Available | Monitoring → Status pages | | — |
-| Network config backups over SSH (Cisco IOS/ASA, Arista EOS, Juniper Junos, MikroTik, FortiOS, HP ProCurve, generic), diff, approve, drift | Available | Per-device SSH credentials | | — |
+| Status pages (public token pages, per customer, incident posts) | Available | `status_pages_enabled` (menu under Monitoring) | | — |
+| Network config backups over SSH (Cisco IOS/ASA, Arista EOS, Juniper Junos, MikroTik, FortiOS, HP ProCurve, generic), diff, approve, drift | Available | `netconfig_enabled`; per-device SSH credentials | | — |
 | Network discovery import (script run on a Windows host, results imported as assets) | Available | Collector token | No SNMP or LLDP; the topology and port-map pages have no data source until pushed link data exists | — |
 | Network controller sync: UniFi, Omada, Grandstream | Limited | Settings → Integrations | Scheduled UniFi sync records every device as an access point; use manual import for correct types | — |
-| Backup monitoring: Proxmox Backup Server (polled), restic, Borg, Kopia (signed push reports); alerts, tickets, restore tests | Available | Assets & Network → Backup Monitoring; `view_backup_status` | Commercial backup products planned | [BACKUP_MONITORING.md](docs/BACKUP_MONITORING.md) |
+| Backup monitoring: Proxmox Backup Server (polled), restic, Borg, Kopia (signed push reports); alerts, tickets, restore tests | Available | `backup_monitoring_enabled`; Assets & Network → Backup Monitoring; `view_backup_status` | Commercial backup products planned | [BACKUP_MONITORING.md](docs/BACKUP_MONITORING.md) |
 | Service dependency and impact mapping | Planned | | Phase 88 | [ROADMAP.md](docs/ROADMAP.md) |
 
 ## 8. Security alerts, SIEM and events
@@ -156,10 +160,10 @@ Security Alerts and Incidents need `psa_enabled` and are MSP-staff only.
 
 | Feature | Status | Configuration | Limitations | Docs |
 |---|---|---|---|---|
-| Security vendor connections | Limited | Security & Monitoring → Security Alerts | Alerts arrive only by the generic JSON webhook (token URL, optional or required HMAC signature). The vendor names in the list are labels; no vendor API polling works (the Defender adapter is a reference stub) | — |
-| SIEM webhook endpoints (CEF, generic JSON, Syslog RFC 5424 over HTTPS POST) | Available | Security Alerts → SIEM endpoints; signatures required by default for new endpoints | No network syslog listener | — |
-| Auto-ticket rules, incidents, playbooks, correlation, threat overview, digest, MTTA | Available | `psa_enabled` | Correlation is fixed grouping; configurable rules planned (Phase 85) | — |
-| Security Overview (read-only summary) | Available | `psa_enabled` | | — |
+| Security vendor connections | Limited | `security_alerts_enabled`; Security & Monitoring → Security Alerts | Alerts arrive only by the generic JSON webhook (token URL, optional or required HMAC signature). The vendor names in the list are labels; no vendor API polling works (the Defender adapter is a reference stub) | — |
+| SIEM webhook endpoints (CEF, generic JSON, Syslog RFC 5424 over HTTPS POST) | Available | `security_alerts_enabled`; Security Alerts → SIEM endpoints; signatures required by default for new endpoints | No network syslog listener | — |
+| Auto-ticket rules, incidents, playbooks, correlation, threat overview, digest, MTTA | Available | `psa_enabled`, `security_alerts_enabled` | Correlation is fixed grouping; configurable rules planned (Phase 85) | — |
+| Security Overview (read-only summary) | Available | `psa_enabled`, `security_alerts_enabled` | | — |
 | Events: one list of security, RMM, Rem0te, backup and website-monitor alerts; manual ticket/incident links; ingestion health | Available | Security & Monitoring → Events; ingestion switch on by default; permissions `events_view`, `events_link`, `events_manage_ingestion` (seeded Security Analyst and Security Administrator roles); retention per source and per customer on the ingestion health page | Phase 82 in progress: no correlation or automation yet; address/account/IOC fields empty until connectors supply them; WAN monitors not a source | [ROADMAP.md](docs/ROADMAP.md) |
 | Firewall: IP and GeoIP rules, blocked-request log; fail2ban management | Available | Settings → Security → Firewall & GeoIP, Fail2ban | Application-level; fail2ban on native installs only | — |
 | Vulnerability scans (Snyk, pip-audit, OS packages) | Available | Settings → Security → Vulnerability Scans | Snyk needs a token | [PACKAGE_SCANNER.md](docs/PACKAGE_SCANNER.md) |
@@ -186,12 +190,12 @@ Clientst0r or by AI.
 
 | Feature | Status | Configuration | Limitations | Docs |
 |---|---|---|---|---|
-| Projects: tasks, milestones, dependencies, timeline, templates, invoicing | Available | `psa_enabled` | | — |
+| Projects: tasks, milestones, dependencies, timeline, templates, invoicing | Available | `psa_enabled`, `projects_enabled` | | — |
 | Dispatch board (7-day grid, overdue and unassigned rows) | Limited | `psa_enabled` | Dragging changes the assignee, not the date | — |
 | Scheduling: recurring maintenance tasks with sign-off, calendar | Available | `scheduling_enabled` | | — |
-| Scheduler wallboard (public token page) | Available | Scheduling → Wallboard settings | | — |
+| Scheduler wallboard (public token page) | Available | `scheduling_enabled`; Scheduling → Wallboard settings | | — |
 | Resourcing: shifts, leave, holidays, skills, certifications, on-call, capacity, cost rates | Available | MSP staff | | — |
-| Timeclock and location sharing (field ops) | Available | Settings → Modules → Field Ops; consent | The native mobile app is a separate component | — |
+| Timeclock and location sharing (field ops) | Available | `field_ops_enabled`; Settings → Modules → Field Ops; consent | The native mobile app is a separate component | — |
 
 ## 11. Billing, contracts and invoicing
 
@@ -204,22 +208,22 @@ Clientst0r or by AI.
 | Ready for Billing queue on Billing Review: approve, hold, exclude, adjust, draft invoices | Available | Business → Billing → Billing Review | Creates drafts only; nothing is sent | [BILLING.md](docs/BILLING.md#ready-for-billing) |
 | Consolidated invoices: one draft per customer from selected tickets, account charges and the agreement fee | Available | Billing Review → Ready for Billing | Draft only; sent invoices change by credit note | [BILLING.md](docs/BILLING.md#consolidated-invoices) |
 | Settings → Billing: approval thresholds, late fees, default tax and currency, month-to-month e-signature exemption, with per-customer and per-contract overrides | Available | Settings → General → Billing | Superusers and staff who can approve invoices | [BILLING.md](docs/BILLING.md#settings--billing) |
-| Contract documents with digital signing: build, approve, send, sign link with optional e-mail code, countersign, evidence PDF and certificate; term and notice period; e-signature required before a non-month-to-month contract takes effect or bills | Available | Business → Contracts | The twelve sample agreements are starting points, not legal advice | [BILLING.md](docs/BILLING.md#contracts-samples-terms-and-e-signature) |
+| Contract documents with digital signing: build, approve, send, sign link with optional e-mail code, countersign, evidence PDF and certificate; term and notice period; e-signature required before a non-month-to-month contract takes effect or bills | Available | `contracts_enabled`; Business → Contracts | The twelve sample agreements are starting points, not legal advice | [BILLING.md](docs/BILLING.md#contracts-samples-terms-and-e-signature) |
 | Sample contract library (twelve starters) | Available | Business → Contracts → Templates → Use this sample | Not legal advice; review notes block sending until replaced | [BILLING.md](docs/BILLING.md#contracts-samples-terms-and-e-signature) |
 | Viewed tracking for quote, invoice and contract links (first view, last view, count, webhook, email to creator) | Available | Automatic | Staff previews, email scanners and bots are not counted | [BILLING.md](docs/BILLING.md#contracts-samples-terms-and-e-signature) |
 | Price book, service plans, labor rate cards, cost rates | Limited | Django admin | Admin-managed; picking items in quote/invoice editors planned | — |
 | Accounting: QuickBooks Online, Xero (customer sync, duplicate-safe invoice push, payment status pull) | Limited | Settings → Integrations → Accounting | Payments, credit memos, refunds and voids are not pushed; FreshBooks, Wave, Zoho Books and Sage are listed but not implemented | — |
 | Payments: Stripe (card/ACH), GoCardless; portal payment, saved methods, autopay, refunds | Limited | Service Desk → Billing → Payments | Not yet verified with live or sandbox keys; payments are not posted to accounting | [PAYMENTS.md](docs/PAYMENTS.md) |
 | Sales tax: manual rates, Avalara AvaTax, TaxJar, exemptions | Limited | Settings → Integrations → Sales Tax | Provider calls not yet verified against sandboxes | [TAX.md](docs/TAX.md) |
-| Software licensing: subscriptions, seats, renewals; Microsoft 365 and Pax8 sync | Available | Business → Licensing | Google Workspace not implemented | — |
+| Software licensing: subscriptions, seats, renewals; Microsoft 365 and Pax8 sync | Available | `licensing_enabled`; Business → Licensing | Google Workspace not implemented | — |
 
 ## 12. Quotes, CRM and procurement
 
 | Feature | Status | Configuration | Limitations | Docs |
 |---|---|---|---|---|
-| Quotes: line items, tax, PDF, email, approval chains, no-login e-signature (required before a quote can be accepted or converted), Viewed status | Available | `psa_enabled` | Staff cannot accept on the customer's behalf | — |
-| CRM: leads, opportunities, campaigns, commissions, quote from opportunity | Available | `crm_enabled` (off by default) | | — |
-| Procurement, vendors, purchase orders | Available | `psa_enabled`; MSP staff | | — |
+| Quotes: line items, tax, PDF, email, approval chains, no-login e-signature (required before a quote can be accepted or converted), Viewed status | Available | `psa_enabled`, `quotes_enabled` | Staff cannot accept on the customer's behalf | — |
+| CRM: leads, opportunities, campaigns, commissions, quote from opportunity | Available | `crm_enabled` | | — |
+| Procurement, vendors, purchase orders | Available | `psa_enabled`, `procurement_enabled`; MSP staff | | — |
 | Distributors: Ingram Micro Xvantage, Pax8, TD Synnex (catalog, price, availability, webhooks) | Limited | Settings → Integrations → Distributors | No ordering from the UI; D&H, ScanSource, QBS and Westcoast are listed but not implemented | — |
 
 ## 13. Reporting, dashboards and wallboards
@@ -231,11 +235,11 @@ reports permission.
 |---|---|---|---|---|
 | Profitability by client, technician, contract, project; effective hourly rate; revenue leakage; SLA trends; margin | Available | `reports_enabled` | Uses technician cost rates; missing rates are reported as incomplete | — |
 | Business Overview (MRR/ARR, invoiced revenue, margin, growth, renewals), each card naming its source | Available | Dashboard → Business Overview; `reports_view_dashboards` | | — |
-| Custom dashboards, report templates, scheduled reports, report writer | Limited | Scheduler | Template PDFs are plain text of the data | — |
-| Wallboards (configurable widget boards with rotation) | Available | Reports → Wallboards | Presentation mode, presets and display pairing planned (Phase 83) | — |
-| Client health score (six dimensions, nightly snapshots) | Limited | Business → Client Health | Staff-only; portal display planned | — |
-| Pricing Advisor (nightly findings, recommendations) | Available | Reports → Pricing Advisor | Plain-English explanation is OPTIONAL AI (`psa_ai_enabled`) | — |
-| Pulse checks (periodic customer feedback) | Available | `pulse_enabled` (off by default) | CSV export planned | [PULSE_CHECKS.md](docs/PULSE_CHECKS.md) |
+| Custom dashboards, report templates, scheduled reports, report writer | Limited | `reports_enabled`; scheduler | Template PDFs are plain text of the data | — |
+| Wallboards (configurable widget boards with rotation) | Available | `reports_enabled`; Reports → Wallboards | Presentation mode, presets and display pairing planned (Phase 83) | — |
+| Client health score (six dimensions, nightly snapshots) | Limited | `client_health_enabled`; Business → Client Health | Staff-only; portal display planned | — |
+| Pricing Advisor (nightly findings, recommendations) | Available | `reports_enabled`; Reports → Pricing Advisor | Plain-English explanation is OPTIONAL AI (`psa_ai_enabled`) | — |
+| Pulse checks (periodic customer feedback) | Available | `pulse_enabled` | CSV export planned | [PULSE_CHECKS.md](docs/PULSE_CHECKS.md) |
 | Compliance: PCI-DSS v4 and HIPAA catalogs, attestation, PDF report, evidence pack ZIP | Limited | None | No other frameworks seeded | — |
 | Audit log with CSV/JSON export | Limited | Owner/Admin | Request-level log; no before/after values for most changes | — |
 

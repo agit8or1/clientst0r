@@ -45,3 +45,9 @@ urlpatterns = [
     path('completion/<int:pk>/complete/', views.stage_complete, name='stage_complete'),
     path('completion/<int:pk>/uncomplete/', views.stage_uncomplete, name='stage_uncomplete'),
 ]
+
+# Settings → Modules: every route 404s while the module is off
+# (core/feature_gates.py).
+from core.feature_gates import gate_patterns  # noqa: E402
+
+gate_patterns(urlpatterns, 'workflows_enabled')

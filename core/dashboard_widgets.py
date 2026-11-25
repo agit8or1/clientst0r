@@ -116,8 +116,17 @@ def section_ok(request, perm):
     return _memo(request, ('section', perm), compute)
 
 
+def _module_on(path):
+    """False when `path` belongs to a module turned off (Settings → Modules)."""
+    from core.feature_gates import path_enabled
+    return not path or path_enabled(path)
+
+
 def path_ok(request, path):
-    """Would SectionPermissionMiddleware let this user open `path`?"""
+    """Would SectionPermissionMiddleware let this user open `path`? (And is
+    its module on.)"""
+    if not _module_on(path):
+        return False
     from accounts.middleware import SectionPermissionMiddleware as gate
     if (path.startswith(gate.STAFF_ONLY_PREFIXES)
             and not path.startswith(gate.STAFF_ONLY_EXEMPT) and not is_staff(request)):
@@ -1539,6 +1548,10 @@ class Widget:
 
     def allowed(self, request) -> bool:
         try:
+            # Settings → Modules: a card whose page belongs to a module that
+            # is turned off is not shown.
+            if self.link and not _module_on(url(self.link)):
+                return False
             return bool(self.gate(request))
         except Exception:
             # Fail closed: an error in a check never shows the widget.

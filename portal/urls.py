@@ -85,3 +85,9 @@ urlpatterns = [
     # Customer switcher for users who belong to several customers.
     path('switch/', views.switch_customer, name='switch_customer'),
 ]
+
+# Settings → Modules (core/feature_gates.py): the customer status page 404s
+# while Status pages is off.
+from core.feature_gates import gate_patterns  # noqa: E402
+
+gate_patterns(urlpatterns, 'status_pages_enabled', only={'status'})

@@ -16,3 +16,9 @@ urlpatterns = [
     path('standards/<int:pk>/delete/', views.standard_delete, name='standard_delete'),
     path('relationships/broken/', views.broken_relationships, name='broken_relationships'),
 ]
+
+# Settings → Modules: every route 404s while the module is off
+# (core/feature_gates.py).
+from core.feature_gates import gate_patterns  # noqa: E402
+
+gate_patterns(urlpatterns, 'readiness_enabled')

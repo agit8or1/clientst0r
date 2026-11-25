@@ -30,8 +30,8 @@ TEST_MIDDLEWARE = [
     if 'Enforce2FAMiddleware' not in m and 'AxesMiddleware' not in m
 ]
 
-ALL_FLAGS = ('psa_enabled', 'crm_enabled', 'workflows_enabled', 'inventory_enabled',
-             'scheduling_enabled', 'monitoring_enabled', 'vehicles_enabled', 'pulse_enabled')
+# Every module switch (Settings → Modules).
+from core.feature_gates import MODULE_SWITCHES as ALL_FLAGS  # noqa: E402
 
 GROUP_ORDER = ['dashboard', 'my_work', 'service_desk', 'clients', 'assets', 'business',
                'knowledge', 'security', 'reports']
@@ -352,10 +352,9 @@ class ModuleToggleTests(NavbarTestBase):
         nav = sidebar(self.page(self.make_superuser()))
         # Service Desk keeps only Workflows' Support Workflows? No: it needs PSA too.
         self.assertNotIn('service_desk', nav)
-        # Contract documents and client health are not behind a module flag;
-        # the rest of Business is.
-        self.assertEqual(nav['business'], urls(['contracts:dashboard', 'licensing:overview', 'health_score:list']))
-        self.assertEqual(nav['reports'], urls(REPORTS))   # Reports is ungated
+        # Every Business module and Reports has a module switch now.
+        self.assertNotIn('business', nav)
+        self.assertNotIn('reports', nav)
         self.assertNotIn(reverse('psa:my_work'), nav['my_work'])
         self.assertIn(reverse('integrations:rmm_alerts'), nav['security'])
 

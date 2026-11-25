@@ -182,6 +182,9 @@ class Workspace:
         only (accounts.middleware.SectionPermissionMiddleware)."""
         if not self.staff:
             return False
+        from core.feature_gates import feature_on
+        if not feature_on('contracts_enabled'):
+            return False
         try:
             from contracts import permissions as contract_perms
             return bool(contract_perms.has(self.user, contract_perms.VIEW, self.org.pk))

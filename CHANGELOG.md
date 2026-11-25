@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.780] - 2026-11-25
+
+### Added
+- **Every optional module can be switched on or off** (Administration → Modules). Fifteen new switches — Projects,
+  Quotes, Change management, Procurement, Security alerts, Client health, Contracts, Licensing, Status pages,
+  Configuration backups, Backup monitoring, Field ops, Onboarding, Diagrams and Documentation readiness — join the
+  existing ones, grouped with a one-line description each. Changes are recorded in the audit trail.
+  - Turning a module off removes its menu entries, tabs, dashboard cards, quick actions, shortcuts and Ctrl+K results,
+    its pages answer "not found", and its scheduled jobs stop. **No data is deleted**; switching it back on brings
+    everything back.
+  - Links already sent to customers keep working: quote and contract signing links, security-digest unsubscribe
+    links and vehicle expense receipts.
+  - **New installs start with every module on**, including PSA, CRM and pulse checks. **Upgrades keep each install's
+    current settings.**
+
+### Changed
+- Inventory, Vehicles, Scheduling, Workflows, Global KB, Monitoring and CRM switches now also close the module's
+  pages. Before, switching them off only hid the menu entry; the pages still opened by address.
+- The CRM switch moved from Administration → General to Administration → Modules, so it is in one place.
+- Turning Monitoring off stops website checks, including the `check_websites` command.
+- Roadmap: module switches added as shipped; 112.6–112.10, 113.4–113.8 and wallboard display pairing marked in
+  progress.
+
 ## [3.17.779] - 2026-11-25
 
 ### Added

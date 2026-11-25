@@ -19,10 +19,12 @@ TEST_MIDDLEWARE = [
     if 'Enforce2FAMiddleware' not in m and 'AxesMiddleware' not in m
 ]
 
-# What these switches defaulted to before the page existed. The page must not
-# change any of them.
+# The defaults of the registry's switches. Every module switch is on for a
+# new install (migration core 0125 turned PSA, CRM and pulse checks on for
+# new rows only); OPTIONAL AI, the portal switches, CSAT and the asset
+# health checks keep their own opt-in.
 EXPECTED_DEFAULTS = {
-    'psa_enabled': False, 'psa_ai_enabled': False, 'crm_enabled': False,
+    'psa_enabled': True, 'psa_ai_enabled': False, 'crm_enabled': True,
     'monitoring_enabled': True, 'workflows_enabled': True, 'inventory_enabled': True,
     'scheduling_enabled': True, 'vehicles_enabled': True, 'webhooks_enabled': True,
     'global_kb_enabled': True, 'psa_csat_enabled': False,
@@ -31,7 +33,12 @@ EXPECTED_DEFAULTS = {
     'asset_age_warnings_enabled': False, 'warranty_checks_enabled': False,
     'firmware_checks_enabled': False,
     'reports_enabled': True, 'secure_notes_enabled': True,
-    'pulse_enabled': False,
+    'pulse_enabled': True, 'locations_map_enabled': True,
+    'projects_enabled': True, 'quotes_enabled': True, 'change_management_enabled': True,
+    'procurement_enabled': True, 'security_alerts_enabled': True, 'client_health_enabled': True,
+    'contracts_enabled': True, 'licensing_enabled': True, 'status_pages_enabled': True,
+    'netconfig_enabled': True, 'backup_monitoring_enabled': True, 'field_ops_enabled': True,
+    'onboarding_enabled': True, 'diagrams_enabled': True, 'readiness_enabled': True,
 }
 
 
@@ -78,11 +85,14 @@ class RegistryTests(TestCase):
     def test_fresh_install_states(self):
         s = SystemSetting.get_settings()
         rows = {r['module'].key: r for _g, rs in modules.describe(s) for r in rs}
-        self.assertFalse(rows['psa']['on'])
+        self.assertTrue(rows['psa']['active'])
+        self.assertTrue(rows['crm']['active'])
+        self.assertFalse(rows['ticket_ai']['on'])    # OPTIONAL AI stays off
+        self.assertEqual(rows['ticket_ai']['missing'], [])
         self.assertFalse(rows['routing']['on'])      # no RoutingSettings row = Off
         self.assertFalse(rows['portal']['on'])
         self.assertTrue(rows['monitoring']['active'])
-        self.assertEqual([d.key for d in rows['ticket_ai']['missing']], ['psa'])
+        self.assertTrue(rows['projects']['active'])
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
@@ -113,15 +123,22 @@ class ModulesPageTests(TestCase):
         self.client.force_login(self.tech)
         r = self.client.get(self.url)
         self.assertNotEqual(r.status_code, 200)
-        self.client.post(self.url, {'module': 'psa', 'enabled': 'on'})
-        self.assertFalse(SystemSetting.get_settings().psa_enabled)
+        self.client.post(self.url, {'module': 'psa', 'enabled': 'off'})
+        self.assertTrue(SystemSetting.get_settings().psa_enabled)
+
+    def _psa_off(self):
+        s = SystemSetting.get_settings()
+        s.psa_enabled = False
+        s.save()
 
     def test_turning_on_ai_while_psa_is_off_is_refused(self):
+        self._psa_off()
         r = self._post('ticket_ai', 'on')
         self.assertFalse(SystemSetting.get_settings().psa_ai_enabled)
         self.assertContains(r, 'needs PSA / Service desk turned on first')
 
     def test_turn_on_psa_then_ai(self):
+        self._psa_off()
         self._post('psa', 'on')
         self._post('ticket_ai', 'on')
         s = SystemSetting.get_settings()
@@ -169,10 +186,11 @@ class ModulesPageTests(TestCase):
 
     def test_bad_action_changes_nothing(self):
         self.client.post(self.url, {'module': 'psa', 'enabled': 'maybe'})
-        self.assertFalse(SystemSetting.get_settings().psa_enabled)
+        self.assertTrue(SystemSetting.get_settings().psa_enabled)
 
     def test_routing_state_follows_routing_mode(self):
         from psa.routing.models import RoutingSettings
+        self._psa_off()
         rs = RoutingSettings.load()
         rs.mode = 'suggest'
         rs.save()

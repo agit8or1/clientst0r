@@ -37,17 +37,24 @@ from psa.tests._base import (
 
 
 class FeatureFlagDefaultsTests(TestCase):
-    """PSA must default to disabled at every layer."""
+    """PSA is on for a new install (every module is, Settings → Modules);
+    an administrator can turn it off, and the per-surface flags stay off."""
 
-    def test_global_flag_defaults_off(self):
+    def test_global_flag_defaults_on_and_can_be_turned_off(self):
         s = SystemSetting.get_settings()
-        self.assertFalse(s.psa_enabled, 'SystemSetting.psa_enabled must default to False')
+        self.assertTrue(s.psa_enabled, 'SystemSetting.psa_enabled must default to True for a new install')
+        self.assertTrue(is_psa_enabled())
+        s.psa_enabled = False
+        s.save()
         self.assertFalse(is_psa_enabled())
 
     def test_client_inherits_global_when_no_row(self):
         """When PSA is on globally and a client has no ClientPSASettings row,
         treat it as enabled (cascade UX)."""
         org = Organization.objects.create(name='ACME', slug='acme')
+        s = SystemSetting.get_settings()
+        s.psa_enabled = False
+        s.save()
         # Off globally → False regardless.
         self.assertFalse(is_psa_enabled_for_client(org))
 
@@ -167,6 +174,9 @@ class RouteGatingTests(TestCase):
         session.save()
 
     def test_routes_404_when_psa_globally_disabled(self):
+        s = SystemSetting.get_settings()
+        s.psa_enabled = False  # on by default for a new install
+        s.save()
         self.assertEqual(self.client.get('/psa/').status_code, 404)
         self.assertEqual(self.client.get('/psa/new/').status_code, 404)
         self.assertEqual(self.client.get('/psa/t/PSA-2026-000001/').status_code, 404)

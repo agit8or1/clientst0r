@@ -16,7 +16,6 @@ Surfaces:
 """
 from datetime import timedelta
 from decimal import Decimal
-from functools import wraps
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -36,24 +35,8 @@ from audit.models import AuditLog
 from core.models import Organization
 
 
-def require_crm_enabled(view_func):
-    """
-    View decorator: 404 if CRM is globally disabled (SystemSetting.crm_enabled=False).
-    Optional safety net — the navigation already hides CRM links when off.
-    Pair with @login_required first.
-    """
-    @wraps(view_func)
-    def wrapper(request, *args, **kwargs):
-        from core.models import SystemSetting
-        try:
-            if not SystemSetting.get_settings().crm_enabled:
-                raise Http404("CRM is not enabled")
-        except Http404:
-            raise
-        except Exception:
-            raise Http404("CRM is not enabled")
-        return view_func(request, *args, **kwargs)
-    return wrapper
+# CRM on/off (SystemSetting.crm_enabled) is enforced for every route in
+# crm/urls.py (core.feature_gates.gate_patterns).
 
 
 from .forms import CampaignForm, LeadForm, OpportunityForm

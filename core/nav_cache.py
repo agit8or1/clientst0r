@@ -49,9 +49,7 @@ _lock = threading.Lock()
 
 # Context keys the gates read (core.navigation: _flag gates, the shortcut
 # strip's flags, request_context()).
-_FLAG_KEYS = ('monitoring_enabled', 'global_kb_enabled', 'workflows_enabled', 'vehicles_enabled',
-              'inventory_enabled', 'scheduling_enabled', 'psa_enabled', 'crm_enabled',
-              'reports_enabled', 'secure_notes_enabled', 'pulse_enabled')
+from core.feature_gates import MODULE_SWITCHES as _FLAG_KEYS  # noqa: E402
 
 
 def enabled():

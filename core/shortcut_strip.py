@@ -66,13 +66,13 @@ SHORTCUT_REGISTRY = [
     {'key': 'dispatch_board', 'label': _('Dispatch Board'), 'icon': 'fa-table-list',
      'url_name': 'psa:dispatch_board', 'gate': _all(_psa, _staff)},
     {'key': 'projects', 'label': _('Projects'), 'icon': 'fa-diagram-project',
-     'url_name': 'psa:project_list', 'gate': _psa},
+     'url_name': 'psa:project_list', 'gate': _all(_psa, _flag('projects_enabled'))},
     {'key': 'approvals', 'label': _('Approvals'), 'icon': 'fa-circle-check',
      'url_name': 'psa:approval_list', 'gate': _all(_psa, _staff)},
     {'key': 'knowledge_base', 'label': _('Knowledge Base'), 'icon': 'fa-book',
-     'url_name': 'psa:kb_browse', 'gate': _all(_psa, _staff)},
+     'url_name': 'psa:kb_browse', 'gate': _all(_psa, _staff, _flag('global_kb_enabled'))},
     {'key': 'quotes', 'label': _('Quotes'), 'icon': 'fa-file-invoice-dollar',
-     'url_name': 'psa:quote_list', 'gate': _psa},
+     'url_name': 'psa:quote_list', 'gate': _all(_psa, _flag('quotes_enabled'))},
     {'key': 'invoices', 'label': _('Invoices'), 'icon': 'fa-file-invoice',
      'url_name': 'psa:invoice_list', 'gate': _psa},
     {'key': 'assets', 'label': _('Assets'), 'icon': 'fa-box',
@@ -105,8 +105,7 @@ def get_entry(key):
 def feature_flags():
     """The module toggles the navigation reads, fresh from SystemSetting.
     Fails closed: if settings can't be read, no gated module is offered."""
-    names = ('psa_enabled', 'crm_enabled', 'workflows_enabled',
-             'scheduling_enabled', 'monitoring_enabled', 'reports_enabled')
+    from core.feature_gates import MODULE_SWITCHES as names
     try:
         from core.models import SystemSetting
         row = SystemSetting.get_settings()

@@ -1,7 +1,8 @@
 """
 Feature-flag helpers for the native PSA module.
 
-PSA is OFF by default at both the system and per-client level. Routes,
+PSA is on for a new install (Settings → Modules) and per client unless
+the client has an external PSA connection. Routes,
 background jobs, and navigation must consult these helpers and return
 404/PermissionDenied when disabled — never silently expose data.
 """

@@ -14,167 +14,36 @@
             <div class="card-body">
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle"></i>
-                    <strong>Feature Toggles</strong> - Enable or disable major system features. When disabled, features will not appear in the navigation menu and will be inaccessible.
+                    <strong>Feature Toggles</strong> - Turn modules on or off. A module that is off disappears from the menus, its pages cannot be opened and its scheduled jobs pause. Nothing is deleted: turning it back on shows everything again. Every module is on for a new install.
                     <a href="{% url 'core:settings_modules' %}">Optional Modules</a> shows every module with what it needs and what people see when it is on.
                 </div>
 
                 <form method="post">
                     {% csrf_token %}
 
-                    <div class="card mb-3">
-                        <div class="card-body">
+                    {% for group, rows in switch_groups %}
+                    <h2 class="h6 text-uppercase text-muted mt-3">{{ group }}</h2>
+                    {% for row in rows %}
+                    {% with m=row.module %}
+                    <div class="card mb-2{% if row.missing %} border-warning{% endif %}" data-switch="{{ m.field }}">
+                        <div class="card-body py-2">
                             <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="monitoring_enabled" name="monitoring_enabled" {% if settings.monitoring_enabled %}checked{% endif %}>
-                                <label class="form-check-label" for="monitoring_enabled">
-                                    <strong><i class="fas fa-heartbeat text-danger"></i> Monitoring</strong>
+                                <input class="form-check-input" type="checkbox" id="{{ m.field }}" name="{{ m.field }}" {% if row.on %}checked{% endif %}>
+                                <label class="form-check-label" for="{{ m.field }}">
+                                    <strong><i class="fas {{ m.icon }} fa-fw" aria-hidden="true"></i> {{ m.label }}</strong>
+                                    {% if not row.default %}<span class="badge bg-light text-dark border ms-1">off by default</span>{% endif %}
                                 </label>
                             </div>
                             <div class="form-text ms-5">
-                                Enable Website & Service Monitoring features. Includes uptime monitoring, SSL certificate tracking, and service health checks.
+                                {{ m.summary }}
+                                {% if row.requires %}Needs {% for d in row.requires %}{{ d.label }}{% if not forloop.last %}, {% endif %}{% endfor %}.{% endif %}
+                                {% if m.key == 'psa' %}When on, the native PSA is active for every client <strong>except</strong> those that already have an external PSA connection (ConnectWise / Halo / Autotask / etc.).{% endif %}
                             </div>
                         </div>
                     </div>
-
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="global_kb_enabled" name="global_kb_enabled" {% if settings.global_kb_enabled %}checked{% endif %}>
-                                <label class="form-check-label" for="global_kb_enabled">
-                                    <strong><i class="fas fa-globe text-primary"></i> Global Knowledge Base</strong>
-                                </label>
-                            </div>
-                            <div class="form-text ms-5">
-                                Enable Global Knowledge Base for staff users. This is a shared knowledge base accessible across all organizations (staff-only).
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="workflows_enabled" name="workflows_enabled" {% if settings.workflows_enabled %}checked{% endif %}>
-                                <label class="form-check-label" for="workflows_enabled">
-                                    <strong><i class="fas fa-project-diagram text-success"></i> Workflows & Automation</strong>
-                                </label>
-                            </div>
-                            <div class="form-text ms-5">
-                                Enable Workflows and Process Automation features. Includes process definitions, automated execution, and workflow tracking.
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="locations_map_enabled" name="locations_map_enabled" {% if settings.locations_map_enabled %}checked{% endif %}>
-                                <label class="form-check-label" for="locations_map_enabled">
-                                    <strong><i class="fas fa-map-marked-alt text-info"></i> Location Maps</strong>
-                                </label>
-                            </div>
-                            <div class="form-text ms-5">
-                                Enable location maps and geocoding features. Includes interactive maps, satellite imagery, and address geocoding on location pages.
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="secure_notes_enabled" name="secure_notes_enabled" {% if settings.secure_notes_enabled %}checked{% endif %}>
-                                <label class="form-check-label" for="secure_notes_enabled">
-                                    <strong><i class="fas fa-lock text-warning"></i> Secure Notes</strong>
-                                </label>
-                            </div>
-                            <div class="form-text ms-5">
-                                Enable secure ephemeral notes feature. Send encrypted, self-destructing messages that expire after being read or after a set time. When off, the Secure Notes menu and pages are hidden (404); links already sent and ticket secure messages still open until they expire.
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="reports_enabled" name="reports_enabled" {% if settings.reports_enabled %}checked{% endif %}>
-                                <label class="form-check-label" for="reports_enabled">
-                                    <strong><i class="fas fa-chart-bar text-primary"></i> Reports & Analytics</strong>
-                                </label>
-                            </div>
-                            <div class="form-text ms-5">
-                                Enable Reports & Analytics features. Includes system reports, usage analytics, and data visualization dashboards. When off, the Reports menu, wallboards and every report page are hidden (404) and scheduled reports pause.
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="webhooks_enabled" name="webhooks_enabled" {% if settings.webhooks_enabled %}checked{% endif %}>
-                                <label class="form-check-label" for="webhooks_enabled">
-                                    <strong><i class="fas fa-link text-info"></i> Webhooks</strong>
-                                </label>
-                            </div>
-                            <div class="form-text ms-5">
-                                Enable Webhooks for event notifications. Configure webhook endpoints to receive real-time notifications when events occur in Clientst0r. <a href="{% url 'core:webhook_list' %}">Manage Webhooks</a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="vehicles_enabled" name="vehicles_enabled" {% if settings.vehicles_enabled %}checked{% endif %}>
-                                <label class="form-check-label" for="vehicles_enabled">
-                                    <strong><i class="fas fa-truck text-secondary"></i> Service Vehicles</strong>
-                                </label>
-                            </div>
-                            <div class="form-text ms-5">
-                                Enable service vehicle fleet management features. Track vehicles, mileage, maintenance, fuel logs, damage reports, and inventory.
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="inventory_enabled" name="inventory_enabled" {% if settings.inventory_enabled %}checked{% endif %}>
-                                <label class="form-check-label" for="inventory_enabled">
-                                    <strong><i class="fas fa-warehouse text-primary"></i> Inventory Management</strong>
-                                </label>
-                            </div>
-                            <div class="form-text ms-5">
-                                Enable Inventory Management features. Track spare parts, hardware, consumables, tools, cables, and licenses with stock level alerts and QR code support.
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="scheduling_enabled" name="scheduling_enabled" {% if settings.scheduling_enabled %}checked{% endif %}>
-                                <label class="form-check-label" for="scheduling_enabled">
-                                    <strong><i class="fas fa-calendar-check text-success"></i> Scheduling & Task Management</strong>
-                                </label>
-                            </div>
-                            <div class="form-text ms-5">
-                                Enable Scheduling and Task Management features. Create recurring scheduled tasks with multi-user sign-off requirements, calendar view, and overdue tracking.
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card mb-3 border-warning">
-                        <div class="card-body">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="psa_enabled" name="psa_enabled" {% if settings.psa_enabled %}checked{% endif %}>
-                                <label class="form-check-label" for="psa_enabled">
-                                    <strong><i class="fas fa-ticket-alt text-warning"></i> Native PSA / Service Desk</strong>
-                                    <span class="badge bg-warning text-dark ms-1">off by default</span>
-                                </label>
-                            </div>
-                            <div class="form-text ms-5">
-                                Enable the native PSA (tickets, queues, SLA, vault context, etc.). When on, the native PSA is automatically active for every client <strong>except</strong> those that already have an external PSA connection (ConnectWise / Halo / Autotask / etc.) — those clients are auto-opted-out so the native PSA only serves the ones that need it. The sensitive per-surface flags (portal, anonymous form, SMS, desktop alerts, external alert ingest) remain OFF and must be enabled per client deliberately.
-                            </div>
-                        </div>
-                    </div>
+                    {% endwith %}
+                    {% endfor %}
+                    {% endfor %}
 
                     <hr>
 

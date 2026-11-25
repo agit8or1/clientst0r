@@ -12,43 +12,25 @@ def organization_context(request):
     """
     # Get system settings for feature toggles and branding
     from .models import SystemSetting
+    from .feature_gates import MODULE_SWITCHES, flags_from
     try:
         settings = SystemSetting.get_settings_for_request()
-        feature_toggles = {
-            'monitoring_enabled': settings.monitoring_enabled,
-            'global_kb_enabled': settings.global_kb_enabled,
-            'workflows_enabled': settings.workflows_enabled,
-            'vehicles_enabled': settings.vehicles_enabled,
-            'inventory_enabled': settings.inventory_enabled,
-            'scheduling_enabled': settings.scheduling_enabled,
-            'psa_enabled': settings.psa_enabled,
-            'crm_enabled': settings.crm_enabled,
-            'reports_enabled': settings.reports_enabled,
-            'secure_notes_enabled': settings.secure_notes_enabled,
+        # Every module switch (core.feature_gates.MODULE_SWITCHES).
+        feature_toggles = flags_from(settings)
+        feature_toggles.update({
             # Phase 12 portal feature toggles (v3.17.243).
             'psa_portal_announcements_enabled': getattr(settings, 'psa_portal_announcements_enabled', False),
             'psa_portal_voting_enabled': getattr(settings, 'psa_portal_voting_enabled', False),
             'psa_portal_escalation_enabled': getattr(settings, 'psa_portal_escalation_enabled', False),
             'psa_portal_customer_approvals_enabled': getattr(settings, 'psa_portal_customer_approvals_enabled', False),
             'psa_csat_enabled': getattr(settings, 'psa_csat_enabled', False),
-            'pulse_enabled': getattr(settings, 'pulse_enabled', False),
-        }
+        })
         system_settings = settings
     except Exception:
-        # If settings don't exist or there's an error, default to all enabled
-        # EXCEPT psa_enabled and crm_enabled which are opt-in.
-        feature_toggles = {
-            'monitoring_enabled': True,
-            'global_kb_enabled': True,
-            'workflows_enabled': True,
-            'vehicles_enabled': True,
-            'inventory_enabled': True,
-            'scheduling_enabled': True,
-            'psa_enabled': False,
-            'crm_enabled': False,
-            'reports_enabled': True,
-            'secure_notes_enabled': True,
-        }
+        # If settings can't be read, modules stay available (the URL gates
+        # fail open too), except PSA, whose own check fails closed.
+        feature_toggles = {name: True for name in MODULE_SWITCHES}
+        feature_toggles['psa_enabled'] = False
         system_settings = None
 
     context = {

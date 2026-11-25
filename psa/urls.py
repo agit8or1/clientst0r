@@ -307,3 +307,37 @@ urlpatterns = [
     path('t/<str:ticket_number>/sign-off/', views.ticket_sign_off, name='ticket_sign_off'),
     path('t/<str:ticket_number>/kb-draft/', views.ticket_kb_draft, name='ticket_kb_draft'),
 ]
+
+# Settings → Modules: PSA parts that can be turned off on their own
+# (core/feature_gates.py). Their routes 404 while off; PSA itself is checked
+# in each view (psa.feature_flags).
+from core.feature_gates import gate_patterns  # noqa: E402
+
+gate_patterns(urlpatterns, 'projects_enabled', only={
+    'project_list', 'project_create', 'project_detail', 'project_edit', 'project_task_add',
+    'project_template_list', 'project_template_create', 'project_template_detail',
+    'project_apply_template', 'project_task_update', 'project_task_delete',
+    'project_generate_invoice', 'project_timeline', 'project_task_reschedule',
+    'project_task_dependency', 'project_task_to_ticket',
+})
+gate_patterns(urlpatterns, 'quotes_enabled', only={
+    'quote_list', 'quote_create', 'quote_detail', 'quote_edit', 'quote_accept', 'quote_to_po',
+    'quote_send_for_approval', 'quote_pdf', 'quote_email', 'quote_signature_evidence',
+})
+gate_patterns(urlpatterns, 'change_management_enabled', only={
+    'change_request_list', 'change_request_detail', 'change_request_form', 'change_request_submit',
+    'change_request_vote', 'change_request_implement', 'change_request_verify', 'change_request_fail',
+    'problem_list', 'problem_create', 'problem_detail', 'problem_edit', 'problem_link_ticket',
+    'problem_unlink_ticket', 'problem_add_note', 'problem_advance_status',
+    'release_list', 'release_create', 'release_detail', 'release_edit', 'release_add_change',
+    'release_remove_change', 'release_freeze', 'release_complete', 'release_rollback',
+})
+gate_patterns(urlpatterns, 'procurement_enabled', only={
+    'requisition_list', 'requisition_create', 'requisition_detail', 'requisition_edit',
+    'requisition_submit', 'requisition_decide', 'requisition_to_po',
+    'po_list', 'po_create', 'po_detail', 'po_edit', 'po_pdf', 'po_send', 'po_receive',
+    'back_order_list', 'back_order_cancel', 'quote_to_po',
+    'vendor_list', 'vendor_create', 'vendor_detail', 'vendor_edit',
+})
+# The staff-only global knowledge base (Knowledge Base browser).
+gate_patterns(urlpatterns, 'global_kb_enabled', only={'kb_browse', 'kb_move_articles'})

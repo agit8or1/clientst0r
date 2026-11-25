@@ -97,3 +97,18 @@ urlpatterns = [
     path('<slug:slug>/delete/', views.document_delete, name='document_delete'),
     path('<slug:slug>/export/<str:fmt>/', views.document_export, name='document_export'),
 ]
+
+# Settings → Modules (core/feature_gates.py): the staff-only global knowledge
+# base and the diagrams 404 while their module is off.
+from core.feature_gates import gate_patterns  # noqa: E402
+
+gate_patterns(urlpatterns, 'global_kb_enabled', only={
+    'global_kb_list', 'global_kb_create', 'global_kb_portal_bulk', 'global_kb_bulk_audience',
+    'document_bulk_make_global', 'global_kb_detail', 'global_kb_edit', 'global_kb_delete',
+    'global_kb_export',
+})
+gate_patterns(urlpatterns, 'diagrams_enabled', only={
+    'diagram_list', 'diagram_create', 'diagram_template_list', 'diagram_template_create',
+    'diagram_template_edit', 'diagram_template_delete', 'diagram_detail', 'diagram_edit',
+    'diagram_delete', 'diagram_save',
+})

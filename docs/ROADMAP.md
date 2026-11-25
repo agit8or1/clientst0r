@@ -116,7 +116,7 @@ Work being implemented now or approved as the next P0 task.
 | 1 | 94 — [Evidence integrity and routine backups](#phase-94) | P0\* | 🔵 In progress | External append-only audit shipping (94.1); protected-change approval for audit pruning (94.2); S3 destination (94.3) | — |
 | 2 | 51 — [Reliability and customer-boundary hardening](#phase-51) | P0\* | 🔵 In progress | Per-customer integration ownership (remaining part of the platform-integrations item) | — |
 | 3 | 112 — [Complete user documentation with annotated screenshots](#phase-112) | P1 | 🔵 In progress | 112.6 Security and monitoring; 112.7 Reports | 67 |
-| 4 | 113 — [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | 113.4 urgent accessibility fixes; 113.5 design tokens in CSS | 67 |
+| 4 | 113 — [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | 113.4 accessibility fixes; 113.5–113.8 tokens, standalone hardening, performance, page headers | 67 |
 
 <!-- /generated:now -->
 
@@ -364,7 +364,7 @@ unchanged. Click a feature for its details.
 | 67 | [Interface, navigation and dashboard redesign](#phase-67) | — | 🔵 In progress | 64 | 67.8 validation and 67.16 follow-ups |
 | 96 | [First-install setup wizard and interactive onboarding](#phase-96) | P0 | 🔵 In progress | 59, 64, 67 | 96.2 first-install detection; 96.3–96.4 assistant |
 | 112 | [Complete user documentation with annotated screenshots](#phase-112) | P1 | 🔵 In progress | 67 | 112.6 Security and monitoring; 112.7 Reports |
-| 113 | [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | 67 | 113.4 urgent accessibility fixes; 113.5 design tokens in CSS |
+| 113 | [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | 67 | 113.4 accessibility fixes; 113.5–113.8 tokens, standalone hardening, performance, page headers |
 
 <details markdown="1">
 <summary>4 completed phases</summary>
@@ -1580,6 +1580,11 @@ someone else.
   Features) now switch their module off: menus, pages and scheduled reports
   (secure-note links already sent keep working). Both stay on after an
   upgrade. *(shipped v3.17.664)*
+- **Every optional module can be switched off** *(shipped v3.17.780)* — Administration → Modules lists a switch for
+  each optional module (15 new: projects, quotes, change management, procurement, security alerts, client health,
+  contracts, licensing, status pages, configuration backups, backup monitoring, field ops, onboarding, diagrams,
+  documentation readiness). Off removes the module's links, pages (404) and scheduled jobs; no data is deleted.
+  Every switch is on for a new install; upgrades keep each install's current settings.
 **Added 2026-11-20 (platform audit, area E; planned, P1):**
 
 - **52.20 Drop files on the ticket composer** *(shipped v3.17.737 — several files per upload)* — through the existing upload rules
@@ -3017,7 +3022,7 @@ widget sources) into large-screen operations displays.
 - **83.5 Efficient refresh** *(planned)* — one cached snapshot request per board per interval with
   conditional responses, a bounded minimum interval and recovery after disconnects, instead of a query per
   widget.
-- **83.6 Secure display pairing** *(planned — extends the token-based schedule board pattern)* — read-only
+- **83.6 Secure display pairing** *(in progress — pairing by code and display links built, in testing; extends the token-based schedule board pattern)* — read-only
   display identities paired by an administrator, with expiry, rotation, instant revocation, per-board and
   per-customer scope, optional address restrictions (Phase 81) and an audit trail. A display holds no user
   session and reaches no write or admin function; on expiry it blanks.
@@ -3977,15 +3982,15 @@ annotated screenshot (numbered callouts matched by a numbered list) captured fro
   vendors, pulse checks, client health.
 - **112.5 Knowledge and vault** *(shipped v3.17.778)* — documents, knowledge base, diagrams, review and publishing,
   documentation readiness, password vault, personal vault, secure notes.
-- **112.6 Security and monitoring** *(planned)* — security alerts, incidents, events, monitoring reliability,
+- **112.6 Security and monitoring** *(in progress — written, in testing)* — security alerts, incidents, events, monitoring reliability,
   website and WAN monitors, expirations, status pages, configuration backups.
-- **112.7 Reports** *(planned)* — reports home, executive scorecard, dashboards, analytics, wallboards,
+- **112.7 Reports** *(in progress — written, in testing)* — reports home, executive scorecard, dashboards, analytics, wallboards,
   generated and scheduled reports, profitability reports, pricing advisor.
-- **112.8 Administration** *(planned)* — every settings category: general, users and access, security,
+- **112.8 Administration** *(in progress — written, in testing)* — every settings category: general, users and access, security,
   integrations, AI configuration (**OPTIONAL AI**), automation, communications, modules, system, maintenance.
-- **112.9 Your account and the customer portal** *(planned)* — profile, two-factor, work details, apps and
+- **112.9 Your account and the customer portal** *(in progress — written, in testing)* — profile, two-factor, work details, apps and
   downloads; the portal as a customer sees it.
-- **112.10 Existing guides** *(planned)* — the 35 guides without a figure gain annotated screenshots; guides
+- **112.10 Existing guides** *(in progress — written, in testing)* — the 35 guides without a figure gain annotated screenshots; guides
   describing removed or renamed screens are corrected.
 
   Acceptance: every navigation section is documented by a guide; every guide in Clientst0r Docs has an
@@ -3997,9 +4002,9 @@ annotated screenshot (numbered callouts matched by a numbered list) captured fro
 <a id="phase-113"></a>
 
 ## Phase 113 — One consistent interface, shared design system and standalone guarantees **(L · P1 · usability)** [in progress]
-<!-- phase: ws=I stage=7 view=now order=4 deps=67 next="113.4 urgent accessibility fixes; 113.5 design tokens in CSS" -->
+<!-- phase: ws=I stage=7 view=now order=4 deps=67 next="113.4 accessibility fixes; 113.5–113.8 tokens, standalone hardening, performance, page headers" -->
 **Status:** 🔵 In progress · **Priority:** P1 · **Workstream:** I. Deployment, Updates & Reliability · **Depends on:** 67  
-**Next:** 113.4 urgent accessibility fixes; 113.5 design tokens in CSS
+**Next:** 113.4 accessibility fixes; 113.5–113.8 tokens, standalone hardening, performance, page headers
 
 
 Builds on Phase 67 (navigation, settings center, palette, dashboard, workspaces — shipped) rather than replacing it.
@@ -4023,16 +4028,16 @@ increment is tested with no peer application and no RMM configured. Hiding a lin
   ([CROSS_APP_UX_CONTRACT](ux/CROSS_APP_UX_CONTRACT.md), [REM0TE_HANDOFF](ux/REM0TE_HANDOFF.md)). Fixed on the way: the
   ticket page no longer calls the RMM peer while rendering; RMM alert panels say "No RMM is connected" instead of
   showing healthy.
-- **113.4 Urgent accessibility fixes** *(planned)* — styled error messages, readable skip link and current-page marker,
+- **113.4 Urgent accessibility fixes** *(in progress)* — styled error messages, readable skip link and current-page marker,
   focus ring and top-bar contrast, names for unlabelled fields and icon buttons, 404/500 pages inside the shell.
-- **113.5 Design tokens in CSS** *(planned)* — one generated token stylesheet, existing themes mapped onto it, a
+- **113.5 Design tokens in CSS** *(in progress)* — one generated token stylesheet, existing themes mapped onto it, a
   system-following theme, self-hosted Inter, every CDN script and font bundled.
-- **113.6 Standalone hardening** *(planned)* — no-network smoke test over every page, peer-unreachable fixture, RMM-only
+- **113.6 Standalone hardening** *(in progress)* — no-network smoke test over every page, peer-unreachable fixture, RMM-only
   navigation, widgets and tabs hidden when no RMM is connected, timeout lint, safe removal of an RMM connection,
   restore-without-peer test.
-- **113.7 Page performance** *(planned)* — ticket detail, dispatch board, My Work, client workspace and palette within
+- **113.7 Page performance** *(in progress)* — ticket detail, dispatch board, My Work, client workspace and palette within
   query budgets; synthetic 10/100, 60/1,200 and 200/5,000 datasets.
-- **113.8 Shell and page headers** *(planned)* — one page-header component, section tabs only when the sidebar is collapsed
+- **113.8 Shell and page headers** *(in progress)* — one page-header component, section tabs only when the sidebar is collapsed
   or on phones, "Service Desk" and "Customer" used consistently, less space above content.
 - **113.9 Technician speed** *(planned)* — timer in the first screen without a page reload, invoice draft in three clicks
   with its confirmation kept, workspace presets (presentation only, never extra permissions).

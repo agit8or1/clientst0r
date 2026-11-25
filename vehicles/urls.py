@@ -110,3 +110,10 @@ def _msp_staff_only(view):
 
 for _pattern in urlpatterns:
     _pattern.callback = _msp_staff_only(_pattern.callback)
+
+# Settings → Modules: every route 404s while the module is off
+# (core/feature_gates.py).
+# Expense receipts are not part of the fleet pages: they stay available.
+from core.feature_gates import gate_patterns  # noqa: E402
+
+gate_patterns(urlpatterns, 'vehicles_enabled', exclude=('receipt_create', 'receipt_delete', 'receipt_edit', 'receipt_ocr_extract', 'receipt_qr_image', 'receipt_quick'))

@@ -34,7 +34,8 @@ from django.urls import NoReverseMatch, get_script_prefix, get_urlconf, reverse
 from django.utils.functional import Promise
 from django.utils.translation import get_language, gettext_lazy as _
 
-from core import nav_cache
+from core import feature_gates, nav_cache
+from core.feature_gates import MODULE_SWITCHES as _FLAG_FIELDS
 
 
 # -- gates (each takes the template context) ---------------------------------
@@ -427,6 +428,7 @@ class Section:
 
 
 _psa = _flag('psa_enabled')
+_field_ops = _flag('field_ops_enabled')
 
 
 def _check_billing_settings(u, ctx):
@@ -438,6 +440,11 @@ def _check_billing_settings(u, ctx):
 _billing_settings = _view_check(_check_billing_settings)
 _workflows = _flag('workflows_enabled')
 _contracts = _view_check(_check_contracts)
+# Settings → Modules switches (core/feature_gates.py) used by several gates.
+_contract_docs = _all(_flag('contracts_enabled'), _contracts)
+_change_mgmt = _flag('change_management_enabled')
+_procurement = _flag('procurement_enabled')
+_security_alerts = _flag('security_alerts_enabled')
 
 SECTIONS = (
     # ---- My Work ---------------------------------------------------------
@@ -504,14 +511,14 @@ SECTIONS = (
     Section('psa_shifts', 'psa', _('Shifts & Locations'), gate=_all(_msp_staff, _psa), tabs=(
         Tab(_('Shift Schedule'), 'resourcing:shift_schedule', 'fa-user-clock'),
         # A technician's own opt-in to share their position with dispatch.
-        Tab(_('Location Sharing'), 'field_ops:dispatch_sharing', 'fa-location-dot'),
+        Tab(_('Location Sharing'), 'field_ops:dispatch_sharing', 'fa-location-dot', gate=_field_ops),
         # field_ops.views.timeclock_dashboard: Django staff or superuser.
         Tab(_('Timeclock'), 'field_ops:timeclock_dashboard', 'fa-stopwatch',
-            gate=_django_staff_or_superuser),
+            gate=_all(_field_ops, _django_staff_or_superuser)),
     ), configure=(
         Tab(_('Shift Templates'), 'resourcing:shift_templates', 'fa-layer-group', gate=_shift_manager),
         Tab(_('Dispatch Locations'), 'field_ops:dispatch_geo_settings', 'fa-map-location-dot',
-            gate=_geo_admin),
+            gate=_all(_field_ops, _geo_admin)),
     )),
     Section('ops_scheduling', 'ops', _('Scheduling'), gate=_flag('scheduling_enabled'), tabs=(
         Tab(_('All Tasks'), 'scheduling:task_list', 'fa-tasks'),
@@ -520,7 +527,7 @@ SECTIONS = (
     ), configure=(
         Tab(_('Wallboard'), 'scheduling:wallboard_settings', 'fa-tv', gate=_msp_staff),
     )),
-    Section('psa_projects', 'psa', _('Projects'), gate=_psa, tabs=(
+    Section('psa_projects', 'psa', _('Projects'), gate=_all(_psa, _flag('projects_enabled')), tabs=(
         Tab(_('Projects'), 'psa:project_list', 'fa-diagram-project'),
     ), configure=(
         Tab(_('Project Templates'), 'psa:project_template_list', 'fa-clipboard-list'),
@@ -529,12 +536,14 @@ SECTIONS = (
         Tab(_('Service Catalog'), 'psa:service_catalog', 'fa-th'),
         Tab(_('Catalog Changes'), 'psa:catalog_change_list', 'fa-clipboard-check',
             gate=_view_check(_check_catalog_changes)),
-        Tab(_('Change Requests'), 'psa:change_request_list', 'fa-code-branch', gate=_perm('change_view')),
-        Tab(_('Problems'), 'psa:problem_list', 'fa-bug', gate=_perm('problem_view')),
-        Tab(_('Releases'), 'psa:release_list', 'fa-rocket', gate=_perm('release_view')),
+        Tab(_('Change Requests'), 'psa:change_request_list', 'fa-code-branch',
+            gate=_all(_change_mgmt, _perm('change_view'))),
+        Tab(_('Problems'), 'psa:problem_list', 'fa-bug', gate=_all(_change_mgmt, _perm('problem_view'))),
+        Tab(_('Releases'), 'psa:release_list', 'fa-rocket', gate=_all(_change_mgmt, _perm('release_view'))),
         Tab(_('Approvals'), 'psa:approval_list', 'fa-circle-check', gate=_msp_staff),
         # Its home is Knowledge & Vault → Knowledge Base.
-        Tab(_('Knowledge Base'), 'psa:kb_browse', 'fa-book', gate=_msp_staff, link_only=True),
+        Tab(_('Knowledge Base'), 'psa:kb_browse', 'fa-book', gate=_all(_msp_staff, _flag('global_kb_enabled')),
+            link_only=True),
     )),
     # Workflows: runbooks (processes, a module switch), the ticket support
     # workflows (routing managers) and the rule templates / suggestions whose
@@ -571,7 +580,7 @@ SECTIONS = (
     # One item in the Clients group (not a new menu): the onboarding wizard.
     Section('clients_onboarding', 'clients', _('Onboard Customer'), tabs=(
         Tab(_('Onboard Customer'), 'onboarding:start', 'fa-user-plus',
-            gate=_all(_msp_staff, _perm_any_org('manage_customer_onboarding')),
+            gate=_all(_flag('onboarding_enabled'), _msp_staff, _perm_any_org('manage_customer_onboarding')),
             also=('onboarding:session', 'onboarding:step'),
             keywords='onboarding new customer wizard lifecycle change renewal offboarding'),
     )),
@@ -606,7 +615,8 @@ SECTIONS = (
         Tab(_('Port Configurations'), 'assets:port_config_list', 'fa-ethernet'),
     )),
     # Customer backup health (backup_monitoring); not the platform's own backups.
-    Section('assets_backups', 'assets', _('Backup Monitoring'), gate=_perm_any_org('view_backup_status'),
+    Section('assets_backups', 'assets', _('Backup Monitoring'),
+            gate=_all(_flag('backup_monitoring_enabled'), _perm_any_org('view_backup_status')),
             render_tabs=False, tabs=(
         Tab(_('Dashboard'), 'backup_monitoring:dashboard', 'fa-database',
             also=('backup_monitoring:customer_detail', 'backup_monitoring:job_detail',
@@ -655,22 +665,23 @@ SECTIONS = (
     Section('mod_contracts', 'modules', _('Contracts'), tabs=(
         Tab(_('PSA Contracts'), 'psa:contract_list', 'fa-file-contract', gate=_psa,
             keywords='service agreements billing'),
-        Tab(_('Contract Documents'), 'contracts:dashboard', 'fa-file-signature', gate=_contracts,
+        Tab(_('Contract Documents'), 'contracts:dashboard', 'fa-file-signature', gate=_contract_docs,
             keywords='agreements signing e-signature msa sow proposals'),
-        Tab(_('Templates'), 'contracts:template_list', 'fa-file-lines', gate=_contracts),
-        Tab(_('Clauses'), 'contracts:clause_list', 'fa-paragraph', gate=_contracts),
+        Tab(_('Templates'), 'contracts:template_list', 'fa-file-lines', gate=_contract_docs),
+        Tab(_('Clauses'), 'contracts:clause_list', 'fa-paragraph', gate=_contract_docs),
     ), configure=(
         Tab(_('Contract Settings'), 'contracts:settings', 'fa-sliders',
-            gate=_all(_contracts, _view_check(_check_contract_settings))),
+            gate=_all(_contract_docs, _view_check(_check_contract_settings))),
     )),
     # licensing/_nav.html is this section's local nav. MSP staff only
     # (/licensing/ is a STAFF_ONLY_PREFIX).
-    Section('mod_licensing', 'modules', _('Licensing'), gate=_msp_staff, render_tabs=False,
+    Section('mod_licensing', 'modules', _('Licensing'), gate=_all(_msp_staff, _flag('licensing_enabled')),
+            render_tabs=False,
             also=('licensing:customer', 'licensing:subscription_detail', 'licensing:subscription_create',
                   'licensing:subscription_edit', 'licensing:renewals', 'licensing:mappings'), tabs=(
         Tab(_('Licensing'), 'licensing:overview', 'fa-key'),
     )),
-    Section('psa_quotes', 'psa', _('Quotes'), gate=_psa, tabs=(
+    Section('psa_quotes', 'psa', _('Quotes'), gate=_all(_psa, _flag('quotes_enabled')), tabs=(
         Tab(_('Quotes'), 'psa:quote_list', 'fa-file-invoice-dollar'),
     )),
     Section('psa_invoices', 'psa', _('Invoices'), gate=_psa, tabs=(
@@ -684,13 +695,13 @@ SECTIONS = (
             also=('payments:connection_create', 'payments:connection_edit', 'payments:attempt_detail')),
     )),
     # Purchasing carries vendor costs: MSP staff only (psa.views._msp_staff_only).
-    Section('psa_procurement', 'psa', _('Procurement'), gate=_all(_msp_staff, _psa), tabs=(
+    Section('psa_procurement', 'psa', _('Procurement'), gate=_all(_msp_staff, _psa, _procurement), tabs=(
         Tab(_('Requisitions'), 'psa:requisition_list', 'fa-clipboard-list'),
         Tab(_('Purchase Orders'), 'psa:po_list', 'fa-file-invoice'),
         Tab(_('Back-orders'), 'psa:back_order_list', 'fa-hourglass-half'),
         Tab(_('Vendors'), 'psa:vendor_list', 'fa-truck', link_only=True),
     )),
-    Section('psa_vendors', 'psa', _('Vendors'), gate=_all(_msp_staff, _psa), tabs=(
+    Section('psa_vendors', 'psa', _('Vendors'), gate=_all(_msp_staff, _psa, _procurement), tabs=(
         Tab(_('Vendors'), 'psa:vendor_list', 'fa-truck'),
     )),
     Section('mod_pulse', 'modules', _('Pulse Checks'), gate=_all(_msp_staff, _flag('pulse_enabled')),
@@ -700,7 +711,7 @@ SECTIONS = (
         Tab(_('Opt-outs'), 'pulse:opt_out_list', 'fa-user-slash'),
     )),
 
-    Section('mod_health', 'modules', _('Client Health'), gate=_msp_staff,
+    Section('mod_health', 'modules', _('Client Health'), gate=_all(_msp_staff, _flag('client_health_enabled')),
             also=('health_score:detail', 'health_score:recompute'), tabs=(
         Tab(_('Client Health'), 'health_score:list', 'fa-heart-circle-check'),
         Tab(_('Weights'), 'health_score:settings', 'fa-sliders', gate=_perm('manage_health_score_settings')),
@@ -715,13 +726,13 @@ SECTIONS = (
     # on, the documentation-side global KB list while it is off. Both read
     # the same global KB articles; each is staff only.
     Section('docs_kb', 'docs', _('Knowledge Base'), tabs=(
-        Tab(_('Knowledge Base'), 'psa:kb_browse', 'fa-book', gate=_all(_psa, _msp_staff),
-            keywords='kb articles global'),
+        Tab(_('Knowledge Base'), 'psa:kb_browse', 'fa-book',
+            gate=_all(_psa, _msp_staff, _flag('global_kb_enabled')), keywords='kb articles global'),
         Tab(_('Knowledge Base'), 'docs:global_kb_list', 'fa-book', gate=_global_kb_alone,
             keywords='kb articles global'),
     )),
     Section('docs_diagrams', 'docs', _('Diagrams'), tabs=(
-        Tab(_('Diagrams'), 'docs:diagram_list', 'fa-project-diagram'),
+        Tab(_('Diagrams'), 'docs:diagram_list', 'fa-project-diagram', gate=_flag('diagrams_enabled')),
         Tab(_('Import Floor Plans'), 'locations:floor_plan_import', 'fa-file-upload',
             gate=_org_perm('assets_create')),
     )),
@@ -733,7 +744,8 @@ SECTIONS = (
         Tab(_('KB Analytics'), 'docs:kb_analytics', 'fa-chart-line', gate=_staff_user_or_superuser),
     )),
     # readiness/_nav.html already is this section's local nav.
-    Section('docs_readiness', 'docs', _('Documentation Readiness'), render_tabs=False, tabs=(
+    Section('docs_readiness', 'docs', _('Documentation Readiness'), gate=_flag('readiness_enabled'),
+            render_tabs=False, tabs=(
         Tab(_('Documentation Readiness'), 'readiness:overview', 'fa-clipboard-check'),
     )),
     Section('vault_passwords', 'vault', _('Password Vault'), tabs=(
@@ -756,7 +768,7 @@ SECTIONS = (
     # ---- Security & Monitoring ----------------------------------------------
     # Operational security (alerts, incidents); the administrative security
     # settings are Administration → Security.
-    Section('mod_security', 'modules', _('Security Alerts'), gate=_all(_msp_staff, _psa), tabs=(
+    Section('mod_security', 'modules', _('Security Alerts'), gate=_all(_msp_staff, _psa, _security_alerts), tabs=(
         Tab(_('Security Alerts'), 'security_alerts:alert_list', 'fa-triangle-exclamation'),
     ), configure=(
         Tab(_('Vendor Connections'), 'security_alerts:connection_list', 'fa-plug', keywords='edr'),
@@ -768,7 +780,8 @@ SECTIONS = (
     )),
     # Incident handling: each view is @require_perm('security_alerts_view');
     # the MTTA report is reports_view_sla across every customer.
-    Section('mod_security_ops', 'modules', _('Security Incidents'), gate=_all(_msp_staff, _psa), tabs=(
+    Section('mod_security_ops', 'modules', _('Security Incidents'),
+            gate=_all(_msp_staff, _psa, _security_alerts), tabs=(
         Tab(_('Incidents'), 'security_alerts:incident_list', 'fa-fire', gate=_security_reader),
         Tab(_('Incident Playbooks'), 'security_alerts:playbook_list', 'fa-book-open', gate=_security_reader),
         Tab(_('Threat Overview'), 'security_alerts:threat_overview', 'fa-shield-virus',
@@ -780,8 +793,9 @@ SECTIONS = (
         Tab(_('Website Monitors'), 'monitoring:website_monitor_list', 'fa-globe'),
         Tab(_('WAN Connections'), 'monitoring:wan_monitor_list', 'fa-network-wired'),
         Tab(_('Expirations'), 'monitoring:expiration_list', 'fa-calendar-times'),
-        Tab(_('Status Pages'), 'statuspage:list', 'fa-heart-pulse'),
-        Tab(_('Configuration Backups'), 'netconfig:device_list', 'fa-file-code', keywords='config backups'),
+        Tab(_('Status Pages'), 'statuspage:list', 'fa-heart-pulse', gate=_flag('status_pages_enabled')),
+        Tab(_('Configuration Backups'), 'netconfig:device_list', 'fa-file-code',
+            gate=_flag('netconfig_enabled'), keywords='config backups'),
     )),
 
     # ---- Reports -------------------------------------------------------------
@@ -1439,7 +1453,7 @@ PRIMARY = (
         # ('security_alerts_view') and the staff-only /security/ prefix are
         # read by _PermProbe. Each widget inside follows its own source page.
         Entry(_('Security Overview'), url_name='security_alerts:overview', icon='fa-shield-halved',
-              gate=_all(_msp_staff, _psa),
+              gate=_all(_msp_staff, _psa, _security_alerts),
               keywords='security overview operational summary alerts incidents rmm monitoring mtta mttr'),
         # Shared event layer (Phase 82): every source's alerts in one list;
         # staff-only /security/ prefix and events_view, scoped per customer.
@@ -1671,6 +1685,9 @@ class _PermProbe:
         return ok
 
     def _allows(self, path):
+        # Settings → Modules: a page whose module is turned off 404s.
+        if not feature_gates.path_enabled(path, self.ctx):
+            return False
         gate = self.gate
         if (path.startswith(gate.STAFF_ONLY_PREFIXES)
                 and not path.startswith(gate.STAFF_ONLY_EXEMPT) and not self._is_staff()):
@@ -1802,9 +1819,7 @@ def _overview_pins(ctx, probe, taken, path):
     try:
         if not shortcut_strip.strip_eligible(user):
             return [], ''
-        flags = {n: bool(ctx.get(n)) for n in ('psa_enabled', 'crm_enabled', 'workflows_enabled',
-                                                'scheduling_enabled', 'monitoring_enabled',
-                                                'reports_enabled')}
+        flags = {n: bool(ctx.get(n)) for n in _FLAG_FIELDS}
         pins = shortcut_strip.resolve_pins(user, flags)
     except Exception:
         return [], ''
@@ -2147,9 +2162,6 @@ def destinations_for(ctx, pnav=None):
     return list(pnav.get('destinations') or [])
 
 
-_FLAG_FIELDS = ('monitoring_enabled', 'global_kb_enabled', 'workflows_enabled', 'vehicles_enabled',
-                'inventory_enabled', 'scheduling_enabled', 'psa_enabled', 'crm_enabled',
-                'reports_enabled', 'secure_notes_enabled', 'pulse_enabled')
 
 
 def request_context(request):
@@ -2169,5 +2181,5 @@ def request_context(request):
         'system_settings': settings_row,
     }
     for name in _FLAG_FIELDS:
-        ctx[name] = bool(getattr(settings_row, name, False))
+        ctx[name] = bool(getattr(settings_row, name, name != 'psa_enabled'))
     return ctx

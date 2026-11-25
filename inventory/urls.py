@@ -32,3 +32,9 @@ urlpatterns = [
     path('transactions/', msp_staff_only(views.transaction_list), name='transaction_list'),
     path('low-stock/', msp_staff_only(views.low_stock_report), name='low_stock_report'),
 ]
+
+# Settings → Modules: every route 404s while the module is off
+# (core/feature_gates.py).
+from core.feature_gates import gate_patterns  # noqa: E402
+
+gate_patterns(urlpatterns, 'inventory_enabled')

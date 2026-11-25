@@ -165,6 +165,13 @@ class TopBarForOtherUsersTests(TestCase):
         from accounts.models import Membership
         u = get_user_model().objects.create_user('tb_cust', 'c@x.com', 'pw')
         Membership.objects.create(user=u, organization=self.org, role='readonly')
+        # PSA is on for a new install now; with it on a customer user has
+        # My Work (their own tickets, psa.views.my_work). This checks the
+        # install with PSA off, where nothing of PSA is offered.
+        from core.models import SystemSetting
+        row = SystemSetting.get_settings()
+        row.psa_enabled = False
+        row.save()
         self.login(u)
         html = self.client.get(reverse('core:dashboard'), follow=True).content.decode()
         self.assertNotIn('id="topbarSettings"', html)

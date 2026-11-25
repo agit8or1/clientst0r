@@ -43,6 +43,9 @@ def org_contracts(context, organization):
     from contracts.models import ContractDocument
     request = context.get('request')
     user = getattr(request, 'user', None)
+    from core.feature_gates import feature_on
+    if not feature_on('contracts_enabled'):
+        return {'show': False}
     if user is None or organization is None or not perms.has(user, perms.VIEW, organization.pk):
         return {'show': False}
     qs = perms.scope(ContractDocument.objects.filter(organization=organization), user).order_by('-updated_at')

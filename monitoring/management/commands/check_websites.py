@@ -25,6 +25,13 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         force = options.get('force', False) or options.get('all', False)
 
+        # Settings → Modules: no checks while Monitoring is turned off
+        # (clientst0r-monitor.timer runs this outside the scheduler).
+        from core.feature_gates import feature_on
+        if not feature_on('monitoring_enabled'):
+            self.stdout.write(self.style.WARNING("Monitoring is turned off (Settings → Modules); nothing checked"))
+            return
+
         # Get all enabled monitors
         monitors = WebsiteMonitor.objects.filter(is_enabled=True)
 

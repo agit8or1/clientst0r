@@ -1,10 +1,13 @@
 """Optional modules: one registry of what can be switched on, what each one
 needs, and what people see once it is on.
 
-Rendered by core.modules_views.settings_modules (Settings → System →
-Optional modules). Nothing here changes a default: the switches are the
-existing SystemSetting booleans (and, for routing and the portal, their own
-settings rows), read as they are.
+Rendered by core.modules_views.settings_modules (Settings → Modules →
+Optional modules) and, as one form of switches, by
+core.settings_views.settings_features (Settings → Modules → Feature
+Toggles). Nothing here changes a default: the switches are SystemSetting
+booleans (and, for routing and the portal, their own settings rows), read as
+they are. Every module switch is on for a new install; core/feature_gates.py
+enforces them (routes, menus, scheduled jobs).
 
 A module is either
   * *switchable here* — `field` names a SystemSetting boolean. The page can
@@ -153,20 +156,76 @@ MODULES = (
              'portal users can still answer from the portal.',
     ),
     Module(
-        'security_alerts', 'Security alerts', 'fa-shield-halved',
-        'Alerts from security vendors, auto-ticket rules and vendor connections.',
-        shows=('Modules → Security for MSP staff',),
-        requires=('psa',),
-        note='No switch of its own: it is shown whenever PSA is on.',
+        'client_health', 'Client health', 'fa-heart-circle-check',
+        'A health score per client from tickets, SLA, monitoring and billing signals.',
+        shows=('Business → Client Health for MSP staff', 'Daily health score snapshots'),
+        settings_links=(('Client health', 'health_score:list'),),
+        field='client_health_enabled', works_better_with=('psa',), group='Business',
+    ),
+    Module(
+        'security_alerts', 'Security alerts and incidents', 'fa-shield-halved',
+        'Alerts from security vendors, incidents, playbooks, SIEM endpoints and weekly digests.',
+        shows=('Security & Monitoring → Security Overview, Security Alerts and Security Incidents for MSP staff',
+               'Alert polling, incident SLA checks and weekly digest emails'),
+        settings_links=(('Security alerts', 'security_alerts:alert_list'),),
+        field='security_alerts_enabled', requires=('psa',),
+        note='Off: the pages are a 404 and polling stops. Digest unsubscribe links keep working.',
+    ),
+    Module(
+        'projects', 'Projects', 'fa-diagram-project',
+        'Projects with tasks, timelines, templates and project billing.',
+        shows=('Service Desk → Projects', 'Projects in the mobile app'),
+        settings_links=(('Projects', 'psa:project_list'),),
+        field='projects_enabled', requires=('psa',),
+    ),
+    Module(
+        'quotes', 'Quotes', 'fa-file-invoice-dollar',
+        'Draft, send and track quotes; accepted quotes become orders.',
+        shows=('Business → Quotes', 'Quote cards on the dashboard'),
+        settings_links=(('Quotes', 'psa:quote_list'),),
+        field='quotes_enabled', requires=('psa',),
+        note='Off: the staff quote pages are a 404. Signing links already sent to customers keep working.',
+    ),
+    Module(
+        'change_management', 'Change, problem and release management', 'fa-code-branch',
+        'Change requests with approvals, problem records and releases.',
+        shows=('Service Management → Change Requests, Problems and Releases',),
+        settings_links=(('Change requests', 'psa:change_request_list'),),
+        field='change_management_enabled', requires=('psa',),
+    ),
+    Module(
+        'procurement', 'Procurement and vendors', 'fa-truck',
+        'Requisitions, purchase orders, receiving, back-orders and vendors.',
+        shows=('Business → Procurement and Vendors for MSP staff',
+               'Recurring purchase requisitions and the distributor health probe'),
+        settings_links=(('Purchase orders', 'psa:po_list'),),
+        field='procurement_enabled', requires=('psa',),
     ),
 
-    # ---- Sales -----------------------------------------------------------
+    # ---- Business --------------------------------------------------------
     Module(
         'crm', 'CRM', 'fa-chart-pie',
         'Leads, opportunities, campaigns and commissions.',
         shows=('Modules → CRM for MSP staff',),
-        field='crm_enabled', works_better_with=('psa',), group='Sales',
+        field='crm_enabled', works_better_with=('psa',), group='Business',
         note='Converting an opportunity into a quote creates a PSA quote; turn on PSA to work with it.',
+    ),
+    Module(
+        'contracts', 'Contract documents', 'fa-file-signature',
+        'Draft contracts from templates and clauses, send them for e-signature and track them.',
+        shows=('Business → Contracts → Contract Documents, Templates and Clauses for MSP staff',
+               'Contract reminders and expirations'),
+        settings_links=(('Contract documents', 'contracts:dashboard'),),
+        field='contracts_enabled', group='Business',
+        note='Off: the staff pages are a 404 and reminders stop. Signing links already sent keep '
+             'working. PSA service agreements are part of PSA, not this module.',
+    ),
+    Module(
+        'licensing', 'Software licensing', 'fa-key',
+        'Software subscriptions per customer, renewals, utilization and license sync.',
+        shows=('Business → Licensing for MSP staff', 'License sync and renewal alerts'),
+        settings_links=(('Licensing', 'licensing:overview'),),
+        field='licensing_enabled', group='Business',
     ),
 
     # ---- Operations ------------------------------------------------------
@@ -181,10 +240,26 @@ MODULES = (
         'status_pages', 'Status pages', 'fa-signal',
         'Public or portal status pages with services and incidents.',
         shows=('Operations → Monitoring → Status Pages for staff',
+               'Service Status in the customer portal',
                'Each page is off until enabled; public pages are reached only by their link'),
         settings_links=(('Status pages', 'statuspage:list'),),
-        requires=('monitoring',), group='Operations',
-        note='Each page has its own on/off switch. The menu entry sits under Monitoring.',
+        field='status_pages_enabled', requires=('monitoring',), group='Operations',
+        note='Each page also has its own on/off switch. The menu entry sits under Monitoring.',
+    ),
+    Module(
+        'netconfig', 'Configuration backups', 'fa-file-code',
+        'Scheduled backups of network device configurations with change history.',
+        shows=('Operations → Monitoring → Configuration Backups', 'Configuration backups in the mobile app'),
+        settings_links=(('Configuration backups', 'netconfig:device_list'),),
+        field='netconfig_enabled', requires=('monitoring',), group='Operations',
+        note='The menu entry sits under Monitoring.',
+    ),
+    Module(
+        'backup_monitoring', 'Backup monitoring', 'fa-database',
+        'Customer backup jobs from backup vendors, alerts and restore tests.',
+        shows=('Assets & Network → Backup Monitoring', 'Backup polling and alerts'),
+        settings_links=(('Backup monitoring', 'backup_monitoring:dashboard'),),
+        field='backup_monitoring_enabled', group='Operations',
     ),
     Module(
         'workflows', 'Workflows', 'fa-tasks',
@@ -213,6 +288,24 @@ MODULES = (
         shows=('Operations → Vehicles',),
         settings_links=(('Vehicles', 'vehicles:vehicle_list'),),
         field='vehicles_enabled', group='Operations',
+        note='Expense receipts stay available while this is off.',
+    ),
+    Module(
+        'field_ops', 'Field operations', 'fa-location-crosshairs',
+        'Timeclock, technician location sharing and geo-aware dispatch.',
+        shows=('Service Desk → Shifts & Locations → Location Sharing and Timeclock',
+               'Clock in / out and location sharing in the mobile app'),
+        settings_links=(('Field Ops settings', 'field_ops:settings'),),
+        field='field_ops_enabled', group='Operations',
+        note='Off: the pages are a 404 and the mobile app stops sending locations. People can still '
+             'view and delete their own location history, and old history is still pruned.',
+    ),
+    Module(
+        'onboarding', 'Customer onboarding', 'fa-user-plus',
+        'A guided wizard for onboarding, changing and offboarding customers.',
+        shows=('Clients → Onboard Customer',),
+        settings_links=(('Onboard customer', 'onboarding:start'),),
+        field='onboarding_enabled', group='Operations',
     ),
     Module(
         'webhooks', 'Webhooks', 'fa-bolt',
@@ -221,12 +314,35 @@ MODULES = (
         settings_links=(('Webhooks', 'core:webhook_list'),),
         field='webhooks_enabled', group='Operations',
     ),
+    # ---- Documentation and vault -----------------------------------------
     Module(
         'global_kb', 'Global knowledge base', 'fa-globe',
         'A staff-only knowledge base shared across customers.',
-        shows=('Global KB entries in the navigation for staff',),
+        shows=('Knowledge & Vault → Knowledge Base for staff',),
         settings_links=(('KB import', 'core:settings_kb_import'),),
-        field='global_kb_enabled', group='Operations',
+        field='global_kb_enabled', group='Documentation and vault',
+        note='Off: the knowledge base pages are a 404. Customer documents are not affected.',
+    ),
+    Module(
+        'diagrams', 'Diagrams', 'fa-project-diagram',
+        'Drawings and diagram templates in the documentation.',
+        shows=('Knowledge & Vault → Diagrams',),
+        settings_links=(('Diagrams', 'docs:diagram_list'),),
+        field='diagrams_enabled', group='Documentation and vault',
+        note='Network diagrams drawn from hardware and cables (Assets & Network) are not affected.',
+    ),
+    Module(
+        'readiness', 'Documentation readiness', 'fa-clipboard-check',
+        'Checks of what is documented for each customer and what is missing.',
+        shows=('Knowledge & Vault → Documentation Readiness',),
+        settings_links=(('Documentation readiness', 'readiness:overview'),),
+        field='readiness_enabled', group='Documentation and vault',
+    ),
+    Module(
+        'locations_map', 'Location maps', 'fa-map-location-dot',
+        'Maps and address lookup for client locations.',
+        shows=('Maps on location pages and the dashboard',),
+        field='locations_map_enabled', group='Documentation and vault',
     ),
 
     Module(
@@ -243,7 +359,7 @@ MODULES = (
         'Encrypted, self-destructing notes sent to users or by link.',
         shows=('Vault → Secure Notes',),
         settings_links=(('Feature toggles', 'core:settings_features'),),
-        field='secure_notes_enabled', group='Operations',
+        field='secure_notes_enabled', group='Documentation and vault',
         note='Off: the notes pages are a 404. Links already sent, and ticket secure '
              'messages, still open until they expire.',
     ),
@@ -290,7 +406,8 @@ MODULES = (
 )
 
 MODULES_BY_KEY = {m.key: m for m in MODULES}
-GROUP_ORDER = ('Service desk', 'Sales', 'Operations', 'Asset health', 'Always available')
+GROUP_ORDER = ('Service desk', 'Business', 'Operations', 'Documentation and vault', 'Asset health',
+               'Always available')
 
 def _custom_state(key, settings):
     """(on, detail) for modules managed outside SystemSetting."""
@@ -308,15 +425,6 @@ def _custom_state(key, settings):
         except Exception:
             n = 0
         return n > 0, f'On for {n} customer(s)'
-    if key == 'status_pages':
-        try:
-            from statuspage.models import StatusPage
-            n = StatusPage.objects.filter(is_enabled=True).count()
-        except Exception:
-            n = 0
-        return n > 0, f'{n} page(s) enabled'
-    if key == 'security_alerts':
-        return bool(settings.psa_enabled), 'Follows PSA'
     if key in ('imports', 'mobile'):
         return True, 'Always on'
     return False, ''

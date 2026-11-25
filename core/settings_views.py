@@ -207,8 +207,7 @@ def settings_general(request):
         # UI/UX Settings
         settings.stay_on_page_after_org_switch = request.POST.get('stay_on_page_after_org_switch') == 'on'
 
-        # CRM Module toggle
-        settings.crm_enabled = request.POST.get('crm_enabled') == 'on'
+        # CRM is switched on Modules → Feature Toggles with the other modules.
 
         # Issue #57: Map Settings
         settings.map_default_zoom = int(request.POST.get('map_default_zoom', 4))
@@ -282,32 +281,42 @@ def settings_features(request):
     """Feature toggles - enable/disable major system features."""
     settings = SystemSetting.get_settings()
 
-    if request.method == 'POST':
-        # Update feature toggles
-        settings.monitoring_enabled = request.POST.get('monitoring_enabled') == 'on'
-        settings.global_kb_enabled = request.POST.get('global_kb_enabled') == 'on'
-        settings.workflows_enabled = request.POST.get('workflows_enabled') == 'on'
-        settings.locations_map_enabled = request.POST.get('locations_map_enabled') == 'on'
-        settings.secure_notes_enabled = request.POST.get('secure_notes_enabled') == 'on'
-        settings.reports_enabled = request.POST.get('reports_enabled') == 'on'
-        settings.webhooks_enabled = request.POST.get('webhooks_enabled') == 'on'
-        settings.vehicles_enabled = request.POST.get('vehicles_enabled') == 'on'
-        settings.inventory_enabled = request.POST.get('inventory_enabled') == 'on'
-        settings.scheduling_enabled = request.POST.get('scheduling_enabled') == 'on'
+    from . import modules as _modules
+    switches = _feature_toggle_rows(settings)
 
-        # PSA toggle: when on, every client is auto-enabled UNLESS they have
-        # an active external PSA connection (ConnectWise / Halo / Autotask /
-        # etc.) — that auto-opt-out is handled lazily in
+    if request.method == 'POST':
+        # Every module switch on the page (core.modules: switchable here, not
+        # OPTIONAL AI, which keeps its own opt-in). An unticked box is off.
+        # PSA on: every client is auto-enabled UNLESS they have an active
+        # external PSA connection — handled lazily in
         # psa.feature_flags.is_psa_enabled_for_client(). No cascade needed.
-        settings.psa_enabled = request.POST.get('psa_enabled') == 'on'
+        changed = {}
+        for _group, rows in switches:
+            for row in rows:
+                field = row['module'].field
+                want = request.POST.get(field) == 'on'
+                before = bool(getattr(settings, field))
+                if want != before:
+                    changed[field] = {'from': before, 'to': want}
+                setattr(settings, field, want)
 
         settings.updated_by = request.user
         settings.save()
 
+        if changed:
+            from audit.models import AuditLog
+            from .client_ip import get_client_ip
+            AuditLog.log(
+                user=request.user, action='update',
+                object_type='core.SystemSetting', object_id=settings.pk,
+                object_repr='Feature toggles',
+                description='Changed module switches: ' + ', '.join(sorted(changed)),
+                ip_address=get_client_ip(request), path=request.path,
+                extra_data={'changed_fields': changed},
+            )
         messages.success(request, 'Feature toggles updated successfully.')
         # Modules that need one just turned off keep their own switch but stop
         # working; say which (Settings → Optional modules has the full map).
-        from . import modules as _modules
         stopped = [
             dep.label
             for m in _modules.MODULES if m.field and not getattr(settings, m.field)
@@ -322,8 +331,25 @@ def settings_features(request):
 
     return render(request, 'core/settings_features.html', {
         'settings': settings,
+        'switch_groups': switches,
         'current_tab': 'features',
     })
+
+
+def _feature_toggle_rows(settings):
+    """The Feature Toggles form: every module switch
+    (core.feature_gates.MODULE_SWITCHES), grouped as on Optional modules.
+    OPTIONAL AI, the portal switches (Settings → Customer portal) and
+    behaviour settings such as CSAT emails or asset warnings are left to
+    their own pages."""
+    from . import modules as _modules
+    from .feature_gates import MODULE_SWITCHES
+    groups = []
+    for group, rows in _modules.describe(settings):
+        keep = [r for r in rows if r['switchable'] and r['module'].field in MODULE_SWITCHES]
+        if keep:
+            groups.append((group, keep))
+    return groups
 
 
 @login_required

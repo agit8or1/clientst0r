@@ -23,3 +23,9 @@ urlpatterns = [
     path('policy/<int:org_id>/', views.policy_edit, name='policy_edit'),
     path('ingest/<uuid:ingest_id>/', views.ingest, name='ingest'),
 ]
+
+# Settings → Modules: every route 404s while the module is off
+# (core/feature_gates.py).
+from core.feature_gates import gate_patterns  # noqa: E402
+
+gate_patterns(urlpatterns, 'backup_monitoring_enabled')

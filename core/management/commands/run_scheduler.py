@@ -5,6 +5,7 @@ It checks all scheduled tasks and runs them if they're due.
 """
 from django.core.management.base import BaseCommand
 from django.utils import timezone
+from core.feature_gates import task_allowed
 from core.models import ScheduledTask
 
 
@@ -105,6 +106,13 @@ class Command(BaseCommand):
         reclaimed_count = 0
 
         for task in tasks:
+            if task.should_run() and not task_allowed(task.task_type):
+                # Settings → Modules: the job's module is turned off. Not
+                # claimed, so it runs on the first tick after the module is
+                # turned back on.
+                skipped_count += 1
+                self.stdout.write(f"  Skipped: {task.get_task_type_display()} (module turned off)")
+                continue
             if task.should_run():
                 # Captured before claim() overwrites them: a task that was
                 # sitting at 'running' got here only by being stale, and the

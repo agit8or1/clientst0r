@@ -10,6 +10,9 @@ def client_health_panel(context, organization):
     snapshot and never computes on page view."""
     from health_score import permissions, present, scoring
     request = context.get('request')
+    from core.feature_gates import feature_on
+    if not feature_on('client_health_enabled'):
+        return {'show': False}
     if request is None or organization is None or not permissions.can_view_client(request, organization):
         return {'show': False}
     snap = scoring.latest_snapshot(organization)

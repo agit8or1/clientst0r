@@ -867,10 +867,14 @@ class ViewTests(Fixture):
         self.assertEqual(len(entries), 1)
         self.assertEqual([g.key for g in navigation.PRIMARY if any(e.label == 'Backup Monitoring' for e in g.entries)],
                          ['assets'])
-        ctx_ok = {'user': self.viewer_a}
-        ctx_no = {'user': self.nobody}
+        # The module switch is in every template context (core.context_processors).
+        ctx_ok = {'user': self.viewer_a, 'backup_monitoring_enabled': True}
+        ctx_no = {'user': self.nobody, 'backup_monitoring_enabled': True}
         self.assertTrue(navigation.SECTIONS_BY_KEY['assets_backups'].gate(ctx_ok))
         self.assertFalse(navigation.SECTIONS_BY_KEY['assets_backups'].gate(ctx_no))
+        # Settings → Modules: off hides it for everyone.
+        self.assertFalse(navigation.SECTIONS_BY_KEY['assets_backups'].gate(
+            {'user': self.viewer_a, 'backup_monitoring_enabled': False}))
 
 
 # ------------------------------------------------- workspace / compliance etc.

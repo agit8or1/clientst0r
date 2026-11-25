@@ -19,3 +19,9 @@ urlpatterns = [
     # Phase 34.3 (v3.17.546)
     path('backup/<int:backup_id>/approve/', views.approve_baseline, name='approve_baseline'),
 ]
+
+# Settings → Modules: every route 404s while the module is off
+# (core/feature_gates.py).
+from core.feature_gates import gate_patterns  # noqa: E402
+
+gate_patterns(urlpatterns, 'netconfig_enabled')

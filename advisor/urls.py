@@ -13,3 +13,10 @@ urlpatterns = [
     path('customers/<int:org_id>/', views.client_facts, name='client_facts'),
     path('settings/', views.settings_view, name='settings'),
 ]
+
+# Settings → Modules: every route 404s while the module is off
+# (core/feature_gates.py).
+# The Pricing Advisor is part of Reports & Analytics (/reports/advisor/).
+from core.feature_gates import gate_patterns  # noqa: E402
+
+gate_patterns(urlpatterns, 'reports_enabled')

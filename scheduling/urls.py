@@ -23,3 +23,9 @@ urlpatterns = [
     path('wallboard/', views.wallboard_settings, name='wallboard_settings'),
     path('wallboard/<str:token>/', views.wallboard_public, name='wallboard_public'),
 ]
+
+# Settings → Modules: every route 404s while the module is off
+# (core/feature_gates.py).
+from core.feature_gates import gate_patterns  # noqa: E402
+
+gate_patterns(urlpatterns, 'scheduling_enabled')

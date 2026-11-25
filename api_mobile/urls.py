@@ -145,3 +145,20 @@ urlpatterns = [
     path('timeclock/me/', views_field_ops.timeclock_me_view, name='timeclock_me'),
     path('active-ticket/', views_field_ops.active_ticket_view, name='active_ticket'),
 ]
+
+# Settings → Modules (core/feature_gates.py): the app's module endpoints
+# 404 while their module is off.
+from core.feature_gates import gate_patterns  # noqa: E402
+
+gate_patterns(urlpatterns, 'projects_enabled', only={'project_list', 'project_detail', 'project_task'})
+gate_patterns(urlpatterns, 'netconfig_enabled', only={
+    'netconfig_devices', 'netconfig_device_detail', 'netconfig_collect', 'netconfig_backup'})
+gate_patterns(urlpatterns, 'inventory_enabled', only={
+    'inventory_list', 'inventory_detail', 'inventory_transactions'})
+gate_patterns(urlpatterns, 'vehicles_enabled', only={
+    'vehicle_list', 'vehicle_detail', 'vehicle_inventory', 'vehicle_fuel', 'vehicle_damage'})
+gate_patterns(urlpatterns, 'workflows_enabled', only={
+    'workflow_list', 'workflow_detail', 'workflow_start', 'execution_list', 'execution_detail',
+    'execution_stage_complete'})
+gate_patterns(urlpatterns, 'field_ops_enabled', only={
+    'location_ping', 'dispatch_sharing', 'clock_in', 'clock_out', 'timeclock_me'})

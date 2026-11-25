@@ -232,6 +232,15 @@ def action_allowed(action, request):
     if check is None:
         return False
     try:
+        # Settings → Modules: no tile for a page whose module is turned off.
+        from django.urls import NoReverseMatch, reverse
+        from core.feature_gates import path_enabled
+        try:
+            href = reverse(action['url_name']) if action.get('url_name') else ''
+        except NoReverseMatch:
+            href = ''
+        if href and not path_enabled(href):
+            return False
         return bool(check(request))
     except Exception:
         return False
