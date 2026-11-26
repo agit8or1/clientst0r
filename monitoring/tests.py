@@ -356,6 +356,26 @@ class WebsiteMonitorDeleteGlobalViewTests(TestCase):
 
 
 @override_settings(MIDDLEWARE=_TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class WebsiteMonitorListSearchBoxTests(TestCase):
+    """The search box is empty when no search was made. It used to print the
+    word "None" (the view passes query=None)."""
+
+    def test_search_box_is_empty_without_a_query(self):
+        org = Organization.objects.create(name='SearchCo', slug='searchco')
+        user = User.objects.create_user('searcher', 's@x.com', 'pw')
+        Membership.objects.create(user=user, organization=org, role=Role.OWNER, is_active=True)
+        c = Client()
+        c.force_login(user)
+        s = c.session
+        s['2fa_prompted'] = True
+        s['current_organization_id'] = org.id
+        s.save()
+        html = c.get('/monitoring/websites/').content.decode()
+        self.assertIn('name="q"', html)
+        self.assertNotIn('value="None"', html)
+
+
+@override_settings(MIDDLEWARE=_TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
 class RackConnectionCreateViewTests(TestCase):
     """#136 — the rack detail page submits wiring connections as a JSON
     body via fetch(), but the view only read request.POST, so every field

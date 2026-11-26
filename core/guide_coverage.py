@@ -60,6 +60,9 @@ SECTION_GUIDES = {
     'vault_passwords': 'password-vault',
     'vault_personal': 'password-vault',
     'vault_notes': 'password-vault',
+    'mod_security': 'security-alerts-and-incidents',
+    'mod_security_ops': 'security-alerts-and-incidents',
+    'ops_monitoring': 'monitoring',
     'settings_access': 'roles-and-access',
     'settings_integrations': 'integrations',
     'settings_system': 'auto-update',
@@ -70,8 +73,6 @@ SECTION_GUIDES = {
 
 # Sections without a guide yet, by roadmap batch.
 PENDING_SECTIONS = frozenset({
-    # 112.6 Security and monitoring
-    'mod_security', 'mod_security_ops', 'ops_monitoring',
     # 112.7 Reports
     'mod_reports',
     # 112.8 Administration

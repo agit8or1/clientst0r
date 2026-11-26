@@ -98,14 +98,15 @@
                         {% elif a.status == 'resolved' %}<span class="badge bg-success">Resolved</span>{% endif %}
                     </td>
                     <td>{{ a.client_org.name|default:"—" }}</td>
-                    <td>{{ a.connection.get_provider_display }}</td>
+                    <td>{% if a.connection %}{{ a.connection.get_provider_display }}{% elif a.siem_endpoint %}SIEM{% else %}—{% endif %}</td>
                     <td><span class="text-muted">{{ a.seen_at|timesince }} ago</span></td>
                     <td class="text-nowrap">
-                        {% if can_acknowledge and a.status == 'new' %}
+                        {% if can_acknowledge and a.status == 'new' or can_acknowledge and a.status == 'acknowledged' %}
                         <form method="post" action="{% url 'security_alerts:alert_decide' a.pk %}" style="display:inline;">
                             {% csrf_token %}
-                            <button name="decision" value="acknowledge" class="btn btn-sm btn-outline-success" title="Acknowledge"><i class="fas fa-check"></i></button>
+                            {% if a.status == 'new' %}<button name="decision" value="acknowledge" class="btn btn-sm btn-outline-success" title="Acknowledge"><i class="fas fa-check"></i></button>{% endif %}
                             <button name="decision" value="dismiss" class="btn btn-sm btn-outline-secondary" title="Dismiss"><i class="fas fa-xmark"></i></button>
+                            <button name="decision" value="resolve" class="btn btn-sm btn-outline-primary" title="Resolve"><i class="fas fa-circle-check"></i></button>
                             {% if not a.auto_ticket %}
                             <button name="decision" value="convert" class="btn btn-sm btn-outline-primary" title="Convert to ticket"><i class="fas fa-ticket"></i></button>
                             {% endif %}

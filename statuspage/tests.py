@@ -217,6 +217,22 @@ class StatusPageManagementTests(TestCase):
         resp = anon.get('/status/')
         self.assertIn(resp.status_code, (302, 403))
 
+    def test_customer_org_admin_cannot_manage_status_pages(self):
+        from accounts.models import Membership, Role
+        page = StatusPage.objects.create(title='Other', organization=self.other_org)
+        cust = User.objects.create_user('custadmin', 'c@example.com', 'hunter2xyz')
+        Membership.objects.create(
+            user=cust, organization=self.org, role=Role.ADMIN, is_active=True)
+        c = Client()
+        c.force_login(cust)
+        self.assertEqual(c.get('/status/').status_code, 403)
+        self.assertEqual(c.get('/status/new/').status_code, 403)
+        self.assertEqual(c.get(f'/status/{page.pk}/').status_code, 403)
+        c.post(f'/status/{page.pk}/', {'action': 'rotate'})
+        before = page.token
+        page.refresh_from_db()
+        self.assertEqual(before, page.token)
+
     def test_create_page_starts_disabled(self):
         resp = self.client.post('/status/new/', {'title': 'Ours'}, follow=True)
         self.assertEqual(resp.status_code, 200)

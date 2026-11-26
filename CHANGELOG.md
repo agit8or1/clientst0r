@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.792] - 2026-11-26
+
+### Added
+- **Three new guides with annotated screenshots** in Clientst0r Docs, linked from their sidebar sections:
+  - *Security alerts and incidents*: receiving, triaging and ticketing alerts, vendor connections, auto-ticket rules,
+    SIEM endpoints, the weekly digest, incidents, playbooks, threat overview and alert response times.
+  - *Website monitors, WAN connections and expirations.*
+  - *Status pages and configuration backups.*
+
+### Fixed
+- **Status pages are managed by MSP staff only.** An administrator of a customer organization could open the status
+  page list and its pages, which cover every customer and name other customers' monitors. They now get "access
+  denied", and the Status Pages tab is no longer shown to them.
+- **Security alerts:**
+  - A resolved or dismissed alert is no longer reopened by a stray or repeated Acknowledge click, and a second
+    acknowledgement keeps the first acknowledgement time (which the response-time report measures).
+  - Bulk dismiss and resolve change only open alerts, so an earlier resolve time is kept, and the message says what
+    happened ("3 alerts resolved").
+  - An acknowledged alert can be resolved from its own page and from the list.
+  - Alerts received from a SIEM endpoint show the endpoint instead of an empty vendor.
+- **Security incidents:** a closed incident ignores status buttons but still takes notes.
+- The incident SLA targets used by the breach check every 15 minutes can be set in the admin site.
+- The website monitor search box no longer shows the word "None" when nothing was searched.
+- Roadmap: 112.6 shipped.
+
 ## [3.17.791] - 2026-11-26
 
 ### Changed

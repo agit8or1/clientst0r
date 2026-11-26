@@ -21,7 +21,7 @@
                     {% else %}<span class="badge bg-light text-dark border">Info</span>{% endif %}
                     {{ alert.title }}
                 </h3>
-                <p class="text-muted mb-1">{{ alert.connection.get_provider_display }} — {{ alert.connection.name }}</p>
+                <p class="text-muted mb-1">{% if alert.connection %}{{ alert.connection.get_provider_display }} — {{ alert.connection.name }}{% elif alert.siem_endpoint %}SIEM — {{ alert.siem_endpoint.name }}{% else %}Source not recorded{% endif %}</p>
                 <p class="text-muted mb-1">Client: {{ alert.client_org.name|default:"(unscoped)" }}</p>
                 <p class="text-muted mb-1">Asset hint: <code>{{ alert.asset_hint|default:"—" }}</code></p>
                 <p class="text-muted mb-1">External ID: <code>{{ alert.external_id }}</code></p>
@@ -30,11 +30,11 @@
                 <p>Ticket: <a href="/psa/tickets/{{ alert.auto_ticket_id }}/">{{ alert.auto_ticket.ticket_number }}</a></p>
                 {% endif %}
             </div>
-            {% if can_acknowledge and alert.status == 'new' %}
+            {% if can_acknowledge and alert.status == 'new' or can_acknowledge and alert.status == 'acknowledged' %}
             <form method="post" action="{% url 'security_alerts:alert_decide' alert.pk %}" class="d-flex gap-1">
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{{ request.path }}">
-                <button name="decision" value="acknowledge" class="btn btn-success btn-sm">Acknowledge</button>
+                {% if alert.status == 'new' %}<button name="decision" value="acknowledge" class="btn btn-success btn-sm">Acknowledge</button>{% endif %}
                 <button name="decision" value="dismiss" class="btn btn-secondary btn-sm">Dismiss</button>
                 {% if not alert.auto_ticket %}
                 <button name="decision" value="convert" class="btn btn-primary btn-sm">Convert to Ticket</button>

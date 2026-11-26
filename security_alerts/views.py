@@ -169,7 +169,14 @@ def alert_decide(request, pk):
     )
     decision = (request.POST.get('decision') or '').lower()
     now = timezone.now()
-    if decision == 'acknowledge':
+    # An alert someone already resolved or dismissed is closed: a stray or
+    # repeated click must not reopen it or overwrite its acknowledge time
+    # (which is what the response-time report measures).
+    if decision in ('acknowledge', 'dismiss', 'resolve', 'convert') and alert.status in ('dismissed', 'resolved'):
+        messages.info(request, f'This alert is already {alert.get_status_display().lower()}.')
+    elif decision == 'acknowledge' and alert.status == 'acknowledged':
+        messages.info(request, 'This alert is already acknowledged.')
+    elif decision == 'acknowledge':
         alert.status = 'acknowledged'
         alert.acknowledged_at = now
         alert.acknowledged_by = request.user
@@ -207,10 +214,13 @@ def alert_decide(request, pk):
                 created_by=request.user,
             )
             alert.auto_ticket = ticket
-            alert.status = 'acknowledged'
-            alert.acknowledged_at = now
-            alert.acknowledged_by = request.user
-            alert.save(update_fields=['auto_ticket', 'status', 'acknowledged_at', 'acknowledged_by'])
+            fields = ['auto_ticket']
+            if alert.status == 'new':
+                alert.status = 'acknowledged'
+                alert.acknowledged_at = now
+                alert.acknowledged_by = request.user
+                fields += ['status', 'acknowledged_at', 'acknowledged_by']
+            alert.save(update_fields=fields)
             messages.success(request, f'Created ticket {ticket.ticket_number}.')
         except Exception as exc:
             messages.error(request, f'Failed to create ticket: {exc}')
@@ -234,14 +244,17 @@ def alert_bulk_decide(request):
         n = qs.filter(status='new').update(
             status='acknowledged', acknowledged_at=now, acknowledged_by=request.user,
         )
+        done = 'acknowledged'
     elif decision == 'dismiss':
-        n = qs.update(status='dismissed')
+        n = qs.filter(status__in=('new', 'acknowledged')).update(status='dismissed')
+        done = 'dismissed'
     elif decision == 'resolve':
-        n = qs.update(status='resolved', resolved_at=now)
+        n = qs.filter(status__in=('new', 'acknowledged')).update(status='resolved', resolved_at=now)
+        done = 'resolved'
     else:
         messages.error(request, f'Unknown bulk decision: {decision}')
         return redirect('security_alerts:alert_list')
-    messages.success(request, f'{decision.title()}d {n} alert{"s" if n != 1 else ""}.')
+    messages.success(request, f'{n} alert{"s" if n != 1 else ""} {done}.')
     return redirect('security_alerts:alert_list')
 
 
@@ -719,6 +732,8 @@ def incident_decide(request, pk):
             messages.success(request, 'Note added.')
         else:
             messages.error(request, 'Note may not be empty.')
+    elif decision in transitions and not incident.is_open:
+        messages.info(request, f'This incident is already {incident.get_status_display().lower()}.')
     elif decision in transitions:
         new_status, ts_field, evt_kind = transitions[decision]
         incident.status = new_status

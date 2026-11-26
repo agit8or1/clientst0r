@@ -804,7 +804,7 @@ SECTIONS = (
         Tab(_('Website Monitors'), 'monitoring:website_monitor_list', 'fa-globe'),
         Tab(_('WAN Connections'), 'monitoring:wan_monitor_list', 'fa-network-wired'),
         Tab(_('Expirations'), 'monitoring:expiration_list', 'fa-calendar-times'),
-        Tab(_('Status Pages'), 'statuspage:list', 'fa-heart-pulse', gate=_flag('status_pages_enabled')),
+        Tab(_('Status Pages'), 'statuspage:list', 'fa-heart-pulse', gate=_all(_msp_staff, _flag('status_pages_enabled'))),
         Tab(_('Configuration Backups'), 'netconfig:device_list', 'fa-file-code',
             gate=_flag('netconfig_enabled'), keywords='config backups'),
     )),

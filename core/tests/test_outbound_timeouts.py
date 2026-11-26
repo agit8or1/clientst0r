@@ -24,7 +24,8 @@ from django.conf import settings
 from django.test import SimpleTestCase
 
 EXCLUDE_DIRS = {'venv', '.venv', 'node_modules', 'migrations', 'tests', 'static', 'staticfiles', 'media',
-                '__pycache__', '.git', 'site-packages', 'mobile', 'mobile-app', 'local_apps'}
+                '__pycache__', '.git', 'site-packages', 'mobile', 'mobile-app', 'local_apps',
+                'hardware-catalog'}  # a gitignored third-party checkout (devicetype-library)
 VERBS = {'get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'request'}
 
 

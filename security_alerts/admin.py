@@ -2,6 +2,7 @@ from django.contrib import admin
 from .models import (
     SecurityVendorConnection, SecurityAlert, SecurityAlertRule,
     SIEMWebhookEndpoint, RemediationPlaybook, RemediationPlaybookStep,
+    SecurityIncidentSLAPolicy,
 )
 
 
@@ -54,3 +55,13 @@ class RemediationPlaybookAdmin(admin.ModelAdmin):
                     'match_severity_min', 'match_client_org')
     list_filter = ('is_active', 'auto_run')
     inlines = [RemediationPlaybookStepInline]
+
+
+@admin.register(SecurityIncidentSLAPolicy)
+class SecurityIncidentSLAPolicyAdmin(admin.ModelAdmin):
+    # The only place to set the acknowledge / contain / resolve targets that
+    # `manage.py check_incident_sla_breaches` (scheduled every 15 minutes)
+    # records breaches against.
+    list_display = ('severity', 'organization', 'client_org', 'acknowledge_minutes',
+                    'contain_minutes', 'resolve_minutes', 'is_active')
+    list_filter = ('severity', 'is_active')

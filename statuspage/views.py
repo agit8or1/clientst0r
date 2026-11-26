@@ -10,6 +10,10 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
+from functools import wraps
+
+from django.core.exceptions import PermissionDenied
+
 from core.decorators import require_admin
 from core.models import Organization
 from monitoring.models import WebsiteMonitor
@@ -122,7 +126,22 @@ def portal_status(request):
 # Management
 # ---------------------------------------------------------------------------
 
+def require_msp_staff(view_func):
+    """Status pages are MSP-wide: one list covers every client, and a page's
+    link, its services and the monitor picker name other clients' records. An
+    organization administrator on the customer side passes `require_admin` for
+    their own organization, so the pages need this stricter check as well."""
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        from psa.visibility import is_msp_staff
+        if not is_msp_staff(request.user):
+            raise PermissionDenied('Status pages are managed by MSP staff.')
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+
 @login_required
+@require_msp_staff
 @require_admin
 def page_list(request):
     pages = (StatusPage.objects
@@ -133,6 +152,7 @@ def page_list(request):
 
 
 @login_required
+@require_msp_staff
 @require_admin
 def page_create(request):
     if request.method == 'POST':
@@ -162,6 +182,7 @@ def page_create(request):
 
 
 @login_required
+@require_msp_staff
 @require_admin
 def page_detail(request, pk):
     page = get_object_or_404(

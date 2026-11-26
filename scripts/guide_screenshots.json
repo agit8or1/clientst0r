@@ -3368,6 +3368,749 @@
         }
       ],
       "caption": "Secret Links: the links you created."
+    },
+    {
+      "name": "guide-sec-alerts",
+      "guide": "docs/SECURITY_ALERTS_AND_INCIDENTS.md",
+      "route": "/security/alerts/",
+      "theme": "light",
+      "max_h": 900,
+      "alt": "The Security Alerts list with numbered callouts on the filters, the bulk buttons, a severity badge, a status badge, the vendor column and the row buttons",
+      "annotate": [
+        {
+          "selector": "form[method=get] select[name=severity]",
+          "note": "Filters: severity, status, vendor, client and a date range. They apply as you change them."
+        },
+        {
+          "selector": "form[action$='/alerts/bulk/'] .d-flex.mb-2",
+          "note": "Bulk actions for the ticked rows: Acknowledge, Dismiss or Resolve. Only people who may acknowledge alerts see them."
+        },
+        {
+          "selector": "tbody tr >> nth=0 >> td >> nth=1",
+          "note": "Severity: Critical, High, Medium, Low or Info."
+        },
+        {
+          "selector": "tbody tr >> nth=0 >> td >> nth=4",
+          "note": "Status: New, Ack (acknowledged), Dismissed or Resolved."
+        },
+        {
+          "selector": "thead th:has-text(\"Vendor\")",
+          "note": "Where the alert came from: the vendor connection, or SIEM for an alert that arrived through a SIEM endpoint."
+        },
+        {
+          "selector": "tbody tr >> nth=0 >> td.text-nowrap",
+          "note": "Acknowledge, Dismiss, Resolve and Convert to ticket. A ticket number here means a ticket already exists."
+        }
+      ],
+      "caption": "Security Alerts → Security Alerts."
+    },
+    {
+      "name": "guide-sec-alert-detail",
+      "guide": "docs/SECURITY_ALERTS_AND_INCIDENTS.md",
+      "route": "/security/alerts/4/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "One security alert with numbered callouts on the title and severity, the source, the action buttons, the incident it belongs to and the raw payload",
+      "annotate": [
+        {
+          "selector": "h3",
+          "note": "The alert's severity and title, as the vendor or SIEM sent them."
+        },
+        {
+          "selector": "p.text-muted:has-text(\"Client:\")",
+          "note": "The customer the alert belongs to."
+        },
+        {
+          "selector": "form[action$='/decide/']",
+          "note": "Acknowledge, Dismiss, Convert to Ticket or Resolve."
+        },
+        {
+          "selector": ".card-header:has-text(\"Incident\")",
+          "note": "The incident this alert was grouped into. Click it to open the timeline."
+        },
+        {
+          "selector": ".card-header:has-text(\"Raw payload\")",
+          "note": "Everything the source sent, as received. Useful when the title is not enough."
+        }
+      ],
+      "caption": "A security alert, opened from the list."
+    },
+    {
+      "name": "guide-sec-connections",
+      "guide": "docs/SECURITY_ALERTS_AND_INCIDENTS.md",
+      "route": "/security/connections/",
+      "theme": "light",
+      "max_h": 700,
+      "alt": "The Vendor Connections list with numbered callouts on New Connection, a webhook-only badge, the client scope, the status and the edit button",
+      "annotate": [
+        {
+          "selector": "a:has-text(\"New Connection\")",
+          "note": "Add a connection for a security product."
+        },
+        {
+          "selector": "tbody tr >> nth=0 >> .badge:has-text(\"Webhook only\")",
+          "note": "Webhook only: Clientst0r cannot poll this vendor, so alerts arrive only when the vendor posts them to the connection's webhook."
+        },
+        {
+          "selector": "tbody tr >> nth=0 >> td >> nth=3",
+          "note": "Client: the customer this connection's alerts are filed under. (MSP-wide) means alerts name no customer."
+        },
+        {
+          "selector": "tbody tr >> nth=0 >> td >> nth=6",
+          "note": "Status of the last poll. Stays blank for a webhook-only connection."
+        },
+        {
+          "selector": "tbody tr >> nth=0 >> td.text-nowrap",
+          "note": "Edit. The Test and Sync buttons appear only for a vendor Clientst0r can poll."
+        }
+      ],
+      "caption": "Security Alerts → Vendor Connections."
+    },
+    {
+      "name": "guide-sec-rules",
+      "guide": "docs/SECURITY_ALERTS_AND_INCIDENTS.md",
+      "route": "/security/rules/",
+      "theme": "light",
+      "max_h": 600,
+      "alt": "The Auto-Ticket Rules list with numbered callouts on New Rule, the priority, the minimum severity and the suppression hours",
+      "annotate": [
+        {
+          "selector": "a:has-text(\"New Rule\")",
+          "note": "Add a rule."
+        },
+        {
+          "selector": "thead th:has-text(\"Priority\")",
+          "note": "Priority: rules are tried lowest number first, and the first match wins."
+        },
+        {
+          "selector": "thead th:has-text(\"Min severity\")",
+          "note": "The alert must be at least this severe to match."
+        },
+        {
+          "selector": "thead th:has-text(\"Suppression\")",
+          "note": "Hours of the day (UTC) when this rule opens no tickets."
+        },
+        {
+          "selector": "tbody tr >> nth=0 >> td >> nth=6",
+          "note": "On or Off."
+        }
+      ],
+      "caption": "Security Alerts → Auto-Ticket Rules."
+    },
+    {
+      "name": "guide-sec-siem",
+      "guide": "docs/SECURITY_ALERTS_AND_INCIDENTS.md",
+      "route": "/security/siem/",
+      "theme": "light",
+      "max_h": 600,
+      "alt": "The SIEM Webhook Endpoints list with numbered callouts on New Endpoint, the format, the HMAC badge, the received count and the hidden URL",
+      "annotate": [
+        {
+          "selector": "a:has-text(\"New Endpoint\")",
+          "note": "Add an endpoint for a SIEM or log forwarder."
+        },
+        {
+          "selector": "tbody tr >> nth=0 >> td >> nth=1",
+          "note": "The format this endpoint expects: CEF, generic JSON or syslog."
+        },
+        {
+          "selector": "tbody tr >> nth=0 >> td >> nth=4",
+          "note": "HMAC: Required means every post must carry a valid signature."
+        },
+        {
+          "selector": "tbody tr >> nth=0 >> td >> nth=5",
+          "note": "How many events this endpoint has received, and (next column) when it last heard from the source."
+        },
+        {
+          "selector": "tbody tr >> nth=0 >> td >> nth=7",
+          "note": "The URL is shown once, when the endpoint is saved, and is hidden afterwards."
+        }
+      ],
+      "caption": "Security Alerts → SIEM Endpoints."
+    },
+    {
+      "name": "guide-sec-digest",
+      "guide": "docs/SECURITY_ALERTS_AND_INCIDENTS.md",
+      "route": "/security/digest/?org=2",
+      "theme": "light",
+      "max_h": 1400,
+      "alt": "The Weekly Digest page with numbered callouts on the customer picker, the contact list, the subscribe form, the preview and the all-clear switch",
+      "annotate": [
+        {
+          "selector": "#digest-org",
+          "note": "Pick the customer."
+        },
+        {
+          "selector": ".card-header:has-text(\"Contacts for\")",
+          "note": "The people at this customer who get the digest, and whether each is subscribed."
+        },
+        {
+          "selector": "form input[name=email]",
+          "note": "Add a person by e-mail address, or pick one of the customer's contacts."
+        },
+        {
+          "selector": ".card-header:has-text(\"digest for\")",
+          "note": "The digest as it would go out this week: severity, title, device and first-seen time only."
+        },
+        {
+          "selector": ".card-footer.small",
+          "note": "All-clear e-mails: off by default; turn on to send a short note in weeks with nothing open."
+        }
+      ],
+      "caption": "Security Alerts → Weekly Digest."
+    },
+    {
+      "name": "guide-sec-incidents",
+      "guide": "docs/SECURITY_ALERTS_AND_INCIDENTS.md",
+      "route": "/security/incidents/",
+      "theme": "light",
+      "max_h": 800,
+      "alt": "The Incidents list with numbered callouts on the severity and status filters, an incident number, the severity, the status and the alert count",
+      "annotate": [
+        {
+          "selector": "select[name=severity]",
+          "note": "Filter by severity."
+        },
+        {
+          "selector": "select[name=status]",
+          "note": "Filter by status: Open, Investigating, Contained, Resolved or Closed."
+        },
+        {
+          "selector": "tbody tr >> nth=0 >> td >> nth=0",
+          "note": "The incident number opens the case file."
+        },
+        {
+          "selector": "tbody tr >> nth=0 >> td >> nth=3",
+          "note": "Where the incident is in its life."
+        },
+        {
+          "selector": "tbody tr >> nth=0 >> td >> nth=7",
+          "note": "How many alerts are grouped into it."
+        }
+      ],
+      "caption": "Security Incidents → Incidents."
+    },
+    {
+      "name": "guide-sec-incident",
+      "guide": "docs/SECURITY_ALERTS_AND_INCIDENTS.md",
+      "route": "/security/incidents/1/",
+      "theme": "light",
+      "max_h": 1400,
+      "alt": "One security incident with numbered callouts on the status buttons, the suggested playbook, the timeline, the linked alerts and the note box",
+      "annotate": [
+        {
+          "selector": "form[action$='/decide/'] >> nth=0",
+          "note": "Move the incident along: Acknowledge, Contain, Resolve or Close."
+        },
+        {
+          "selector": ".card:has-text(\"Suggested playbook\")",
+          "note": "A playbook whose trigger matches. Approve and run records every step under your name."
+        },
+        {
+          "selector": ".card-header:has-text(\"Timeline\")",
+          "note": "The timeline: every status change, note, playbook step and SLA breach, with who and when."
+        },
+        {
+          "selector": ".card-header:has-text(\"Linked alerts\")",
+          "note": "The alerts grouped into this incident."
+        },
+        {
+          "selector": "textarea[name=note]",
+          "note": "Add a note to the timeline."
+        }
+      ],
+      "caption": "A security incident, opened from the list."
+    },
+    {
+      "name": "guide-sec-playbooks",
+      "guide": "docs/SECURITY_ALERTS_AND_INCIDENTS.md",
+      "route": "/security/playbooks/",
+      "theme": "light",
+      "max_h": 600,
+      "alt": "The Remediation Playbooks list with numbered callouts on the severity trigger, the client scope, the Runs column and the steps",
+      "annotate": [
+        {
+          "selector": "thead th:has-text(\"Severity\")",
+          "note": "Trigger: the incident must be at least this severe."
+        },
+        {
+          "selector": "thead th:has-text(\"Client scope\")",
+          "note": "Whether the playbook applies to one customer or to all of them."
+        },
+        {
+          "selector": "thead th:has-text(\"Runs\")",
+          "note": "After approval means a technician must approve the run; automatically means it runs when a matching incident opens."
+        },
+        {
+          "selector": "thead th:has-text(\"Priority\")",
+          "note": "Lower numbers are looked at first; only the first matching playbook is suggested or run."
+        },
+        {
+          "selector": "tbody tr >> nth=0 >> td >> nth=7",
+          "note": "The steps, in order."
+        }
+      ],
+      "caption": "Security Incidents → Incident Playbooks."
+    },
+    {
+      "name": "guide-sec-threat",
+      "guide": "docs/SECURITY_ALERTS_AND_INCIDENTS.md",
+      "route": "/security/threat-overview/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The Threat Overview with numbered callouts on open alerts by severity, open incidents, top exposed organizations, the week-over-week trend and playbook activity",
+      "annotate": [
+        {
+          "selector": ".card-header:has-text(\"Open alerts by severity\")",
+          "note": "Open alerts (New or Acknowledged) by severity, across every customer you may see."
+        },
+        {
+          "selector": ".card-header:has-text(\"Open incidents\")",
+          "note": "Open incidents (Open, Investigating or Contained) by severity."
+        },
+        {
+          "selector": ".card-header:has-text(\"Top exposed\")",
+          "note": "The ten customers with the highest exposure score, refreshed hourly."
+        },
+        {
+          "selector": ".card-header:has-text(\"Week-over-week\")",
+          "note": "Alerts in the last 7 days against the 7 days before."
+        },
+        {
+          "selector": ".card-header:has-text(\"In-flight playbook\")",
+          "note": "Playbook steps recorded in the last 24 hours."
+        }
+      ],
+      "caption": "Security Incidents → Threat Overview."
+    },
+    {
+      "name": "guide-sec-mtta",
+      "guide": "docs/SECURITY_ALERTS_AND_INCIDENTS.md",
+      "route": "/reports/security/mtta/",
+      "theme": "light",
+      "max_h": 700,
+      "alt": "The Security Alert MTTA report with numbered callouts on the date range, the CSV button, the client and vendor columns, the average and the unacknowledged count",
+      "annotate": [
+        {
+          "selector": "main form:has(input[name=start])",
+          "note": "Choose the window by the day alerts were first seen. The default is the last 30 days."
+        },
+        {
+          "selector": "a:has-text(\"CSV\")",
+          "note": "Download the table as CSV."
+        },
+        {
+          "selector": "thead th:has-text(\"Vendor\")",
+          "note": "One row per customer and vendor. Alerts that arrived through a SIEM show as SIEM."
+        },
+        {
+          "selector": "thead th:has-text(\"Avg MTTA\")",
+          "note": "Average minutes from first seen to acknowledged."
+        },
+        {
+          "selector": "thead th:has-text(\"Unacked\")",
+          "note": "Alerts never acknowledged, including ones dismissed or resolved without being acknowledged."
+        }
+      ],
+      "caption": "Security Incidents → Alert Response Times."
+    },
+    {
+      "name": "guide-mon-websites",
+      "guide": "docs/MONITORING.md",
+      "route": "/monitoring/websites/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The Website Monitors list with numbered callouts on Add Website Monitor, the search and status filter, a status badge, the response time, the SSL expiry date and Check Now",
+      "annotate": [
+        {
+          "selector": "a.btn-primary:has-text(\"Add Website Monitor\")",
+          "note": "Add a monitor for the selected customer."
+        },
+        {
+          "selector": "form.row input[name=\"q\"]",
+          "note": "Search by name, URL or customer."
+        },
+        {
+          "selector": "select[name=\"status\"]",
+          "note": "Show only Active, Warning, Down or Unknown monitors."
+        },
+        {
+          "selector": ".monitor-status-cell >> nth=0",
+          "note": "The result of the last check."
+        },
+        {
+          "selector": ".monitor-rt-cell >> nth=0",
+          "note": "How long the last request took."
+        },
+        {
+          "selector": ".btn-check-now >> nth=0",
+          "note": "Check Now: run this monitor immediately and update the row in place."
+        }
+      ],
+      "caption": "Monitoring → Website Monitors."
+    },
+    {
+      "name": "guide-mon-website-form",
+      "guide": "docs/MONITORING.md",
+      "route": "/monitoring/websites/create/",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "The Add Website Monitor form with numbered callouts on the URL, the check interval, the three notification options and the warning days",
+      "annotate": [
+        {
+          "selector": "#id_url",
+          "note": "The full address to check, including https://."
+        },
+        {
+          "selector": "#id_check_interval_minutes",
+          "note": "Minutes between checks. The scheduler looks every 5 minutes, so a value under 5 behaves as 5."
+        },
+        {
+          "selector": "#id_notify_on_down",
+          "note": "Email when the site goes down and when it recovers."
+        },
+        {
+          "selector": "#id_notify_on_ssl_expiry",
+          "note": "Email before the certificate expires (needs an https address)."
+        },
+        {
+          "selector": "#id_ssl_warning_days",
+          "note": "How many days before expiry the warnings start."
+        }
+      ],
+      "caption": "Monitoring → Website Monitors → Add Website Monitor."
+    },
+    {
+      "name": "guide-mon-website-detail",
+      "guide": "docs/MONITORING.md",
+      "route": "/monitoring/websites/4/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "A website monitor with numbered callouts on Check Now, the monitor details, the SSL certificate card and the notification settings",
+      "annotate": [
+        {
+          "selector": "a.btn-success:has-text(\"Check Now\")",
+          "note": "Check Now: run the check immediately."
+        },
+        {
+          "selector": ".col-md-8 .card",
+          "note": "The last result: status, check interval, when it was last checked, the HTTP status code and the response time."
+        },
+        {
+          "selector": ".card:has(h5:has-text(\"SSL Certificate\"))",
+          "note": "The certificate read on the last check: subject, issuer, validity dates and protocol."
+        },
+        {
+          "selector": ".card:has(h5:has-text(\"Notifications\"))",
+          "note": "Which emails this monitor sends. Change them with Edit."
+        }
+      ],
+      "caption": "A website monitor."
+    },
+    {
+      "name": "guide-mon-wans",
+      "guide": "docs/MONITORING.md",
+      "route": "/monitoring/wans/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The WAN Connections list with numbered callouts on the filters, a Down connection, the monitor target, the last check time and Check Now",
+      "annotate": [
+        {
+          "selector": "form.row select[name=\"status\"]",
+          "note": "Filter by status or by location, or search by name, provider or location."
+        },
+        {
+          "selector": "#wanTable tbody tr:has-text(\"Backup Broadband\") td:nth-child(6)",
+          "note": "Status. Down appears after two checks in a row get no answer."
+        },
+        {
+          "selector": "#wanTable tbody tr:has-text(\"Backup Broadband\") td:nth-child(7)",
+          "note": "The address or hostname that is pinged."
+        },
+        {
+          "selector": "#wanTable tbody tr:has-text(\"Backup Broadband\") td:nth-child(8)",
+          "note": "When it was last checked."
+        },
+        {
+          "selector": "#wanTable tbody tr:has-text(\"Backup Broadband\") button[title=\"Check Now\"]",
+          "note": "Check Now: ping the target immediately."
+        }
+      ],
+      "caption": "Monitoring → WAN Connections."
+    },
+    {
+      "name": "guide-mon-expirations",
+      "guide": "docs/MONITORING.md",
+      "route": "/monitoring/expirations/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The Expirations list with numbered callouts on Add Expiration, a type badge, the days until expiry, an Expired row and the status badges",
+      "annotate": [
+        {
+          "selector": "a.btn-primary:has-text(\"Add Expiration\")",
+          "note": "Add an item by hand."
+        },
+        {
+          "selector": "tbody tr:has-text(\"wms.northwind.example certificate\") .badge >> nth=0",
+          "note": "What kind of item it is."
+        },
+        {
+          "selector": "tbody tr:has-text(\"wms.northwind.example certificate\") td:nth-child(4)",
+          "note": "Days left. Rows inside their warning window turn yellow."
+        },
+        {
+          "selector": "tbody tr:has-text(\"Warehouse firewall warranty\")",
+          "note": "A red row is past its date."
+        },
+        {
+          "selector": "tbody tr:has-text(\"Domain Registration\") td:nth-child(6)",
+          "note": "Auto-renew, and the renewal cost when one is entered."
+        }
+      ],
+      "caption": "Monitoring → Expirations."
+    },
+    {
+      "name": "guide-mon-expiration-form",
+      "guide": "docs/MONITORING.md",
+      "route": "/monitoring/expirations/create/",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "The Add Expiration form with numbered callouts on the type, the expiry date, the warning days and the auto-renew option",
+      "annotate": [
+        {
+          "selector": "#id_expiration_type",
+          "note": "What the item is. Only Domain Registration items send emails."
+        },
+        {
+          "selector": "#id_expires_at",
+          "note": "When it expires."
+        },
+        {
+          "selector": "#id_warning_days",
+          "note": "Days before expiry that it turns yellow (and, for domains, that the warning email starts)."
+        },
+        {
+          "selector": "#id_auto_renew",
+          "note": "Mark items that renew themselves, with the renewal cost."
+        }
+      ],
+      "caption": "Monitoring → Expirations → Add Expiration."
+    },
+    {
+      "name": "guide-stat-list",
+      "guide": "docs/STATUS_PAGES_AND_CONFIG_BACKUPS.md",
+      "route": "/status/",
+      "theme": "light",
+      "alt": "The Status Pages list with a heading, New status page button, scope, services and state columns",
+      "annotate": [
+        {
+          "selector": "h4:has-text('Status pages')",
+          "note": "The list of every status page the installation has, live pages first."
+        },
+        {
+          "selector": "a:has-text('New status page')",
+          "note": "New status page: asks for a title and, optionally, one client. The page is created switched off."
+        },
+        {
+          "selector": "th:text-is('Scope')",
+          "note": "Scope: one client, or All clients for a page that can carry any client's services."
+        },
+        {
+          "selector": "td .badge:has-text('Live')",
+          "note": "State: Live and public, or Off. A portal-only page that is switched on also reads Live here."
+        }
+      ],
+      "caption": "Status pages.",
+      "max_h": 700
+    },
+    {
+      "name": "guide-stat-detail",
+      "guide": "docs/STATUS_PAGES_AND_CONFIG_BACKUPS.md",
+      "route": "/status/1/",
+      "theme": "light",
+      "alt": "A status page's management screen: link, published services, incidents",
+      "annotate": [
+        {
+          "selector": "div.card:has(.card-header:has-text('Link'))",
+          "note": "The link: the address anyone holding it can open, a Copy button and Rotate link."
+        },
+        {
+          "selector": "div.card:has(.card-header:has-text('Published services')) table",
+          "note": "Published services: the name the public sees, the description and a Remove action. The monitor behind it is never shown."
+        },
+        {
+          "selector": "div.card:has(.card-header:has-text('Published services')) form.row",
+          "note": "Add a service: pick a website monitor and give it a public name."
+        },
+        {
+          "selector": "div.card:has(.card-header:has-text('Incidents'))",
+          "note": "Incidents: post one with its own public title, add timeline updates, resolve or delete it."
+        }
+      ],
+      "caption": "A status page's management screen.",
+      "max_h": 1500
+    },
+    {
+      "name": "guide-stat-settings",
+      "guide": "docs/STATUS_PAGES_AND_CONFIG_BACKUPS.md",
+      "route": "/status/1/",
+      "theme": "light",
+      "alt": "The Settings card of a status page",
+      "annotate": [
+        {
+          "selector": "#is_enabled",
+          "note": "Enabled: off by default. While off the address returns 404."
+        },
+        {
+          "selector": "#visibility",
+          "note": "Visibility: Public (anyone with the link) or Portal (signed-in client users only)."
+        },
+        {
+          "selector": "#show_uptime",
+          "note": "Show uptime and Show response time, and how often the page reloads itself (30 seconds at the least)."
+        }
+      ],
+      "caption": "Status page settings.",
+      "max_h": 1500,
+      "selector": "form.card:has(.card-header:has-text('Settings'))",
+      "tight": false
+    },
+    {
+      "name": "guide-stat-maint",
+      "guide": "docs/STATUS_PAGES_AND_CONFIG_BACKUPS.md",
+      "route": "/status/1/",
+      "theme": "light",
+      "alt": "The Maintenance windows card with the post form",
+      "annotate": [
+        {
+          "selector": "div.card:has(.card-header:has-text('Maintenance windows')) table",
+          "note": "Posted windows with their state (upcoming, in progress, completed or cancelled), with Cancel and Delete."
+        },
+        {
+          "selector": "#maint_title",
+          "note": "Title and details, written for people outside the business."
+        },
+        {
+          "selector": "#starts_at",
+          "note": "Start and end, in the server's time zone."
+        },
+        {
+          "selector": "#services",
+          "note": "Affected services. Leave empty if the work affects everything on the page."
+        }
+      ],
+      "caption": "Maintenance windows.",
+      "max_h": 1500,
+      "selector": "div.card:has(.card-header:has-text('Maintenance windows'))"
+    },
+    {
+      "name": "guide-stat-public",
+      "guide": "docs/STATUS_PAGES_AND_CONFIG_BACKUPS.md",
+      "route": "/status/p/demo-northwind-status-link-0000000000000000/",
+      "theme": "light",
+      "alt": "The public status page as a visitor sees it",
+      "annotate": [
+        {
+          "selector": ".banner",
+          "note": "The overall banner: the worst state among the visible services."
+        },
+        {
+          "selector": ".svc-name",
+          "note": "Each service under the public name chosen for it."
+        },
+        {
+          "selector": ".uptime",
+          "note": "Uptime over 30, 90 and 365 days, when the page shows it."
+        },
+        {
+          "selector": "footer",
+          "note": "When the page was generated. The page reloads itself on its own."
+        }
+      ],
+      "caption": "The public page, signed out.",
+      "user": "",
+      "max_h": 2200
+    },
+    {
+      "name": "guide-stat-devices",
+      "guide": "docs/STATUS_PAGES_AND_CONFIG_BACKUPS.md",
+      "route": "/netconfig/",
+      "theme": "light",
+      "alt": "The Network config backups list of devices",
+      "annotate": [
+        {
+          "selector": "h4:has-text('Network config backups')",
+          "note": "The network devices (switches, routers, firewalls and similar) in the current client."
+        },
+        {
+          "selector": "th:text-is('Snapshots')",
+          "note": "Snapshots: how many different configurations are stored."
+        },
+        {
+          "selector": "th:text-is('Last captured')",
+          "note": "Last captured: the last time a capture matched or produced a snapshot."
+        },
+        {
+          "selector": "a:has-text('Lifecycle')",
+          "note": "Lifecycle: devices past or near vendor end of support."
+        }
+      ],
+      "caption": "Network config backups.",
+      "max_h": 800
+    },
+    {
+      "name": "guide-stat-device",
+      "guide": "docs/STATUS_PAGES_AND_CONFIG_BACKUPS.md",
+      "route": "/netconfig/device/11/",
+      "theme": "light",
+      "alt": "One device's snapshot history and latest change",
+      "annotate": [
+        {
+          "selector": "button:has-text('Collect now')",
+          "note": "Collect now: log in to the device now and store the configuration."
+        },
+        {
+          "selector": "div.card:has-text('SSH:') >> nth=0",
+          "note": "The saved connection: user, host, port, schedule and the last success."
+        },
+        {
+          "selector": "div.card:has(.card-header:has-text('Latest change'))",
+          "note": "Latest change: the newest snapshot against the one before it."
+        },
+        {
+          "selector": "div.card:has(.card-header:has-text('Snapshots')) tbody tr >> nth=0",
+          "note": "A snapshot row: source, firmware, line count, drift verdict, Baseline and View."
+        }
+      ],
+      "caption": "A device's configuration history.",
+      "max_h": 1500
+    },
+    {
+      "name": "guide-stat-connection",
+      "guide": "docs/STATUS_PAGES_AND_CONFIG_BACKUPS.md",
+      "route": "/netconfig/device/11/connection/",
+      "theme": "light",
+      "alt": "How a device is reached: host, user, vault credential and host key",
+      "annotate": [
+        {
+          "selector": "#host",
+          "note": "Host and port: the management address, which is not taken from the asset record."
+        },
+        {
+          "selector": "#credential",
+          "note": "Vault credential: the password comes from this vault entry at collection time."
+        },
+        {
+          "selector": "#adapter",
+          "note": "Platform: decides the command that prints the configuration."
+        },
+        {
+          "selector": "#host-key",
+          "note": "Trusted SSH host key: no password is sent until a key you have compared is approved."
+        }
+      ],
+      "caption": "Connection settings.",
+      "max_h": 1500
     }
   ]
 }
