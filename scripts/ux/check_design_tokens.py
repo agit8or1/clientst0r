@@ -12,7 +12,8 @@ Checks, in order:
      every icon concept names a Font Awesome icon that exists in the vendored stylesheet.
   2. Contrast: every pair under contrast-pairs meets its minimum (WCAG 2.x relative luminance).
   3. Drift: each token maps to one CSS custom property (--cs-...). static/css/*.css is scanned;
-     a property that is defined with a literal value different from the token fails. A property that
+     a property that is defined with a literal value different from the token fails (declarations
+     inside an application colour theme, a [data-theme="..."] selector, are not compared). A property that
      is not defined anywhere is reported as "not yet implemented" (not a failure), and one defined
      through var()/calc() is reported as indirect (not compared).
 
@@ -286,6 +287,11 @@ def css_declarations(text):
 
 def context_of(prelude):
     p = prelude.lower()
+    if 'data-theme=' in p:
+        # An application's own colour theme (Clientst0r: the legacy palettes in themes.css map
+        # themselves onto the tokens). Not one of the spec's light/dark contexts, so not compared;
+        # their contrast is checked by the application (scripts/ux/build_token_css.py).
+        return 'app-theme'
     if 'prefers-reduced-motion' in p:
         return 'motion.reduced'
     if 'max-width' in p and '767' in p:

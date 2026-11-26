@@ -433,6 +433,26 @@ class PortalRenderingTests(TestCase):
         profile.save()
         self.assertIn('data-portal-theme="light"', self.portal())
 
+    def test_system_theme_follows_the_device_and_tokens_load(self):
+        """113.5: a user on the System theme gets the portal's follow-the-device
+        mode even when the portal default is pinned, and the token stylesheet
+        loads before portal.css with a matching data-cs-theme."""
+        self.set(portal_default_theme='dark')
+        profile = self.user.profile
+        profile.theme = 'system'
+        profile.save()
+        html = self.portal()
+        self.assertNotIn('data-portal-theme=', html)
+        self.assertIn('data-cs-theme="system"', html)
+        self.assertLess(html.index('css/tokens.css'), html.index('css/portal.css'))
+        profile.theme = 'dracula'
+        profile.save()
+        html = self.portal()
+        self.assertIn('data-portal-theme="dark"', html)
+        self.assertIn('data-cs-theme="dark"', html)
+        login = self.login_page()
+        self.assertLess(login.index('css/tokens.css'), login.index('css/portal.css'))
+
     def test_signin_background_and_message(self):
         self.set(portal_login_background='color', portal_login_background_color='#223344',
                  portal_login_message='Hi <b>there</b>\nSecond line')

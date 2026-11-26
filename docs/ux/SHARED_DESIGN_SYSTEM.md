@@ -616,7 +616,10 @@ otherwise use `aria-disabled="true"` so keyboard and screen-reader users can rea
   customer-scoped page states its scope in the page header.
 - **Theme and density**: user menu offers Light, Dark, System (follows `prefers-color-scheme`) and Compact /
   Comfortable; stored on the profile (exists for density and theme, `accounts/models.py:568,701`); applied server-side
-  on `<html>` to avoid a flash. System-following is **planned** for the staff UI (exists in the portal).
+  on `<html>` to avoid a flash. System is selectable in the staff UI profile (113.5): the page renders the light
+  palette and `static/js/theme_system.js`, loaded in `<head>` before the stylesheets, switches `data-theme` /
+  `data-bs-theme` to the dark palette when the device prefers dark and follows changes; `data-cs-theme="system"` lets
+  the token stylesheet follow the same media query. The portal already followed the device.
 - **Terminology** shared across apps: Customer (not tenant/client in UI copy for new apps; Clientst0r's existing
   "Clients" label may stay), Device, Ticket, Approval, Integration, Workspace.
 
@@ -693,7 +696,24 @@ adjusted automatically (darken/lighten toward the guard) and the admin is told w
 
 Options: `--contrast` (markdown table), `--emit-css` (the generated stylesheet), `--verbose`, `--tokens`, `--css`.
 
-## 14. CSS migration increments (proposed — none started; application CSS unchanged in this batch)
+Declarations under a `[data-theme="..."]` selector are an application's own colour theme (Clientst0r's legacy
+palettes) and are not compared with the spec's light/dark values; the application checks their contrast itself.
+
+**Generator (113.5).** `venv/bin/python scripts/ux/build_token_css.py` writes `static/css/tokens.css` from the JSON
+(the `--emit-css` output plus a header) and the generated "theme-tokens" region of `static/css/themes.css`: one
+`:root[data-theme="x"]` block per colour theme that sets `--cs-color-*` from the theme's own variables
+(`--cs-color-bg-surface: var(--surface)` …). A token with no source in the theme keeps the spec value of the theme's
+mode (`data-cs-theme` on `<html>`); a token that would miss a contrast pair is nudged toward white or black just far
+enough and written as a commented literal. `--check` exits 1 when either output is stale;
+`core.tests.test_design_tokens` runs it and checks every contrast pair in every theme.
+
+## 14. CSS migration increments
+
+Status (113.5, in progress): I-1 done (tokens.css generated, loaded first in the staff, portal, sign-in and focus
+shells); I-2 and I-9 done in 113.5 part 1 (Inter and the CDN libraries bundled); I-3 partly done: every colour theme
+(not only Professional Dark) maps onto the tokens from its own palette and the System theme is selectable, but no
+legacy variable reads `--cs-*` yet and no new neutral Light theme was added, so no page looks different. The rest are
+planned.
 
 | # | Increment | Acceptance criteria |
 |---|---|---|

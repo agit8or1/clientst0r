@@ -114,6 +114,15 @@ the ticket-rmm-v1 revision 2 contract and Agit8or Connect 1 / 1.1.
   idempotent `POST /action-proposals` are sent, from the scheduler instead of page views. A Rem0te may see fewer and
   more evenly spaced status reads.
 
+- **Design tokens in CSS (113.5, in progress; design spec unchanged at 1.0.0).** `scripts/ux/build_token_css.py`
+  generates `static/css/tokens.css` (all 306 `--cs-*` variables, light/dark/system contexts as in spec §3) from
+  `design-tokens.json`; `--check` fails when it is stale. Clientst0r's own colour themes set the semantic
+  `--cs-color-*` tokens from their palettes in a generated region of `static/css/themes.css`, nudging a token toward
+  white or black only where a spec contrast pair would otherwise fail. `check_design_tokens.py` now treats
+  declarations under a `[data-theme="..."]` selector as an application colour theme and does not compare them with
+  the spec's light/dark values (an adopting app that copies the validator gets the same rule). A System theme
+  (follows `prefers-color-scheme`) is selectable in the staff UI. Nothing here is a runtime dependency between apps.
+
 ## 6. Change log of this handoff
 
 | Version | Date | Change |

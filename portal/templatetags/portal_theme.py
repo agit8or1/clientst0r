@@ -37,6 +37,9 @@ def portal_theme_mode(context):
     # which by default follows their system preference.
     if not theme or theme in ('default', 'professional'):
         return fallback
+    # 113.5: System means follow the device, which is what '' does here.
+    if theme == 'system':
+        return ''
     return 'dark' if theme in DARK_THEMES else 'light'
 
 

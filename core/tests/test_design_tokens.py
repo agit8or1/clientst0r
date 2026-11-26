@@ -6,6 +6,7 @@ that do not exist yet are "not yet implemented", not failures.
 """
 import importlib.util
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -110,3 +111,135 @@ class DesignTokenTests(SimpleTestCase):
             Path(fh.name).unlink()
         self.assertEqual(drift['errors'], [])
         self.assertEqual(drift['missing'], [])
+
+
+# --------------------------------------------------------------------------- 113.5 generated CSS
+BUILD = ROOT / 'scripts' / 'ux' / 'build_token_css.py'
+TOKENS_CSS = ROOT / 'static' / 'css' / 'tokens.css'
+THEMES_CSS = ROOT / 'static' / 'css' / 'themes.css'
+NAV_CSS = ROOT / 'static' / 'css' / 'navigation.css'
+
+
+def _load_build():
+    spec = importlib.util.spec_from_file_location('build_token_css', BUILD)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+btc = _load_build()
+
+
+def _region(text):
+    start = text.index(btc.REGION_START)
+    return text[start:text.index(btc.REGION_END, start)]
+
+
+class GeneratedTokenCssTests(SimpleTestCase):
+    def test_tokens_css_is_up_to_date(self):
+        self.assertEqual(TOKENS_CSS.read_text(), btc.build(),
+                         'static/css/tokens.css is stale: run venv/bin/python scripts/ux/build_token_css.py')
+
+    def test_themes_css_region_is_up_to_date(self):
+        current = THEMES_CSS.read_text()
+        self.assertEqual(current, btc.build_themes(current),
+                         'themes.css theme-token region is stale: run scripts/ux/build_token_css.py')
+
+    def test_check_mode_passes_and_detects_staleness(self):
+        r = subprocess.run([sys.executable, str(BUILD), '--check'], capture_output=True, text=True, cwd=ROOT)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        doc = json.loads(TOKENS.read_text())
+        doc['space']['4']['$value'] = '17px'
+        with tempfile.TemporaryDirectory() as tmp:
+            changed = Path(tmp) / 'tokens.json'
+            changed.write_text(json.dumps(doc))
+            r = subprocess.run([sys.executable, str(BUILD), '--check', '--no-themes', '--tokens', str(changed)],
+                               capture_output=True, text=True, cwd=ROOT)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn('out of date', r.stderr)
+
+    def test_output_is_deterministic(self):
+        self.assertEqual(btc.build(), btc.build())
+        text = THEMES_CSS.read_text()
+        self.assertEqual(btc.build_themes(text), btc.build_themes(btc.build_themes(text)))
+
+    def test_tokens_css_has_every_token_and_the_system_theme(self):
+        css = TOKENS_CSS.read_text()
+        drift = cdt.check_drift(json.loads(TOKENS.read_text()), [TOKENS_CSS])
+        self.assertEqual(drift['errors'], [])
+        self.assertEqual(drift['missing'], [])
+        self.assertIn('@media (prefers-color-scheme: dark) {\n  :root[data-cs-theme="system"] {', css)
+        self.assertIn('[data-cs-theme="dark"] {', css)
+
+    def test_generated_css_only_declares_custom_properties(self):
+        """Loading tokens.css and the theme-token region cannot change how a page looks: they
+        declare --cs-* custom properties and nothing else."""
+        for label, text in (('tokens.css', TOKENS_CSS.read_text()), ('themes region', _region(THEMES_CSS.read_text()))):
+            for prelude, name, _value in cdt.css_declarations(text):
+                with self.subTest(source=label, name=name):
+                    self.assertTrue(name.startswith('--cs-'))
+            body = cdt._strip_comments(text)
+            for decl in re.findall(r'[{;]\s*([a-z][a-z-]*)\s*:', body):
+                with self.subTest(source=label, property=decl):
+                    self.fail(f'{label} declares a real property {decl!r}')
+
+
+class LegacyThemeTokenTests(SimpleTestCase):
+    """Every colour theme in themes.css sets the semantic tokens from its own palette, and the
+    values a page would see meet every contrast pair of the spec (WCAG 2.2 AA)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.doc = json.loads(TOKENS.read_text())
+        cls.themes_text = THEMES_CSS.read_text()
+        cls.palettes = btc.legacy_palettes(cls.themes_text)
+        cls.nav = btc.nav_palette(NAV_CSS.read_text())
+        cls.blocks = {name: (mode, body) for name, mode, body in re.findall(
+            r':root\[data-theme="([\w-]+)"\] \{ /\* (light|dark) \*/\n(.*?)^\}', _region(cls.themes_text), re.S | re.M)}
+
+    def _resolved(self, name):
+        mode, body = self.blocks[name]
+        values = {'.'.join(p): cdt.resolve(self.doc, t) for p, t in cdt.walk(self.doc['theme'][mode]['color'])}
+        prefix = '--cs-color-'
+        lookup = dict(self.palettes[name], **self.nav)
+        for css_name, value in re.findall(r'(--cs-color-[\w-]+):\s*([^;]+);', body):
+            path = css_name[len(prefix):]
+            key = next(k for k in values if k.replace('.', '-') == path)
+            m = re.match(r'var\(--([\w-]+)\)$', value.strip())
+            values[key] = lookup[m.group(1)] if m else value.strip()
+        return mode, values
+
+    def test_every_theme_is_mapped_in_the_right_mode(self):
+        from accounts.context_processors import DARK_THEMES
+        self.assertEqual(set(self.blocks), set(self.palettes))
+        self.assertGreaterEqual(len(self.blocks), 12)
+        for name, (mode, _body) in self.blocks.items():
+            with self.subTest(theme=name):
+                self.assertEqual(mode == 'dark', name in DARK_THEMES)
+
+    def test_main_roles_come_from_the_theme_palette(self):
+        for name in self.blocks:
+            body = self.blocks[name][1]
+            with self.subTest(theme=name):
+                for line in ('--cs-color-bg-page: var(--background);', '--cs-color-bg-surface: var(--surface);',
+                             '--cs-color-text-primary: var(--text-primary);',
+                             '--cs-color-border-subtle: var(--border-color);'):
+                    self.assertIn(line, body)
+
+    def test_every_contrast_pair_passes_in_every_theme(self):
+        for name in self.blocks:
+            mode, values = self._resolved(name)
+            for pair in self.doc['contrast-pairs']['pairs']:
+                if pair['theme'] != mode:
+                    continue
+                fg, bg = values[pair['fg']], values[pair['bg']]
+                if len(fg) != 7 or len(bg) != 7:
+                    continue  # translucent spec overlay, not a text pair
+                with self.subTest(theme=name, fg=pair['fg'], bg=pair['bg']):
+                    self.assertGreaterEqual(cdt.contrast(fg, bg) + 1e-9, pair['min'])
+
+    def test_mapping_is_more_specific_than_the_system_block(self):
+        # tokens.css: :root[data-cs-theme="system"] (0,2,0) under the media query. The theme blocks
+        # use :root[data-theme="x"] (0,2,0) and themes.css loads later, so the theme wins.
+        self.assertNotIn('\n[data-theme=', _region(self.themes_text))

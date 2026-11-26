@@ -457,17 +457,31 @@ def toggle_theme(request):
     v3.17.677: a dark palette (Professional Dark, Dark, Dracula, Monokai)
     switches to Default Blue; anything else, Nord included (it is a light
     palette), switches to Professional Dark.
+
+    113.5: the System theme is light or dark depending on the device, which
+    only the browser knows; the page posts {"dark": true|false} (what it is
+    showing) and the toggle goes to the other one. Without it, System counts
+    as light.
     """
+    import json
+
     from django.http import JsonResponse
 
-    from .context_processors import TOGGLE_DARK_THEME, TOGGLE_LIGHT_THEME, is_dark_theme
+    from .context_processors import SYSTEM_THEME, TOGGLE_DARK_THEME, TOGGLE_LIGHT_THEME, is_dark_theme
 
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'POST required'}, status=405)
 
     profile, created = UserProfile.objects.get_or_create(user=request.user)
 
-    profile.theme = TOGGLE_LIGHT_THEME if is_dark_theme(profile.theme) else TOGGLE_DARK_THEME
+    if profile.theme == SYSTEM_THEME:
+        try:
+            showing_dark = json.loads(request.body or b'{}').get('dark') is True
+        except (ValueError, AttributeError):
+            showing_dark = False
+    else:
+        showing_dark = is_dark_theme(profile.theme)
+    profile.theme = TOGGLE_LIGHT_THEME if showing_dark else TOGGLE_DARK_THEME
     profile.save(update_fields=['theme'])
 
     return JsonResponse({'success': True, 'theme': profile.theme})

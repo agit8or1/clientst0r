@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.793] - 2026-11-26
+
+### Added
+- **System theme.** Profile → Theme has a new choice, **System**, that follows the device's light or dark setting and
+  switches while the page is open when the device does. The theme button keeps working: from System it switches to
+  the opposite of what is showing. Existing users keep the theme they chose; the default is unchanged.
+
+### Changed
+- **One generated colour and size stylesheet.** `static/css/tokens.css` is built from the design specification
+  (`docs/ux/design-tokens.json`) by `scripts/ux/build_token_css.py`; a test fails when the two drift apart. All 12
+  themes are mapped onto it. **No theme looks different:** every theme was rendered in a browser under light and dark
+  device settings and every computed style on the page compared with and without the new stylesheet (0 differences).
+  Where a theme's own colour would fail a WCAG 2.2 AA contrast pair in the specification, the mapped value is nudged
+  just far enough to pass; these values are not used by any page yet.
+- The token stylesheet also loads on the customer portal, the sign-in and two-factor pages and the document editor.
+- Roadmap: 113.5 shipped.
+
 ## [3.17.792] - 2026-11-26
 
 ### Added

@@ -567,6 +567,9 @@ class UserProfile(BaseModel):
     # keeps the theme it already holds (a field default only fills new rows).
     theme = models.CharField(max_length=30, default='professional', choices=[
         ('professional', 'Professional Dark'),
+        # 113.5: Default Blue or Professional Dark, whichever matches the
+        # device's light/dark setting (static/js/theme_system.js).
+        ('system', 'System (follows your device: light or dark)'),
         ('dark', 'Dark Mode'),
         ('default', 'Default Blue'),
         ('dracula', 'Dracula'),

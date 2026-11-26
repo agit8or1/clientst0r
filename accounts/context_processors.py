@@ -18,12 +18,26 @@ TOGGLE_DARK_THEME = 'professional'
 TOGGLE_LIGHT_THEME = 'default'
 # What a page renders with when there is no profile to ask (signed out).
 ANONYMOUS_THEME = 'default'
+# 113.5: the System choice follows the device's prefers-color-scheme. The page
+# is rendered with the light palette and static/js/theme_system.js (loaded in
+# <head>, before first paint) switches <html> to the dark one when the device
+# prefers dark, and back again when the setting changes.
+SYSTEM_THEME = 'system'
+SYSTEM_LIGHT_THEME = 'default'
+SYSTEM_DARK_THEME = 'professional'
 DENSITIES = frozenset({'compact', 'comfortable'})
 DEFAULT_DENSITY = 'compact'
 
 
 def is_dark_theme(theme) -> bool:
     return theme in DARK_THEMES
+
+
+def design_token_theme(theme) -> str:
+    """data-cs-theme for <html> (static/css/tokens.css): 'light', 'dark' or 'system'."""
+    if theme == SYSTEM_THEME:
+        return 'system'
+    return 'dark' if is_dark_theme(theme) else 'light'
 
 
 LOCALE_LABELS = {
@@ -92,10 +106,20 @@ def user_theme(request):
     user_locale_code = getattr(request, 'LANGUAGE_CODE', 'en-us') or 'en-us'
     user_locale_label = LOCALE_LABELS.get(user_locale_code, 'English (US)')
 
+    theme_mode = design_token_theme(theme)
+    if theme == SYSTEM_THEME:
+        # Server-side first paint is the light palette; theme_system.js moves it.
+        theme = SYSTEM_LIGHT_THEME
+
     return {
         'user_theme': theme,
         # base.html: data-bs-theme on <html>, and the toggle's sun/moon icon.
         'user_theme_is_dark': is_dark_theme(theme),
+        # base.html: data-cs-theme on <html> ('system' also adds
+        # data-theme-mode="system" for theme_system.js).
+        'user_theme_mode': theme_mode,
+        'user_theme_system_light': SYSTEM_LIGHT_THEME,
+        'user_theme_system_dark': SYSTEM_DARK_THEME,
         # base.html: data-density on <html> (ui.css density tokens).
         'user_density': density,
         'user_background_mode': background_mode,

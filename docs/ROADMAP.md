@@ -116,7 +116,7 @@ Work being implemented now or approved as the next P0 task.
 | 1 | 94 — [Evidence integrity and routine backups](#phase-94) | P0\* | 🔵 In progress | External append-only audit shipping (94.1); protected-change approval for audit pruning (94.2); S3 destination (94.3) | — |
 | 2 | 51 — [Reliability and customer-boundary hardening](#phase-51) | P0\* | 🔵 In progress | Per-customer integration ownership (remaining part of the platform-integrations item) | — |
 | 3 | 112 — [Complete user documentation with annotated screenshots](#phase-112) | P1 | 🔵 In progress | 112.7 Reports; 112.8 Administration | 67 |
-| 4 | 113 — [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | 113.5 tokens; guide screenshots after 113.8 | 67 |
+| 4 | 113 — [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | guide screenshots after 113.8 | 67 |
 
 <!-- /generated:now -->
 
@@ -364,7 +364,7 @@ unchanged. Click a feature for its details.
 | 67 | [Interface, navigation and dashboard redesign](#phase-67) | — | 🔵 In progress | 64 | 67.8 validation and 67.16 follow-ups |
 | 96 | [First-install setup wizard and interactive onboarding](#phase-96) | P0 | 🔵 In progress | 59, 64, 67 | 96.5 sample data |
 | 112 | [Complete user documentation with annotated screenshots](#phase-112) | P1 | 🔵 In progress | 67 | 112.7 Reports; 112.8 Administration |
-| 113 | [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | 67 | 113.5 tokens; guide screenshots after 113.8 |
+| 113 | [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | 67 | guide screenshots after 113.8 |
 
 <details markdown="1">
 <summary>4 completed phases</summary>
@@ -4003,9 +4003,9 @@ annotated screenshot (numbered callouts matched by a numbered list) captured fro
 <a id="phase-113"></a>
 
 ## Phase 113 — One consistent interface, shared design system and standalone guarantees **(L · P1 · usability)** [in progress]
-<!-- phase: ws=I stage=7 view=now order=4 deps=67 next="113.5 tokens; guide screenshots after 113.8" -->
+<!-- phase: ws=I stage=7 view=now order=4 deps=67 next="guide screenshots after 113.8" -->
 **Status:** 🔵 In progress · **Priority:** P1 · **Workstream:** I. Deployment, Updates & Reliability · **Depends on:** 67  
-**Next:** 113.5 tokens; guide screenshots after 113.8
+**Next:** guide screenshots after 113.8
 
 
 Builds on Phase 67 (navigation, settings center, palette, dashboard, workspaces — shipped) rather than replacing it.
@@ -4031,7 +4031,7 @@ increment is tested with no peer application and no RMM configured. Hiding a lin
   showing healthy.
 - **113.4 Urgent accessibility fixes** *(shipped v3.17.789 — 418 label and name findings on 93 other pages listed in docs/ux/UX_AUDIT.md for later increments)* — styled error messages, readable skip link and current-page marker,
   focus ring and top-bar contrast, names for unlabelled fields and icon buttons, 404/500 pages inside the shell.
-- **113.5 Design tokens in CSS** *(in progress — CDN libraries and Inter bundled v3.17.791; token stylesheet and System theme next)* — one generated token stylesheet, existing themes mapped onto it, a
+- **113.5 Design tokens in CSS** *(shipped v3.17.793 — CDN libraries and Inter v3.17.791; token stylesheet, theme mapping and System theme v3.17.793. Existing styles start reading the tokens as pages are touched; the portal's own colours are not mapped yet)* — one generated token stylesheet, existing themes mapped onto it, a
   system-following theme, self-hosted Inter, every CDN script and font bundled.
 - **113.6 Standalone hardening** *(shipped v3.17.783 — the two GitHub update checks that still run while a page loads are noted for a later release)* — no-network smoke test over every page, peer-unreachable fixture, RMM-only
   navigation, widgets and tabs hidden when no RMM is connected, timeout lint, safe removal of an RMM connection,

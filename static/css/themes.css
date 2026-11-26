@@ -381,6 +381,362 @@
     --card-shadow: rgba(60, 56, 54, 0.1);
 }
 
+/* generated:theme-tokens:start (scripts/ux/build_token_css.py from the palettes above and design-tokens.json v1.0.0; do not edit) */
+/* Semantic design tokens for each colour theme. Nothing here changes how a theme looks:
+   it sets --cs-color-* (static/css/tokens.css) from the theme's own palette. Tokens not
+   listed keep the spec value of the theme's mode, from data-cs-theme on <html>. */
+:root[data-theme="professional"] { /* dark */
+    --cs-color-bg-page: var(--background);
+    --cs-color-bg-surface: var(--surface);
+    --cs-color-bg-raised: var(--surface-raised);
+    --cs-color-bg-sunken: var(--background-alt);
+    --cs-color-bg-hover: var(--surface-hover);
+    --cs-color-bg-selected: var(--primary-light);
+    --cs-color-text-primary: var(--text-primary);
+    --cs-color-text-secondary: var(--text-secondary);
+    --cs-color-text-muted: var(--text-muted);
+    --cs-color-text-link: var(--link-color);
+    --cs-color-text-link-hover: var(--link-hover);
+    --cs-color-border-subtle: var(--border-color);
+    --cs-color-border-default: var(--border-color);
+    --cs-color-border-strong: var(--border-strong);
+    --cs-color-focus-ring: var(--focus-ring);
+    --cs-color-action-primary-bg: var(--primary-color);
+    --cs-color-action-primary-bg-hover: var(--primary-hover);
+    --cs-color-status-success-text: var(--success-ink);
+    --cs-color-status-warning-text: var(--warning-ink);
+    --cs-color-status-danger-text: var(--danger-ink);
+    --cs-color-status-info-text: var(--info-ink);
+    --cs-color-nav-bg: var(--appnav-bg);
+    --cs-color-nav-bg-raised: var(--appnav-bg-raised);
+    --cs-color-nav-hover: #1a2d47; /* adjusted from spec, for contrast */
+    --cs-color-nav-active-bg: #103038; /* adjusted from spec, for contrast */
+    --cs-color-nav-border: var(--appnav-border);
+    --cs-color-nav-text: var(--appnav-text);
+    --cs-color-nav-text-muted: var(--appnav-muted);
+    --cs-color-nav-text-strong: var(--appnav-strong);
+    --cs-color-nav-active-indicator: var(--appnav-accent);
+    --cs-color-nav-focus: var(--appnav-focus);
+}
+:root[data-theme="default"] { /* light */
+    --cs-color-bg-page: var(--background);
+    --cs-color-bg-surface: var(--surface);
+    --cs-color-bg-raised: var(--card-bg);
+    --cs-color-bg-sunken: var(--background-alt);
+    --cs-color-bg-hover: var(--surface-hover);
+    --cs-color-bg-selected: #dbeaff; /* adjusted from --primary-light, for contrast */
+    --cs-color-text-primary: var(--text-primary);
+    --cs-color-text-secondary: var(--text-secondary);
+    --cs-color-text-muted: var(--text-muted);
+    --cs-color-text-link: var(--link-color);
+    --cs-color-text-link-hover: var(--link-hover);
+    --cs-color-border-subtle: var(--border-color);
+    --cs-color-border-default: var(--border-color);
+    --cs-color-action-primary-bg: var(--primary-color);
+    --cs-color-action-primary-bg-hover: var(--primary-hover);
+    --cs-color-status-success-text: var(--success-ink);
+    --cs-color-status-warning-text: var(--warning-ink);
+    --cs-color-status-danger-text: var(--danger-ink);
+    --cs-color-status-info-text: var(--info-ink);
+    --cs-color-nav-bg: var(--appnav-bg);
+    --cs-color-nav-bg-raised: var(--appnav-bg-raised);
+    --cs-color-nav-hover: #1a2d47; /* adjusted from spec, for contrast */
+    --cs-color-nav-active-bg: #103038; /* adjusted from spec, for contrast */
+    --cs-color-nav-border: var(--appnav-border);
+    --cs-color-nav-text: var(--appnav-text);
+    --cs-color-nav-text-muted: var(--appnav-muted);
+    --cs-color-nav-text-strong: var(--appnav-strong);
+    --cs-color-nav-active-indicator: var(--appnav-accent);
+    --cs-color-nav-focus: var(--appnav-focus);
+}
+:root[data-theme="dark"] { /* dark */
+    --cs-color-bg-page: var(--background);
+    --cs-color-bg-surface: var(--surface);
+    --cs-color-bg-raised: var(--card-bg);
+    --cs-color-bg-sunken: var(--background-alt);
+    --cs-color-bg-hover: var(--surface-hover);
+    --cs-color-bg-selected: #193850; /* adjusted from --primary-light, for contrast */
+    --cs-color-text-primary: var(--text-primary);
+    --cs-color-text-secondary: var(--text-secondary);
+    --cs-color-text-muted: #989ea4; /* adjusted from --text-muted, for contrast */
+    --cs-color-text-link: var(--link-color);
+    --cs-color-text-link-hover: var(--link-hover);
+    --cs-color-border-subtle: var(--border-color);
+    --cs-color-border-default: var(--border-color);
+    --cs-color-action-primary-bg: var(--primary-color);
+    --cs-color-action-primary-bg-hover: var(--primary-hover);
+    --cs-color-nav-bg: var(--appnav-bg);
+    --cs-color-nav-bg-raised: var(--appnav-bg-raised);
+    --cs-color-nav-hover: #1a2d47; /* adjusted from spec, for contrast */
+    --cs-color-nav-active-bg: #103038; /* adjusted from spec, for contrast */
+    --cs-color-nav-border: var(--appnav-border);
+    --cs-color-nav-text: var(--appnav-text);
+    --cs-color-nav-text-muted: var(--appnav-muted);
+    --cs-color-nav-text-strong: var(--appnav-strong);
+    --cs-color-nav-active-indicator: var(--appnav-accent);
+    --cs-color-nav-focus: var(--appnav-focus);
+}
+:root[data-theme="purple"] { /* light */
+    --cs-color-bg-page: var(--background);
+    --cs-color-bg-surface: var(--surface);
+    --cs-color-bg-raised: var(--card-bg);
+    --cs-color-bg-sunken: var(--background-alt);
+    --cs-color-bg-hover: var(--surface-hover);
+    --cs-color-bg-selected: #f2eef9; /* adjusted from --primary-light, for contrast */
+    --cs-color-text-primary: var(--text-primary);
+    --cs-color-text-secondary: var(--text-secondary);
+    --cs-color-text-muted: #736886; /* adjusted from --text-muted, for contrast */
+    --cs-color-text-link: var(--primary-color);
+    --cs-color-text-link-hover: var(--primary-hover);
+    --cs-color-border-subtle: var(--border-color);
+    --cs-color-border-default: var(--border-color);
+    --cs-color-action-primary-bg: var(--primary-color);
+    --cs-color-action-primary-bg-hover: var(--primary-hover);
+    --cs-color-nav-bg: var(--appnav-bg);
+    --cs-color-nav-bg-raised: var(--appnav-bg-raised);
+    --cs-color-nav-hover: #1a2d47; /* adjusted from spec, for contrast */
+    --cs-color-nav-active-bg: #103038; /* adjusted from spec, for contrast */
+    --cs-color-nav-border: var(--appnav-border);
+    --cs-color-nav-text: var(--appnav-text);
+    --cs-color-nav-text-muted: var(--appnav-muted);
+    --cs-color-nav-text-strong: var(--appnav-strong);
+    --cs-color-nav-active-indicator: var(--appnav-accent);
+    --cs-color-nav-focus: var(--appnav-focus);
+}
+:root[data-theme="green"] { /* light */
+    --cs-color-bg-page: var(--background);
+    --cs-color-bg-surface: var(--surface);
+    --cs-color-bg-raised: var(--card-bg);
+    --cs-color-bg-sunken: var(--background-alt);
+    --cs-color-bg-hover: var(--surface-hover);
+    --cs-color-bg-selected: #e6f2ec; /* adjusted from --primary-light, for contrast */
+    --cs-color-text-primary: var(--text-primary);
+    --cs-color-text-secondary: var(--text-secondary);
+    --cs-color-text-muted: #46775e; /* adjusted from --text-muted, for contrast */
+    --cs-color-text-link: var(--link-color);
+    --cs-color-text-link-hover: var(--link-hover);
+    --cs-color-border-subtle: var(--border-color);
+    --cs-color-border-default: var(--border-color);
+    --cs-color-action-primary-bg: var(--primary-color);
+    --cs-color-action-primary-bg-hover: var(--primary-hover);
+    --cs-color-nav-bg: var(--appnav-bg);
+    --cs-color-nav-bg-raised: var(--appnav-bg-raised);
+    --cs-color-nav-hover: #1a2d47; /* adjusted from spec, for contrast */
+    --cs-color-nav-active-bg: #103038; /* adjusted from spec, for contrast */
+    --cs-color-nav-border: var(--appnav-border);
+    --cs-color-nav-text: var(--appnav-text);
+    --cs-color-nav-text-muted: var(--appnav-muted);
+    --cs-color-nav-text-strong: var(--appnav-strong);
+    --cs-color-nav-active-indicator: var(--appnav-accent);
+    --cs-color-nav-focus: var(--appnav-focus);
+}
+:root[data-theme="ocean"] { /* light */
+    --cs-color-bg-page: var(--background);
+    --cs-color-bg-surface: var(--surface);
+    --cs-color-bg-raised: var(--card-bg);
+    --cs-color-bg-sunken: var(--background-alt);
+    --cs-color-bg-hover: var(--surface-hover);
+    --cs-color-bg-selected: #def0f9; /* adjusted from --primary-light, for contrast */
+    --cs-color-text-primary: var(--text-primary);
+    --cs-color-text-secondary: var(--text-secondary);
+    --cs-color-text-muted: #417286; /* adjusted from --text-muted, for contrast */
+    --cs-color-text-link: var(--link-color);
+    --cs-color-text-link-hover: var(--link-hover);
+    --cs-color-border-subtle: var(--border-color);
+    --cs-color-border-default: var(--border-color);
+    --cs-color-action-primary-bg: var(--primary-color);
+    --cs-color-action-primary-bg-hover: var(--primary-hover);
+    --cs-color-nav-bg: var(--appnav-bg);
+    --cs-color-nav-bg-raised: var(--appnav-bg-raised);
+    --cs-color-nav-hover: #1a2d47; /* adjusted from spec, for contrast */
+    --cs-color-nav-active-bg: #103038; /* adjusted from spec, for contrast */
+    --cs-color-nav-border: var(--appnav-border);
+    --cs-color-nav-text: var(--appnav-text);
+    --cs-color-nav-text-muted: var(--appnav-muted);
+    --cs-color-nav-text-strong: var(--appnav-strong);
+    --cs-color-nav-active-indicator: var(--appnav-accent);
+    --cs-color-nav-focus: var(--appnav-focus);
+}
+:root[data-theme="sunset"] { /* light */
+    --cs-color-bg-page: var(--background);
+    --cs-color-bg-surface: var(--surface);
+    --cs-color-bg-raised: var(--card-bg);
+    --cs-color-bg-sunken: var(--background-alt);
+    --cs-color-bg-hover: var(--surface-hover);
+    --cs-color-bg-selected: #fff7ef; /* adjusted from --primary-light, for contrast */
+    --cs-color-text-primary: var(--text-primary);
+    --cs-color-text-secondary: var(--text-secondary);
+    --cs-color-text-muted: #9c6332; /* adjusted from --text-muted, for contrast */
+    --cs-color-text-link: var(--link-color);
+    --cs-color-text-link-hover: var(--link-hover);
+    --cs-color-border-subtle: var(--border-color);
+    --cs-color-border-default: var(--border-color);
+    --cs-color-action-primary-bg: #b95c0f; /* adjusted from --primary-color, for contrast */
+    --cs-color-action-primary-bg-hover: #ba5c0d; /* adjusted from --primary-hover, for contrast */
+    --cs-color-nav-bg: var(--appnav-bg);
+    --cs-color-nav-bg-raised: var(--appnav-bg-raised);
+    --cs-color-nav-hover: #1a2d47; /* adjusted from spec, for contrast */
+    --cs-color-nav-active-bg: #103038; /* adjusted from spec, for contrast */
+    --cs-color-nav-border: var(--appnav-border);
+    --cs-color-nav-text: var(--appnav-text);
+    --cs-color-nav-text-muted: var(--appnav-muted);
+    --cs-color-nav-text-strong: var(--appnav-strong);
+    --cs-color-nav-active-indicator: var(--appnav-accent);
+    --cs-color-nav-focus: var(--appnav-focus);
+}
+:root[data-theme="nord"] { /* light */
+    --cs-color-bg-page: var(--background);
+    --cs-color-bg-surface: var(--surface);
+    --cs-color-bg-raised: var(--card-bg);
+    --cs-color-bg-sunken: var(--background-alt);
+    --cs-color-bg-hover: var(--surface-hover);
+    --cs-color-bg-selected: #e3e8ef; /* adjusted from --primary-light, for contrast */
+    --cs-color-text-primary: var(--text-primary);
+    --cs-color-text-secondary: var(--text-secondary);
+    --cs-color-text-muted: var(--text-muted);
+    --cs-color-text-link: var(--link-color);
+    --cs-color-text-link-hover: var(--link-hover);
+    --cs-color-border-subtle: var(--border-color);
+    --cs-color-border-default: var(--border-color);
+    --cs-color-action-primary-bg: #5778a0; /* adjusted from --primary-color, for contrast */
+    --cs-color-action-primary-bg-hover: var(--primary-hover);
+    --cs-color-status-success-text: #157d3c; /* adjusted from spec, for contrast */
+    --cs-color-nav-bg: var(--appnav-bg);
+    --cs-color-nav-bg-raised: var(--appnav-bg-raised);
+    --cs-color-nav-hover: #1a2d47; /* adjusted from spec, for contrast */
+    --cs-color-nav-active-bg: #103038; /* adjusted from spec, for contrast */
+    --cs-color-nav-border: var(--appnav-border);
+    --cs-color-nav-text: var(--appnav-text);
+    --cs-color-nav-text-muted: var(--appnav-muted);
+    --cs-color-nav-text-strong: var(--appnav-strong);
+    --cs-color-nav-active-indicator: var(--appnav-accent);
+    --cs-color-nav-focus: var(--appnav-focus);
+}
+:root[data-theme="dracula"] { /* dark */
+    --cs-color-bg-page: var(--background);
+    --cs-color-bg-surface: var(--surface);
+    --cs-color-bg-raised: var(--card-bg);
+    --cs-color-bg-sunken: var(--background-alt);
+    --cs-color-bg-hover: var(--surface-hover);
+    --cs-color-bg-selected: #495479; /* adjusted from --primary-light, for contrast */
+    --cs-color-text-primary: var(--text-primary);
+    --cs-color-text-secondary: #cacaca; /* adjusted from --text-secondary, for contrast */
+    --cs-color-text-muted: #c5cbdd; /* adjusted from --text-muted, for contrast */
+    --cs-color-text-disabled: #8c95a5; /* adjusted from spec, for contrast */
+    --cs-color-text-link: var(--link-color);
+    --cs-color-text-link-hover: var(--link-hover);
+    --cs-color-border-subtle: var(--border-color);
+    --cs-color-border-default: var(--border-color);
+    --cs-color-border-strong: #8995a8; /* adjusted from spec, for contrast */
+    --cs-color-action-primary-bg: #8668b1; /* adjusted from --primary-color, for contrast */
+    --cs-color-action-primary-bg-hover: #8964bd; /* adjusted from --primary-hover, for contrast */
+    --cs-color-action-secondary-border: #8995a8; /* adjusted from spec, for contrast */
+    --cs-color-status-danger-text: #fa9d9d; /* adjusted from spec, for contrast */
+    --cs-color-status-info-text: #46c2f8; /* adjusted from spec, for contrast */
+    --cs-color-status-pending-text: #bfaafb; /* adjusted from spec, for contrast */
+    --cs-color-status-neutral-text: #acb7c8; /* adjusted from spec, for contrast */
+    --cs-color-nav-bg: var(--appnav-bg);
+    --cs-color-nav-bg-raised: var(--appnav-bg-raised);
+    --cs-color-nav-hover: #1a2d47; /* adjusted from spec, for contrast */
+    --cs-color-nav-active-bg: #103038; /* adjusted from spec, for contrast */
+    --cs-color-nav-border: var(--appnav-border);
+    --cs-color-nav-text: var(--appnav-text);
+    --cs-color-nav-text-muted: var(--appnav-muted);
+    --cs-color-nav-text-strong: var(--appnav-strong);
+    --cs-color-nav-active-indicator: var(--appnav-accent);
+    --cs-color-nav-focus: var(--appnav-focus);
+    --cs-color-chart-axis: #acb7c8; /* adjusted from spec, for contrast */
+}
+:root[data-theme="solarized"] { /* light */
+    --cs-color-bg-page: var(--background);
+    --cs-color-bg-surface: var(--surface);
+    --cs-color-bg-raised: var(--card-bg);
+    --cs-color-bg-sunken: var(--background-alt);
+    --cs-color-bg-hover: var(--surface-hover);
+    --cs-color-bg-selected: var(--primary-light);
+    --cs-color-text-primary: var(--text-primary);
+    --cs-color-text-secondary: var(--text-secondary);
+    --cs-color-text-muted: #586b72; /* adjusted from --text-muted, for contrast */
+    --cs-color-text-link: var(--link-color);
+    --cs-color-text-link-hover: var(--link-hover);
+    --cs-color-border-subtle: var(--border-color);
+    --cs-color-border-default: var(--border-color);
+    --cs-color-action-primary-bg: #217ab9; /* adjusted from --primary-color, for contrast */
+    --cs-color-action-primary-bg-hover: var(--primary-hover);
+    --cs-color-nav-bg: var(--appnav-bg);
+    --cs-color-nav-bg-raised: var(--appnav-bg-raised);
+    --cs-color-nav-hover: #1a2d47; /* adjusted from spec, for contrast */
+    --cs-color-nav-active-bg: #103038; /* adjusted from spec, for contrast */
+    --cs-color-nav-border: var(--appnav-border);
+    --cs-color-nav-text: var(--appnav-text);
+    --cs-color-nav-text-muted: var(--appnav-muted);
+    --cs-color-nav-text-strong: var(--appnav-strong);
+    --cs-color-nav-active-indicator: var(--appnav-accent);
+    --cs-color-nav-focus: var(--appnav-focus);
+}
+:root[data-theme="monokai"] { /* dark */
+    --cs-color-bg-page: var(--background);
+    --cs-color-bg-surface: var(--surface);
+    --cs-color-bg-raised: var(--card-bg);
+    --cs-color-bg-sunken: var(--background-alt);
+    --cs-color-bg-hover: var(--surface-hover);
+    --cs-color-bg-selected: #4b483c; /* adjusted from --primary-light, for contrast */
+    --cs-color-text-primary: var(--text-primary);
+    --cs-color-text-secondary: var(--text-secondary);
+    --cs-color-text-muted: #b9b7ad; /* adjusted from --text-muted, for contrast */
+    --cs-color-text-link: var(--link-color);
+    --cs-color-text-link-hover: var(--link-hover);
+    --cs-color-border-subtle: var(--border-color);
+    --cs-color-border-default: var(--border-color);
+    --cs-color-border-strong: #7a879d; /* adjusted from spec, for contrast */
+    --cs-color-action-primary-bg: #e02267; /* adjusted from --primary-color, for contrast */
+    --cs-color-action-primary-bg-hover: var(--primary-hover);
+    --cs-color-action-secondary-border: #7a879d; /* adjusted from spec, for contrast */
+    --cs-color-status-danger-text: #f98585; /* adjusted from spec, for contrast */
+    --cs-color-status-pending-text: #b097fa; /* adjusted from spec, for contrast */
+    --cs-color-status-neutral-text: #99a8bc; /* adjusted from spec, for contrast */
+    --cs-color-nav-bg: var(--appnav-bg);
+    --cs-color-nav-bg-raised: var(--appnav-bg-raised);
+    --cs-color-nav-hover: #1a2d47; /* adjusted from spec, for contrast */
+    --cs-color-nav-active-bg: #103038; /* adjusted from spec, for contrast */
+    --cs-color-nav-border: var(--appnav-border);
+    --cs-color-nav-text: var(--appnav-text);
+    --cs-color-nav-text-muted: var(--appnav-muted);
+    --cs-color-nav-text-strong: var(--appnav-strong);
+    --cs-color-nav-active-indicator: var(--appnav-accent);
+    --cs-color-nav-focus: var(--appnav-focus);
+    --cs-color-chart-axis: #99a8bc; /* adjusted from spec, for contrast */
+}
+:root[data-theme="gruvbox"] { /* light */
+    --cs-color-bg-page: var(--background);
+    --cs-color-bg-surface: var(--surface);
+    --cs-color-bg-raised: var(--card-bg);
+    --cs-color-bg-sunken: var(--background-alt);
+    --cs-color-bg-hover: var(--surface-hover);
+    --cs-color-bg-selected: var(--primary-light);
+    --cs-color-text-primary: var(--text-primary);
+    --cs-color-text-secondary: var(--text-secondary);
+    --cs-color-text-muted: #706559; /* adjusted from --text-muted, for contrast */
+    --cs-color-text-link: var(--link-color);
+    --cs-color-text-link-hover: var(--link-hover);
+    --cs-color-border-subtle: var(--border-color);
+    --cs-color-border-default: var(--border-color);
+    --cs-color-action-primary-bg: #9b6e18; /* adjusted from --primary-color, for contrast */
+    --cs-color-action-primary-bg-hover: #9e6d16; /* adjusted from --primary-hover, for contrast */
+    --cs-color-status-success-text: #157d3c; /* adjusted from spec, for contrast */
+    --cs-color-nav-bg: var(--appnav-bg);
+    --cs-color-nav-bg-raised: var(--appnav-bg-raised);
+    --cs-color-nav-hover: #1a2d47; /* adjusted from spec, for contrast */
+    --cs-color-nav-active-bg: #103038; /* adjusted from spec, for contrast */
+    --cs-color-nav-border: var(--appnav-border);
+    --cs-color-nav-text: var(--appnav-text);
+    --cs-color-nav-text-muted: var(--appnav-muted);
+    --cs-color-nav-text-strong: var(--appnav-strong);
+    --cs-color-nav-active-indicator: var(--appnav-accent);
+    --cs-color-nav-focus: var(--appnav-focus);
+}
+/* generated:theme-tokens:end */
+
 /* ========================================
    THEME APPLICATION
    ======================================== */
