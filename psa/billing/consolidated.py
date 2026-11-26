@@ -124,6 +124,22 @@ def fee_candidates(client, today=None):
     return [contract_fee_status(c, today) for c in qs]
 
 
+def fee_candidates_many(clients, today=None):
+    """{client pk: fee_candidates(client)} for many customers, their
+    agreements read in one query (same filter and order per customer)."""
+    from psa.models import Contract
+    out = {c.pk: [] for c in clients}
+    if not out:
+        return out
+    qs = (Contract.objects.filter(client_org_id__in=list(out), status='active').exclude(billing_frequency='none')
+          .order_by('client_org_id', 'name', 'pk'))
+    contracts = list(qs)
+    Contract.preload_signed_documents(contracts)
+    for c in contracts:
+        out[c.client_org_id].append(contract_fee_status(c, today))
+    return out
+
+
 @dataclass
 class Result:
     invoice: object = None

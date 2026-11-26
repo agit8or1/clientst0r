@@ -224,11 +224,15 @@ def _kind(decision):
     return 'approved' if decision.state == 'approved' else 'ready'
 
 
-def _ticket_group(ticket):
+def _ticket_group(ticket, lines_info=None, decided=None, running=None):
+    """The ticket's queue group. build_queue passes what it read for all
+    tickets at once: `lines_info` (ticket_billing_lines), `decided`
+    (decisions_for of every line) and `running` (whether a timer runs)."""
     from .ticket_charges import blockers
-    lines, info = invoicing.ticket_billing_lines(ticket)
-    g = TicketGroup(ticket=ticket, blockers=blockers(ticket, info), info=info)
-    decided = billed.decisions_for((ln['source'], ln['source_id']) for ln in lines)
+    lines, info = lines_info if lines_info is not None else invoicing.ticket_billing_lines(ticket)
+    g = TicketGroup(ticket=ticket, blockers=blockers(ticket, info, running=running), info=info)
+    if decided is None:
+        decided = billed.decisions_for((ln['source'], ln['source_id']) for ln in lines)
     for ln in lines:
         d = decided.get((ln['source'], str(ln['source_id'])))
         g.lines.append(_line(ln, kind=_kind(d), decision=d, ticket=ticket))
@@ -266,7 +270,7 @@ def build_queue(user, customer=None, limit=100):
     """[CustomerQueue] for the customers `user` holds billing_view_invoices at,
     ordered by customer name. `customer` narrows it to one customer id."""
     from core.models import Organization
-    from psa.models import Charge, Project, ProjectTask, Ticket
+    from psa.models import Charge, Project, ProjectTask, Ticket, TicketTimeEntry
     allowed = allowed_customers(user, VIEW)
     if allowed is not None and not allowed:
         return []
@@ -294,8 +298,15 @@ def build_queue(user, customer=None, limit=100):
                         .values('ticket_id'))
     tickets = scope(Ticket.objects.filter(Q(billing_status__in=('ready', 'review')) | Q(pk__in=withheld_tickets)),
                     'organization_id')
-    for t in tickets.select_related('organization').order_by('organization__name', 'pk')[:limit]:
-        g = _ticket_group(t)
+    tickets = list(tickets.select_related('organization').order_by('organization__name', 'pk')[:limit])
+    # One read for all tickets (same lines and decisions as one per ticket).
+    lines_by_ticket = invoicing.ticket_billing_lines_many(tickets)
+    decided = billed.decisions_for((ln['source'], ln['source_id'])
+                                   for lines, _info in lines_by_ticket.values() for ln in lines)
+    running = set(TicketTimeEntry.objects.filter(ticket_id__in=[t.pk for t in tickets], ended_at__isnull=True)
+                  .values_list('ticket_id', flat=True)) if tickets else set()
+    for t in tickets:
+        g = _ticket_group(t, lines_by_ticket[t.pk], decided, t.pk in running)
         if g.lines or g.withheld or g.blockers:
             group(t.organization).tickets.append(g)
 
@@ -323,10 +334,12 @@ def build_queue(user, customer=None, limit=100):
         org = task.project.client_org or task.project.organization
         group(org).milestones.append(_milestone_line(task, decided.get(('milestone', str(task.pk)))))
 
-    from .consolidated import fee_candidates
+    from .consolidated import fee_candidates_many
+    drafting = [g.client for g in groups.values() if g.can_draft]
+    fees = fee_candidates_many(drafting)
     for g in groups.values():
         if g.can_draft:
-            g.fees = fee_candidates(g.client)
+            g.fees = fees[g.client.pk]
 
     names = dict(Organization.objects.filter(pk__in=list(groups)).values_list('pk', 'name'))
     return sorted(groups.values(), key=lambda g: ((names.get(g.client.pk) or '').lower(), g.client.pk))

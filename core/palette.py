@@ -73,18 +73,41 @@ def nav_context(request):
 
 
 class Palette:
-    """One request's view of the palette: context, probe, scope, destinations."""
+    """One request's view of the palette: context, probe, scope, destinations.
+
+    The navigation context, the permission probe and the search scope are
+    built on first use (113.7), so an answer that needs none of them (the
+    top bar's "is this page starred?" when it plainly isn't) doesn't run
+    every context processor. They are built from the same request either way."""
 
     def __init__(self, request):
-        from core import navigation
-        from core.search_views import SearchScope
         self.request = request
         self.user = request.user
-        self.ctx = nav_context(request)
-        self.probe = navigation._PermProbe(self.ctx)
-        self.scope = SearchScope(request)
+        self._ctx = None
+        self._probe = None
+        self._scope = None
         self._dest = None
         self._dest_by_path = None
+
+    @property
+    def ctx(self):
+        if self._ctx is None:
+            self._ctx = nav_context(self.request)
+        return self._ctx
+
+    @property
+    def probe(self):
+        if self._probe is None:
+            from core import navigation
+            self._probe = navigation._PermProbe(self.ctx)
+        return self._probe
+
+    @property
+    def scope(self):
+        if self._scope is None:
+            from core.search_views import SearchScope
+            self._scope = SearchScope(self.request)
+        return self._scope
 
     # -- gates -------------------------------------------------------------
 
@@ -632,6 +655,25 @@ def current_state(pal, path):
         state['label'] = item['label']
         state['favorited'] = PageFavorite.objects.filter(user=pal.user, path=path).exists()
     return state
+
+
+def starred(pal, path) -> bool:
+    """current_state(pal, path)['favorited'], for the top bar's star on every
+    page load. With no favorite row for the path the answer is no without
+    building the navigation; with one, current_state decides (so a starred
+    page the user may no longer open still reads as not starred)."""
+    from core.models import Favorite, PageFavorite
+    path = clean_path(path)
+    if not path:
+        return False
+    target = _content_target(path)
+    if target is not None:
+        ct, pk = target
+        if not Favorite.objects.filter(user=pal.user, content_type=ct, object_id=pk).exists():
+            return False
+    elif not PageFavorite.objects.filter(user=pal.user, path=path).exists():
+        return False
+    return bool(current_state(pal, path)['favorited'])
 
 
 class FavoriteRefused(Exception):

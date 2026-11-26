@@ -33,18 +33,29 @@ from core.tests.test_navbar_grouping import ALL_FLAGS, TEST_MIDDLEWARE
 User = get_user_model()
 
 # Ceilings per page: (superuser, MSP technician). Measured on v3.17.754 +
-# the second performance pass, with a few queries of headroom.
+# the second performance pass, with a few queries of headroom. 113.7 added
+# My Work, the client workspace, the dispatch board, the palette (full and
+# the per-page star check) and global search, measured on the fixture below
+# (several technicians, tickets with work, assets, agreements with approved
+# time), and lowered the ticket page after the per-request memo of the
+# technician-access rows (tech_access/request_cache.py).
 BUDGETS = {
     'psa:ticket_list': (31, 36),
     'core:dashboard': (31, 37),
     'assets:asset_list': (29, 33),
     'docs:document_list': (24, 28),
     'integrations:integration_list': (35, 39),
-    'psa:ticket_detail': (96, 100),
-    'psa:billing_review': (26, None),
+    'psa:ticket_detail': (104, 108),
+    'psa:billing_review': (34, 39),
     'connect:index': (27, None),
     'vault:password_list': (19, 24),
     'core:settings_home': (19, 22),
+    'psa:my_work': (64, 65),
+    'accounts:organization_detail': (67, 68),
+    'psa:dispatch_board': (35, 40),
+    'core:palette_home': (22, 27),
+    'core:palette_home#starred': (9, 9),
+    'core:search': (38, 42),
 }
 
 
@@ -123,7 +134,53 @@ class PageBudgetBase(TestCase):
     def path(self, name, ticket=None):
         if name == 'psa:ticket_detail':
             return reverse(name, args=[ticket.ticket_number])
+        if name == 'accounts:organization_detail':
+            return reverse(name, args=[ticket.organization_id])
+        if name == 'core:search':
+            return reverse(name) + '?q=Budget'
+        if name == 'core:palette_home#starred':
+            return reverse('core:palette_home') + '?parts=starred&path=' + reverse('psa:ticket_list')
         return reverse(name)
+
+    def realistic(self, org=None):
+        """Data that shows a query per row: several technicians with tickets,
+        work on two tickets, assets (one the ticket's device, one affected),
+        and an agreement with approved time. Returns the tickets; the first
+        one is the rich ticket the ticket page budget is measured on."""
+        from assets.models import Asset
+        from psa.models import TicketAffectedAsset
+        org = org or self.orgs[0]
+        techs = [self.technician(f'budget_crew_{org.slug}_{i}', orgs=[org]) for i in range(3)]
+        tickets = self.tickets(2, org=org)
+        for i, tech in enumerate(techs):
+            tickets += self.tickets(2, org=org, assigned=tech)
+        assets = [Asset.objects.create(organization=org, name=f'Budget PC {i}', asset_type='desktop')
+                  for i in range(5)]
+        rich = tickets[0]
+        rich.related_asset = assets[0]
+        rich.save()
+        TicketAffectedAsset.objects.create(ticket=rich, asset=assets[1], organization=org)
+        self.work(rich, 2)
+        self.work(tickets[2], 1)
+        self.agreement(org, rich)
+        return tickets
+
+    def agreement(self, org, ticket):
+        """An active block agreement with approved time on `ticket` this month."""
+        from psa.models import Contract, TicketTimeEntry, TimesheetSubmission
+        today = timezone.localdate()
+        Contract.objects.create(
+            organization=self.orgs[0], client_org=org, name=f'Block {org.slug}', status='active',
+            start_date=today.replace(day=1), total_hours=Decimal('10'), hourly_rate=Decimal('100'),
+            overage_rate=Decimal('150'), billing_frequency='monthly')
+        start = timezone.now() - timedelta(hours=3)
+        te = TicketTimeEntry.objects.create(ticket=ticket, user=self.superuser, started_at=start,
+                                            ended_at=start + timedelta(minutes=90), is_billable=True)
+        sub = TimesheetSubmission.objects.create(user=self.superuser, period_start=today, period_end=today,
+                                                 revision=TimesheetSubmission.objects.count() + 1,
+                                                 status='pending')
+        TicketTimeEntry.objects.filter(pk=te.pk).update(submission=sub)
+        sub.approve(user=self.superuser)
 
     def warm_count(self, path):
         """Queries of a repeat visit (the first one also fills per-process
@@ -136,8 +193,7 @@ class PageBudgetBase(TestCase):
 class PageQueryBudgetTests(PageBudgetBase):
 
     def check_budgets(self, user, column, org=None):
-        tickets = self.tickets(4, org=org)
-        self.work(tickets[0], 2)
+        tickets = self.realistic(org)
         self.login(user, org)
         for name, ceilings in BUDGETS.items():
             ceiling = ceilings[column]
@@ -201,6 +257,55 @@ class QueriesDoNotGrowWithRowsTests(PageBudgetBase):
                 self.login(many_user, self.orgs[0])
                 _r, many = self.warm_count(reverse(name))
                 self.assertEqual(few, many)
+
+
+class NewBudgetPagesScaleTests(PageBudgetBase):
+    """113.7: the pages given a budget above don't run a query per
+    technician, ticket, asset or agreement."""
+
+    def test_dispatch_board_is_independent_of_technician_count(self):
+        """Per-technician skills, memberships, shifts, leave and open-ticket
+        counts are read once for everyone (resourcing.views.RankingFacts,
+        resourcing.shifts.ShiftBook)."""
+        from resourcing.models import UserSkill, WorkingHours
+        org = self.orgs[0]
+        self.login(self.superuser, org)
+        path = reverse('psa:dispatch_board')
+
+        def crew(start, n):
+            for i in range(start, start + n):
+                tech = self.technician(f'budget_disp_{i}', orgs=[org])
+                UserSkill.objects.create(user=tech, name=f'Skill {i}', proficiency='basic')
+                WorkingHours.objects.create(user=tech, weekday=i % 7, start_time='08:00', end_time='17:00')
+                self.tickets(1, org=org, assigned=tech)
+        self.tickets(3, org=org)          # unassigned cards are ranked against every technician
+        crew(0, 4)
+        _r, four = self.warm_count(path)
+        crew(4, 16)
+        _r, twenty = self.warm_count(path)
+        self.assertEqual(four, twenty)
+
+    def test_pages_are_independent_of_row_count(self):
+        self.maxDiff = None
+        org = self.orgs[0]
+        tech = self.technician('budget_scale_tech', orgs=[org])
+        pages = [reverse('psa:my_work'), reverse('accounts:organization_detail', args=[org.pk]),
+                 reverse('psa:billing_review'), reverse('core:palette_home'),
+                 reverse('core:palette_home') + '?parts=starred&path=/psa/',
+                 reverse('core:search') + '?q=Budget']
+        self.realistic(org)
+        self.tickets(2, org=org, assigned=tech)
+        few, many = {}, {}
+        for user in (self.superuser, tech):
+            self.login(user, org)
+            few.update({(user.username, p): self.warm_count(p)[1] for p in pages})
+        for t in self.tickets(4, org=org, assigned=tech) + self.tickets(4, org=org):
+            self.work(t, 1)
+        self.realistic(org.__class__.objects.create(name='Budget Extra', slug='budget-extra'))
+        for user in (self.superuser, tech):
+            self.login(user, org)
+            many.update({(user.username, p): self.warm_count(p)[1] for p in pages})
+        self.assertEqual(many, few)
 
 
 def _frame(html):

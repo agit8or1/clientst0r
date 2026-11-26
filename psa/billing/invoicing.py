@@ -50,6 +50,8 @@ ticket is left off until it is marked used (`info['unused_stock']`).
 """
 from __future__ import annotations
 
+import contextlib
+import contextvars
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.utils import timezone
@@ -64,8 +66,20 @@ def _hours2(minutes):
     return (Decimal(int(minutes)) / Decimal(60)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 
+# A read-only pass over many tickets (`ticket_billing_lines_many`): the rows
+# each ticket would read are read once for all of them. Only reads are
+# shared; every price, rule and rounding is computed per entry exactly as for
+# one ticket.
+_batch = contextvars.ContextVar('psa_invoicing_batch', default=None)
+
+
 def cutoff():
     from psa.models import BillingEngineSettings
+    b = _batch.get()
+    if b is not None:
+        if 'cutoff' not in b:
+            b['cutoff'] = BillingEngineSettings.get().ticket_pricing_from
+        return b['cutoff']
     return BillingEngineSettings.get().ticket_pricing_from
 
 
@@ -75,6 +89,24 @@ def before_cutoff(entry, cut=None):
 
 
 def billing_rule(client, contract, on_date):
+    b = _batch.get()
+    if b is not None:
+        key = (getattr(client, 'pk', client), getattr(contract, 'pk', contract), on_date)
+        rules = b.setdefault('rules', {})
+        if key not in rules:
+            book = b.get('rulebook')
+            if book is not None and book.covers(key[0]):
+                try:
+                    rules[key] = book.resolve(client=client, contract=contract, on_date=on_date)
+                except Exception:  # pragma: no cover - as _billing_rule
+                    rules[key] = None
+            else:
+                rules[key] = _billing_rule(client, contract, on_date)
+        return rules[key]
+    return _billing_rule(client, contract, on_date)
+
+
+def _billing_rule(client, contract, on_date):
     try:
         from pricing.services import resolve_billing_rule
         return resolve_billing_rule(client=client, contract=contract, on_date=on_date)
@@ -144,7 +176,10 @@ def ticket_billing_lines(ticket, *, include_before_cutoff=False, apply_decisions
     by_source = {}
     for ln in lines:
         by_source.setdefault(ln['source'], set()).add(str(ln['source_id']))
-    out = {src: withheld(src, ids) for src, ids in by_source.items()}
+    return _apply_withheld(lines, info, {src: withheld(src, ids) for src, ids in by_source.items()})
+
+
+def _apply_withheld(lines, info, out):
     kept = []
     for ln in lines:
         d = out.get(ln['source'], {}).get(str(ln['source_id']))
@@ -155,15 +190,76 @@ def ticket_billing_lines(ticket, *, include_before_cutoff=False, apply_decisions
     return kept, info
 
 
+def ticket_billing_lines_many(tickets):
+    """{ticket pk: ticket_billing_lines(ticket)} for many tickets (the Ready
+    for Billing queue), with the same lines and info as one call per ticket.
+    The rows are read once for all tickets instead of once per ticket: unbilled
+    time and items, ledger postings, the pricing cutoff, billing rules,
+    agreements per customer and date, and held / excluded queue decisions.
+    Read-only, like ticket_billing_lines."""
+    from psa.models import TicketExpense, TicketTimeEntry
+
+    from .billed import unbilled_expenses, unbilled_time, withheld
+    tickets = list(tickets)
+    if not tickets:
+        return {}
+    ids = [t.pk for t in tickets]
+    entries, expenses = {i: [] for i in ids}, {i: [] for i in ids}
+    # Same filters, related rows and order as _ticket_billing_lines, grouped
+    # by ticket (ordering by ticket first keeps each ticket's own order).
+    for te in (unbilled_time(TicketTimeEntry.objects.filter(ticket_id__in=ids))
+               .select_related(*_ENTRY_RELATED).order_by('ticket_id', 'started_at', 'pk')):
+        entries[te.ticket_id].append(te)
+    for e in unbilled_expenses(TicketExpense.objects.filter(ticket_id__in=ids)).order_by(
+            'ticket_id', 'incurred_on', 'pk'):
+        expenses[e.ticket_id].append(e)
+    postings = ledger.active_postings_by_entry([te.pk for rows in entries.values() for te in rows])
+    raw = {}
+    clients = {t.organization_id for t in tickets}
+    batch = {'entries': entries, 'expenses': expenses, 'postings': postings}
+    try:
+        from pricing.services import BillingRuleBook
+        batch['rulebook'] = BillingRuleBook(clients)
+    except Exception:  # pragma: no cover - pricing misconfiguration: per-lookup reads
+        pass
+    token = _batch.set(batch)
+    try:
+        with coverage.agreements_read_once():
+            coverage.preload_agreements(clients)
+            for t in tickets:
+                raw[t.pk] = _ticket_billing_lines(t)
+    finally:
+        _batch.reset(token)
+    by_source = {}
+    for lines, _info in raw.values():
+        for ln in lines:
+            by_source.setdefault(ln['source'], set()).add(str(ln['source_id']))
+    out = {src: withheld(src, sids) for src, sids in by_source.items()}
+    result = {}
+    for pk, (lines, info) in raw.items():
+        info['held'], info['excluded'] = [], []
+        result[pk] = _apply_withheld(lines, info, out) if lines else (lines, info)
+    return result
+
+
+_ENTRY_RELATED = ('ticket', 'ticket__organization', 'ticket__ticket_type', 'user',
+                  'rate_card_line__rate_card', 'labor_role')
+
+
 def _ticket_billing_lines(ticket, *, include_before_cutoff=False):
     from .billed import unbilled_expenses, unbilled_time
 
-    # Phase 102.2: the one "is it billed" rule (psa.billing.billed).
-    entries = list(unbilled_time(ticket.time_entries.all())
-                   .select_related('ticket', 'ticket__organization', 'ticket__ticket_type', 'user',
-                                   'rate_card_line__rate_card', 'labor_role')
-                   .order_by('started_at', 'pk'))
-    expenses = list(unbilled_expenses(ticket.expenses.all()).order_by('incurred_on', 'pk'))
+    b = _batch.get()
+    if b is not None and ticket.pk in b['entries']:
+        entries, expenses = b['entries'][ticket.pk], b['expenses'][ticket.pk]
+        postings = {te.pk: b['postings'].get(te.pk, []) for te in entries}
+    else:
+        # Phase 102.2: the one "is it billed" rule (psa.billing.billed).
+        entries = list(unbilled_time(ticket.time_entries.all())
+                       .select_related(*_ENTRY_RELATED)
+                       .order_by('started_at', 'pk'))
+        expenses = list(unbilled_expenses(ticket.expenses.all()).order_by('incurred_on', 'pk'))
+        postings = ledger.active_postings_by_entry([te.pk for te in entries])
 
     cut = cutoff()
     client = ticket.organization
@@ -176,7 +272,6 @@ def _ticket_billing_lines(ticket, *, include_before_cutoff=False):
         'fees': ZERO, 'cutoff': cut,
     }
     visits = {}
-    postings = ledger.active_postings_by_entry([te.pk for te in entries])
 
     for te in entries:
         work = _work(te)

@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.788] - 2026-11-26
+
+### Changed
+- **Faster pages.** Fewer database queries on the busiest pages (demo data unless noted):
+
+  | Page | Before | After |
+  |---|---|---|
+  | Billing review, 60 customers | 975 | 32 |
+  | Ticket detail | 214 | 99 |
+  | Dispatch board | 328 | 27 |
+  | Ctrl+K check on every page | 13 | 7 |
+
+  - Billing review no longer runs extra queries for every customer. Only how data is read changed: every amount still
+    comes from the existing billing code, and the rendered page matched the old one exactly in 90 comparisons.
+  - A technician's access rules are read once per page instead of once per check. Every check still runs in full; a
+    test confirms the answers are the same with and without this.
+  - The dispatch board's query count no longer depends on the number of technicians.
+- Query ceilings for these pages are enforced by tests, so they can't quietly grow again.
+- New tools for measuring at scale: `scripts/ux/seed_scale.py` builds a realistic test install (for example 60
+  customers, 1,200 devices, 15,000 tickets) in a separate database, and `scripts/ux/scale_benchmark.py` times every
+  main page on it. First results are in `docs/ux/WORKFLOW_BENCHMARKS.md`.
+
+### Fixed
+- The dispatch board now lists only tickets of customers where the technician holds ticket access, within their
+  customer scope. When no customer was selected it listed the newest tickets of every customer. In normal use a
+  customer-scoped technician always has a customer selected, so this closes a gap rather than a reachable leak.
+- Roadmap: 113.7 shipped.
+
 ## [3.17.787] - 2026-11-26
 
 ### Added

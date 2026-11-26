@@ -94,12 +94,14 @@ def _hour(now):
     return now.replace(minute=0, second=0, microsecond=0)
 
 
-def record(user, kind, key, organization_id=None, channel='ui', amount=0, now=None):
-    """Count one read. Returns the alerts it raised (usually none)."""
+def record(user, kind, key, organization_id=None, channel='ui', amount=0, now=None, _settings=None):
+    """Count one read. Returns the alerts it raised (usually none).
+    `_settings`: the DetectionSettings row already loaded by the outer call
+    (the ticket read records its customer read with the same row)."""
     from .models import DetectionSettings, ReadEvent
     if user is None or not getattr(user, 'is_authenticated', False):
         return []
-    s = DetectionSettings.load()
+    s = _settings if _settings is not None else DetectionSettings.load()
     if not s.enabled:
         return []
     now = now or timezone.now()
@@ -115,7 +117,7 @@ def record(user, kind, key, organization_id=None, channel='ui', amount=0, now=No
     if not created and amount:
         ReadEvent.objects.filter(pk=ev.pk).update(amount=F('amount') + amount)
     if kind == 'ticket' and organization_id:
-        record(user, 'customer', organization_id, organization_id, channel, now=now)
+        record(user, 'customer', organization_id, organization_id, channel, now=now, _settings=s)
     if not created and not amount:
         return []  # nothing new; counts unchanged
     return evaluate(user, now, s)

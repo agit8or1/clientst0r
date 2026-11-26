@@ -874,7 +874,47 @@ def tech_cost_rate_delete(request, pk):
     })
 
 
-def rank_techs_for_ticket(ticket):
+class RankingFacts:
+    """What rank_techs_for_ticket needs about every candidate, read once in a
+    fixed number of queries (113.7: the dispatch board ranked every ticket
+    and read every technician's skills, memberships, shifts, leave and open
+    tickets again for each one). Built from the same filters as the
+    per-ticket reads it replaces; `available_now` is evaluated once, at
+    construction, instead of once per ticket."""
+
+    def __init__(self, pool=None, today=None):
+        from datetime import date
+        from accounts.models import Membership
+        from psa.models import Ticket
+        from psa.visibility import msp_technicians
+        self.today = today or date.today()
+        self.pool = list(pool if pool is not None else msp_technicians().select_related('profile'))
+        ids = [u.pk for u in self.pool]
+        self.skills = {pk: [] for pk in ids}
+        for s in UserSkill.objects.filter(user_id__in=ids).order_by('name', 'pk'):
+            self.skills[s.user_id].append(s)
+        self.member_orgs = {pk: set() for pk in ids}
+        for uid, oid in Membership.objects.filter(user_id__in=ids, is_active=True).values_list(
+                'user_id', 'organization_id'):
+            self.member_orgs[uid].add(oid)
+        try:
+            from .shifts import ShiftBook
+            book = ShiftBook(self.pool)
+            self.available = {u.pk: book.is_working(u) for u in self.pool}
+        except Exception:
+            self.available = {pk: True for pk in ids}
+        self.on_leave = set(LeaveRequest.objects.filter(
+            user_id__in=ids, status='approved', start_date__lte=self.today, end_date__gte=self.today,
+        ).values_list('user_id', flat=True))
+        try:
+            self.open_counts = {r['assigned_to_id']: r['n'] for r in (
+                Ticket.objects.filter(assigned_to_id__in=ids, status__is_terminal=False)
+                .order_by().values('assigned_to_id').annotate(n=Count('pk')))}
+        except Exception:
+            self.open_counts = {}
+
+
+def rank_techs_for_ticket(ticket, facts=None):
     """
     Rank candidate techs for a ticket. Returns a list of:
       {'user': User, 'score': int, 'reasons': [str], 'available_now': bool}
@@ -886,6 +926,9 @@ def rank_techs_for_ticket(ticket):
       +15 if the tech is currently inside their WorkingHours
       -50 if the tech has an approved LeaveRequest covering today
       -30 if the tech already has 5+ open tickets
+
+    `facts`: a RankingFacts shared by several tickets (the dispatch board);
+    the scores are the same as without it.
     """
     from datetime import date
     from accounts.models import Membership
@@ -893,6 +936,8 @@ def rank_techs_for_ticket(ticket):
 
     if ticket is None:
         return []
+    if facts is not None:
+        return _rank_with_facts(ticket, facts)
 
     # Pool: the MSP's technicians (customer users are never candidates).
     from psa.visibility import msp_technicians
@@ -953,5 +998,35 @@ def rank_techs_for_ticket(ticket):
             'available_now': available_now,
         })
 
+    rows.sort(key=lambda r: r['score'], reverse=True)
+    return rows
+
+
+def _rank_with_facts(ticket, facts):
+    text = ((ticket.subject or '') + ' ' + (ticket.description or '')).lower()
+    rows = []
+    for u in facts.pool:
+        score = 0
+        reasons = []
+        matches = [s.name for s in facts.skills.get(u.pk, []) if s.name.lower() in text]
+        if matches:
+            score += 30 * len(matches)
+            reasons.append(f"matches skills: {', '.join(matches[:3])}")
+        if ticket.organization_id in facts.member_orgs.get(u.pk, ()):
+            score += 20
+            reasons.append("member of client org")
+        available_now = facts.available.get(u.pk, True)
+        if available_now:
+            score += 15
+            reasons.append("on-shift now")
+        if u.pk in facts.on_leave:
+            score -= 50
+            reasons.append("on leave today")
+            available_now = False
+        open_count = facts.open_counts.get(u.pk, 0)
+        if open_count >= 5:
+            score -= 30
+            reasons.append(f"{open_count} open tickets")
+        rows.append({'user': u, 'score': score, 'reasons': reasons, 'available_now': available_now})
     rows.sort(key=lambda r: r['score'], reverse=True)
     return rows

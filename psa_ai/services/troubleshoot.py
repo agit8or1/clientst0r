@@ -161,7 +161,7 @@ def availability(user, *, ticket=None, device=None, multi=False) -> Tuple[bool, 
     if not has_capability(user, org, _capability(multi), ticket=ticket, asset=asset):
         reasons.append("Your technician access doesn't include multi-model analysis here." if multi
                        else "Your technician access doesn't include AI analysis here.")
-    policy = _policy(org)
+    policy = profiles.policy_for_request(org)
     if policy is None:
         reasons.append('This customer has no AI policy.')
         return False, reasons, []

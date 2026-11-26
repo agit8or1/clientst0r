@@ -19,6 +19,31 @@ MAX_AFFECTED = 25
 
 
 def ticket_assets(ticket) -> List:
+    """The ticket's primary device plus its affected devices, same customer
+    only. Read once per request (a ticket page asks four times); saving a
+    ticket, affected-device link or asset in the request drops it
+    (tech_access.request_cache). Each caller gets its own list."""
+    if getattr(ticket, 'pk', None) is None:
+        return _ticket_assets(ticket)
+    from tech_access import request_cache
+    key = ('ticket_assets', ticket.pk, ticket.organization_id, getattr(ticket, 'related_asset_id', None))
+    return list(request_cache.memo(key, lambda: _ticket_assets(ticket)))
+
+
+def asset_choices(organization_id) -> List:
+    """The customer's first 500 assets by name (id, name, hostname), for the
+    ticket page's asset pickers. Read once per request; each caller gets its
+    own list."""
+    from assets.models import Asset
+    from tech_access import request_cache
+
+    def read():
+        return list(Asset.objects.filter(organization_id=organization_id).order_by('name')
+                    .only('id', 'name', 'hostname')[:500])
+    return list(request_cache.memo(('asset_choices', organization_id), read))
+
+
+def _ticket_assets(ticket) -> List:
     from .models import TicketAffectedAsset
     out, seen = [], set()
     primary = ticket.related_asset

@@ -396,6 +396,49 @@ def resolve_billing_rule(client=None, contract=None, on_date=None):
     return None
 
 
+class BillingRuleBook:
+    """resolve_billing_rule for many lookups (a read-only pass such as the
+    Ready for Billing queue), with the active rules of these customers and the
+    MSP-wide ones read in one query. The rows stay in the database's own
+    '-effective_from, -pk' order (NULLs where the database puts them); each
+    lookup keeps the first row of that order whose scope and window match, in
+    the same precedence, so it returns exactly what resolve_billing_rule does.
+    """
+
+    def __init__(self, client_ids):
+        from .models import BillingRule
+        ids = [i for i in set(client_ids) if i]
+        self.rows = list(BillingRule.objects.filter(is_active=True)
+                         .filter(Q(client_org__isnull=True) | Q(client_org_id__in=ids))
+                         .order_by('-effective_from', '-pk'))
+        self.client_ids = set(ids)
+
+    def covers(self, client_id):
+        return not client_id or client_id in self.client_ids
+
+    def resolve(self, client=None, contract=None, on_date=None):
+        d = _as_date(on_date)
+        if _contract_mismatch(client, contract):
+            return None
+        client_id = _pk(client) if client is not None else (contract.client_org_id if contract else None)
+        contract_id = contract.pk if contract is not None else None
+        tries = []
+        if client_id and contract is not None:
+            tries.append((client_id, contract_id))
+        if client_id:
+            tries.append((client_id, None))
+        if contract is not None:
+            tries.append((None, contract_id))
+        tries.append((None, None))
+        live = [r for r in self.rows if (r.effective_from is None or r.effective_from <= d)
+                and (r.effective_to is None or r.effective_to >= d)]
+        for want_client, want_contract in tries:
+            for r in live:
+                if r.client_org_id == want_client and r.contract_id == want_contract:
+                    return r
+        return None
+
+
 # ---------------------------------------------------------------------------
 # Cost rates
 # ---------------------------------------------------------------------------

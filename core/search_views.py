@@ -119,7 +119,7 @@ class SearchScope:
         if orgs_with_perm(self.user, 'docs_view') is not None:
             return None
         from core.models import SystemSetting
-        if not getattr(SystemSetting.get_settings(), 'global_kb_enabled', True):
+        if not getattr(SystemSetting.get_settings_for_request(), 'global_kb_enabled', True):
             # Module switched off: its pages are gone, so are its titles.
             return None
         return self._text(Document.objects.published().filter(is_global=True), query, fields)
@@ -154,7 +154,7 @@ class SearchScope:
         MSP staff, shared tickets of their customers for customer users. A
         ticket number typed exactly is listed first."""
         from core.models import SystemSetting
-        if not getattr(SystemSetting.get_settings(), 'psa_enabled', False):
+        if not getattr(SystemSetting.get_settings_for_request(), 'psa_enabled', False):
             return None
         from django.db.models import Case, IntegerField, Value, When
         from psa.views import _scoped_ticket_qs

@@ -31,6 +31,22 @@ def policy_for(organization):
     return AIBusinessPolicy.objects.filter(organization=organization).first()
 
 
+def policy_for_request(organization):
+    """policy_for() read once per request, for read-only checks a page makes
+    several times (availability, history visibility). Each caller gets its
+    own copy; saving or deleting a policy drops the memo
+    (tech_access.request_cache), so the rest of the request reads the new
+    row. Outside a request this is policy_for()."""
+    import copy
+
+    from tech_access import request_cache
+    pk = getattr(organization, 'pk', None)
+    if pk is None:
+        return policy_for(organization)
+    policy = request_cache.memo(('ai_policy', pk), lambda: policy_for(organization))
+    return copy.copy(policy) if policy is not None else None
+
+
 def processor_for(organization):
     """The customer's paired RMM, or None. Pairing = an active RMM connection
     of any provider in that organization, approved, with integration secrets

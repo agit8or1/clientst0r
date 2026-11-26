@@ -304,3 +304,231 @@ Charges card's own Start / Stop controls follow the inline control; a timer star
 on focus. Workspace layout: Essentials folds the secondary ticket cards (5 More buttons on the demo ticket) and 6 My
 Work panels, More/Less toggles with `aria-expanded`; Advanced opens the optional `<details>` sections; no page errors.
 The W05 script now uses the inline control when the page has it and falls back to the old card otherwise.
+
+### Scale run — 60 customers / 1,200 endpoints
+
+Part B of increment 113.7: the generator `scripts/ux/seed_scale.py` and the runner `scripts/ux/scale_benchmark.py`
+(this is the first published run; the 10/100 and 200/5,000 profiles are built by the same command and not yet run).
+
+**What was run.** `seed_scale.py --profile medium --with-rmm` into a fresh SQLite file under `/var/tmp`, then
+`scale_benchmark.py --runs 3` (in-process Django test client, median of 3 after one warm-up request, query counts from
+`CaptureQueriesContext`). Two users: `scale.super` (superuser technician) and `scale.l1` (L1 Tech role, client scope
+"selected" = 6 of the 60 customers). Reproduce:
+
+```bash
+nice -n 10 python scripts/ux/seed_scale.py /var/tmp/clientst0r-scale-60/demo.sqlite3 --profile medium --with-rmm
+nice -n 10 python scripts/ux/scale_benchmark.py /var/tmp/clientst0r-scale-60/demo.sqlite3 --runs 3 --md out.md --json out.json
+```
+
+The generator refuses an existing non-empty file, the production database, and any path outside `/var/tmp` and the
+scratchpad. Migrations on an empty SQLite database took about 23 minutes on this loaded machine (591 migration files);
+`--save-template` stores the migrated empty database and `--template` starts later builds from it (the build then takes
+under a minute).
+
+**Environment.** 40 vCPU (QEMU Virtual CPU version 2.5+), 31 GB RAM, Linux 6.8, SQLite (not MariaDB: numbers will not
+transfer). The machine was shared and busy: load average 13.4 / 14.4 / 13.1 (1/5/15 min) at the end of the run, 15.8 at
+the start, so absolute times are inflated and noisy; query counts are exact. The database file is 48 MB.
+
+**Code state.** Measured on the working tree of branch `dev/ux-113-7` at 2026-11-25 19:16, which at that moment
+contained the other agent's uncommitted query optimisations (25 files, 470 insertions, 102 deletions outside docs and
+tests; among them `psa/views.py`, `psa/sla.py`, `core/palette.py`, `core/search_views.py`, `core/workspace.py`,
+`tech_access/resolver.py`, `resourcing/shifts.py`, `resourcing/views.py`). So this is neither the base commit nor a
+final state: treat it as "branch at that time" and re-run after the optimisation work is committed.
+
+**Dataset (generated in 48 s with the template, deterministic seed 20261125).** 60 customers (+1 MSP tenant), 89
+locations, 600 contacts, 1,200 assets, 865 RMM device rows (workstations, laptops and servers; one inactive
+connection), 15,000 tickets over 3 years with 60,124 comments and 22,525 time entries, 850 documents (including 10
+global KB articles), 600 vault entries, 60 contracts, 60 quotes, 720 account charges, 720 invoices, 9 technicians in
+the L1/L2/L3 access groups.
+
+**Results** (ms of server time / SQL queries / HTTP status; median of 3):
+
+| Page | superuser: ms / queries / status | L1 technician (10% of customers): ms / queries / status |
+|---|---|---|
+| Dashboard | 238 / 23 / 200 | 13 / 10 / 302 |
+| Ticket list | 1056 / 24 / 200 | 245 / 26 / 200 |
+| Ticket detail | 502 / 81 / 200 | 23 / 11 / 404 |
+| Ticket create form | 305 / 21 / 200 | 258 / 17 / 200 |
+| My Work | 630 / 61 / 200 | 372 / 34 / 200 |
+| Dispatch board | 623 / 29 / 200 | 3578 / 35 / 200 |
+| Client workspace | 328 / 61 / 200 | 27 / 13 / 302 |
+| Client list | 153 / 13 / 200 | 304 / 18 / 200 |
+| Client operations | 145 / 26 / 200 | 32 / 10 / 404 |
+| Asset list | 235 / 24 / 200 | 373 / 22 / 200 |
+| Asset detail | 226 / 34 / 200 | 60 / 13 / 404 |
+| Global search (q=server) | 205 / 33 / 200 | 290 / 22 / 200 |
+| Palette home JSON | 50 / 18 / 200 | 106 / 21 / 200 |
+| Palette search JSON (q=ridge) | 59 / 19 / 200 | 222 / 20 / 200 |
+| Client switcher search JSON | 120 / 11 / 200 | 306 / 18 / 200 |
+| Reports home | 156 / 15 / 200 | 304 / 21 / 200 |
+| PSA reports list | 128 / 10 / 200 | 192 / 16 / 403 |
+| Client health list | 166 / 13 / 200 | 266 / 18 / 200 |
+| Billing review | 4729 / 974 / 200 | 257 / 17 / 200 |
+| Invoice list | 314 / 16 / 200 | 198 / 19 / 200 |
+| Invoice detail | 194 / 27 / 200 | 219 / 19 / 403 |
+| Contract list | 222 / 32 / 200 | 211 / 17 / 200 |
+| Contract detail | 220 / 32 / 200 | 29 / 11 / 404 |
+| Quote list | 205 / 12 / 200 | 326 / 17 / 200 |
+| Quote detail | 203 / 28 / 200 | 388 / 35 / 200 |
+| Document list (KB/docs) | 192 / 17 / 200 | 292 / 17 / 200 |
+| Global KB list | 165 / 14 / 200 | 32 / 12 / 302 |
+| Vault list | 119 / 11 / 200 | 235 / 18 / 200 |
+| RMM devices | 152 / 17 / 200 | 289 / 20 / 200 |
+| Integrations list | 172 / 27 / 200 | 287 / 29 / 200 |
+| Settings home | 136 / 11 / 200 | 312 / 16 / 200 |
+| Security dashboard | 224 / 35 / 200 | 17 / 8 / 302 |
+| Timesheet | 236 / 13 / 200 | 323 / 19 / 200 |
+| Wallboard data JSON | 342 / 41 / 200 | 484 / 47 / 200 |
+
+Reading the L1 column: a non-200 status is an authorisation outcome, not a failure of the page. The page set picks
+sample records from the first customer; the L1 role is limited to its scope and permissions, so ticket detail, client operations, asset detail and contract detail answer 404, the dashboard,
+client workspace and global KB redirect (302) and invoice detail and PSA reports answer 403. Times for those rows are
+the cost of refusing, not of rendering.
+
+**Ten slowest pages, superuser** (ms / queries / SQL ms):
+
+| Page | Server ms | Queries | SQL ms |
+|---|---|---|---|
+| Billing review | 4,729 | 974 | 803 |
+| Ticket list | 1,056 | 24 | 141 |
+| My Work | 630 | 61 | 191 |
+| Dispatch board | 623 | 29 | 10 |
+| Ticket detail | 502 | 81 | 2 |
+| Wallboard data JSON | 342 | 41 | 306 |
+| Client workspace | 328 | 61 | 8 |
+| Invoice list | 314 | 16 | 4 |
+| Ticket create form | 305 | 21 | 0 |
+| Dashboard | 238 | 23 | 17 |
+
+**Ten slowest pages, L1 technician** (200 responses only matter here, the rest are refusals):
+
+| Page | Server ms | Queries | SQL ms |
+|---|---|---|---|
+| Dispatch board | 3,578 | 35 | 392 |
+| Wallboard data JSON | 484 | 47 | 382 |
+| Quote detail | 388 | 35 | 17 |
+| Asset list | 373 | 22 | 16 |
+| My Work | 372 | 34 | 4 |
+| Quote list | 326 | 17 | 4 |
+| Timesheet | 323 | 19 | 37 |
+| Settings home | 312 | 16 | 3 |
+| Client switcher search JSON | 306 | 18 | 14 |
+| Client list | 304 | 18 | 5 |
+
+**Findings.** Billing review is the outlier by far: 974 queries for 60 customers (about 16 per customer), so its query
+count grows with the customer count and the 113.7 "billing review budget" is the first thing to fix at this scale
+(the same page ran 45 queries on the 3-customer test set). Ticket list is the slowest ordinary page at 1.1 s with only
+24 queries: the cost is the 15,000-row table (count, ordering and filtering), not the query count. The L1 dispatch
+board takes 3.6 s with 35 queries and only 392 ms of SQL, so the time is in Python for a scoped user (a per-technician
+or per-customer loop outside the ORM). Pages other than those named stay under about 500 ms at this load.
+
+**Gaps.** Single user at a time: the 5/10/20-technician concurrent run, p95 and web-worker RSS are not done. MariaDB
+was not tested. The page set is the page_baseline set (33 pages); search with a term that matches many rows, ticket
+list filters and pagination depth are not covered. Running the 10/100 and 200/5,000 profiles is open.
+
+## 113.7 results — page performance, part A
+
+Measured 2026-11-25 with `scripts/ux/page_baseline.py` (median of 5 after a warm-up, in-process test client,
+user `demo.tech`) on two fresh copies of the demo database made with the SQLite backup API and migrated: one served
+by the code before this change (commit `2efe8881e`), one by the change. The two were run alternately, twice each.
+**Load average 12.4 to 13.2 (1 minute) on 40 CPUs** during the page runs — higher than for section 3 — so times
+are noisy (pages this change does not touch moved by up to 2x between runs). Queries are exact; for times, the
+back-to-back column (7 requests each, old and new code one after the other, same load) is the fairer comparison.
+
+| Page | Queries before | Queries after | Median ms before (2 runs) | Median ms after (2 runs) | Back-to-back median ms, before → after |
+|---|---|---|---|---|---|
+| Ticket detail (PSA-2026-000036) | 214 | **99** | 768, 789 | 1090, 1210 | 1475 → 1063 (first pair), 1616 → 1041 (second pair) |
+| Dispatch board | 328 | **27** | 481, 493 | 372, 550 | 432 → 158 |
+| Palette home (full, on open) | 32 | 25 | 73, 89 | 91, 69 | 72 → 61, 69 → 73 (same within noise) |
+| Palette star check (`?parts=starred`, every page load) | 13 (`?parts=current` on a ticket page) | **7** | — | — | — |
+| Palette search (`q=ridge`) | 20 | 18 | 44, 45 | 71, 40 | — |
+| Global search (`q=server`) | 34 | 32 | 167, 166 | 198, 163 | — |
+| My Work | 69 | 66 | 392, 431 | 643, 917 | — |
+| Client workspace | 66 | 66 | 309, 331 | 425, 313 | — |
+| Billing review | 61 | 61 in these runs; **32** after the batched reads below (not timed here) | 288, 318 | 293, 291 | — |
+
+The ticket page's median in the paired runs is higher after, but the back-to-back pairs (same minute, same load)
+show it faster and running about a third fewer Python function calls (680k against 1.0M under cProfile). The
+acceptance target of 400 ms for ticket detail is **not** met at this load; it was not met before either.
+
+The rendered HTML of ticket detail, dispatch board, My Work, billing review, global search and both palette answers
+was compared for six users (superuser technician, two staff technicians, three customer users) at each of the six
+demo organizations, old code against new: identical apart from CSRF tokens and a running timer's elapsed seconds.
+
+### What changed
+
+1. **Technician-access rows read once per request** (`tech_access/request_cache.py`). Containment, explicit denies,
+   customer policy, assignments (with their presets and groups), what the customer's paired RMMs advertise, and the
+   RMM permission overrides are memoised in the request's authorization context (`accounts.authz_cache`, bound by
+   `CurrentOrganizationMiddleware`). The rows are memoised, never the decisions: every check still runs the full
+   rule order with its own `now`. Outside a request (jobs, commands, scheduler) nothing is memoised. A save, delete
+   or group-membership change of a rule row in the request drops the memo; a change that sends no signal (another
+   process, `QuerySet.update()`) is seen from the next request — `integrations.ticket_rmm._save` calls
+   `invalidate()` after its own `update()`.
+2. **Ticket page reads deduplicated** with the same memo or by reusing rows already read: the AI master switch and
+   the customer's AI policy, the customer's PSA switch, the active agreement and its prepaid summary, affected
+   devices, the customer's asset picker list, each asset's RMM devices, RMM requests, ticket statuses, watchers, the
+   last comment id, the running-timer and "time logged" checks.
+3. **Dispatch board** reads every technician's skills, memberships, shifts, working hours, leave and open-ticket
+   counts once (`resourcing.views.RankingFacts`, `resourcing.shifts.ShiftBook`) instead of once per ticket card and
+   technician, and selects profiles with the technicians. 4 and 20 technicians now run the same number of queries.
+4. **Palette**: the top bar's star asks `?parts=starred`, which answers without building the navigation when the
+   page has no favorite row (7 queries); the navigation context, permission probe and search scope are built only
+   when used; recent hardware devices select their asset.
+
+### Budgets (`core/tests/test_page_budgets.py`)
+
+The budget fixture now has several technicians with tickets, two tickets with work, five assets (one the ticket's
+device, one affected), and an agreement with approved time this month. Ceilings (superuser / technician) are the
+measured count plus headroom: ticket detail 104 / 108 (the code before this change ran 115 / 119 on the same
+fixture, and the dispatch board 296 / 368), billing review 34 / 39, My Work 64 / 65, client workspace 67 / 68,
+dispatch board 35 / 40, palette home 22 / 27, palette star check 9 / 9, global search 38 / 42. Scaling tests: the
+dispatch board runs the same queries for 4 and 20 technicians; My Work, client workspace, billing review, both
+palette answers and search run the same queries with more tickets, work and a second customer with agreements.
+
+### Billing review at 60 customers
+
+The scale run above showed billing review running 974 queries at 60 customers against 45 at 3: per customer, ticket
+and agreement. It now reads everything once for all of them, and every amount is computed by the same code as before
+(only the reads moved):
+
+* **Agreement rows** (`psa.billing_review.build_rows`): which agreements have a prepaid ledger, the ledger's cycle and
+  to-date sums and summaries (`ledger.totals_many`, `ledger.summaries_many`: the same `SUM` over the same postings,
+  grouped by agreement as well, folded by the same code), the cycle's invoices, and the qualifying time of agreements
+  without a ledger (each agreement's own `Contract.qualifying_time_entries()` queryset, combined with `UNION ALL`).
+* **Ready for Billing queue** (`psa.billing.queue.build_queue`, `invoicing.ticket_billing_lines_many`): unbilled time
+  and items of all queued tickets, their ledger postings, the pricing cutoff, held / excluded and other queue
+  decisions, running timers, recurring-fee agreements per customer with their signed contract documents (the
+  month-to-month e-signature exemption is read from the request's settings copy), the customers' agreements for every work date
+  (`coverage.preload_agreements`: same filter, dates applied in Python to rows kept in the database's order) and the
+  billing rules (`pricing.services.BillingRuleBook`: rows in the database's `-effective_from, -pk` order, first match
+  per scope in the same precedence as `resolve_billing_rule`).
+
+| Billing review | Before | After |
+|---|---|---|
+| Scale database, 60 customers, superuser | 975 queries | **32** |
+| Scale database, L1 technician | 17 | 18 (no billing rows in its scope; the difference is in the shared page frame) |
+| Demo database, superuser | 61 | 32 |
+
+Checked: the rendered page is identical to the old code's (CSRF tokens aside) for 36 renders on the scale database
+(two users, six organizations, three filters; pages of 690 KB with 605 rows) and 54 on the demo database (which has a
+ledger agreement and a queue decision). `psa/tests/test_billing_batch_reads.py` compares each batched reader with the
+per-item one on a mixed fixture (prepaid overage, unapproved time, chargeable and onsite time with fees, items, held
+and excluded lines, a running timer, agreements and billing rules at every scope with open, closed, future and
+inactive windows), and the budget scaling test runs the same queries with one or two customers holding agreements.
+
+### Dispatch board for the L1 technician (3.2 s)
+
+Not a query problem: 35 queries, about 0.3 s of SQL. The rest is template rendering of **1,000 ticket cards
+(3.2 MB of HTML)**. The board's grid query (`psa.views.dispatch_board`) takes the newest 1,000 tickets of the
+request's organization, or of **every** customer when there is none: for `scale.l1` (client scope "selected", 6
+customers) the board showed tickets of all 60 customers. The code before this change does the same (checked on
+commit `2efe8881e`). It is reported as an authorization finding and not changed here, because 113.7 keeps every
+allow/deny decision as it was. The superuser's board in the MSP organization shows 10 cards and renders in about
+0.6 s. Scoping the grid like the board's own unassigned count (`_scoped_ticket_qs(request)`) would fix both.
+
+### Not done in this part
+
+My Work (66) and client workspace (66) have budgets but were not restructured; the ticket page
+is at 99 of its 100-query target on the demo with the remaining reads spread over many different queries (time
+entries 7, comments 5, AI history, routing, knowledge suggestions).

@@ -153,6 +153,17 @@ def is_psa_enabled_for_client(organization):
         return False
     if organization is None:
         return False
+    if getattr(organization, 'pk', None) is None:
+        return _client_psa_switch(organization)
+    # Read once per request (tech_access.request_cache: dropped when the
+    # request saves a PSA connection, PSA setting or organization).
+    from tech_access import request_cache
+    return request_cache.memo(('psa_client_switch', organization.pk),
+                              lambda: _client_psa_switch(organization))
+
+
+def _client_psa_switch(organization):
+    """Steps 3-5 of is_psa_enabled_for_client."""
     # HARD RULE: external PSA always wins.
     if client_has_external_psa(organization):
         return False

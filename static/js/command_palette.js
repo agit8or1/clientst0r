@@ -400,7 +400,8 @@
 
     // The top bar's star shows whether the current page is a favorite. Asked
     // once, after the page has settled, and only where the star is visible;
-    // ?parts=current returns that state alone (core:palette_home).
+    // ?parts=starred returns that one flag (core:palette_home), which costs
+    // the server no navigation build when the page isn't starred.
     var favToggle = doc.getElementById('favMenuToggle');
     function markStar(state) {
         if (!favToggle) return;
@@ -411,8 +412,8 @@
     }
     if (favToggle && favToggle.offsetParent !== null) {
         var askStar = function () {
-            getJSON(cfg.homeUrl + '?parts=current&path=' + encodeURIComponent(window.location.pathname))
-                .then(function (d) { markStar(d.current); }, function () { /* leave the plain star */ });
+            getJSON(cfg.homeUrl + '?parts=starred&path=' + encodeURIComponent(window.location.pathname))
+                .then(function (d) { markStar({favorited: !!d.starred}); }, function () { /* leave the plain star */ });
         };
         if (window.requestIdleCallback) window.requestIdleCallback(askStar, {timeout: 2500});
         else window.setTimeout(askStar, 600);

@@ -235,15 +235,17 @@ def status_chip(ticket, *, now=None):
 
 # -- Hygiene flags ----------------------------------------------------------
 
-def hygiene_flags(ticket):
+def hygiene_flags(ticket, has_time_entries=None):
     """Return a list of {key, message} dicts describing hygiene issues
-    on this ticket. Used to surface "things to fix before close" hints."""
+    on this ticket. Used to surface "things to fix before close" hints.
+    `has_time_entries`: whether the ticket has any time entry, when the
+    caller already knows (the ticket page has read them)."""
     flags = []
     if not ticket.assigned_to_id:
         flags.append({'key': 'unassigned', 'message': 'No assignee'})
     if ticket.related_asset_id is None and ticket.organization.assets.exists() if hasattr(ticket.organization, 'assets') else False:
         flags.append({'key': 'no_asset', 'message': 'No asset linked (this client has assets)'})
-    if not ticket.time_entries.exists():
+    if not (ticket.time_entries.exists() if has_time_entries is None else has_time_entries):
         flags.append({'key': 'no_time', 'message': 'No time logged'})
     if ticket.first_response_due_at and not ticket.first_response_at and not is_paused(ticket):
         flags.append({'key': 'no_first_response', 'message': 'No first response yet'})

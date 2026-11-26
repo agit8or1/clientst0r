@@ -8,3 +8,4 @@ class TechAccessConfig(AppConfig):
 
     def ready(self):
         from . import signals  # noqa: F401  superuser grants outside approval
+        from . import request_cache  # noqa: F401  per-request rule memo (113.7)

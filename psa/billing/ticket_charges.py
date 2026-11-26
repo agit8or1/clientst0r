@@ -342,7 +342,14 @@ def ticket_estimate(ticket, *, show_costs=False, include_before_cutoff=False):
     est.agreement = c
     if c is not None:
         if coverage.has_allowance(c):
-            s = ledger.summary(c)
+            # Same as ledger.summary(c). When c is the ticket's active
+            # contract, the summary is kept on that (request-memoised)
+            # instance, so the ticket page's contract.prepaid reuses it.
+            src = c
+            active = Contract.for_ticket(ticket)  # read once per request
+            if active is not None and active.pk == c.pk:
+                src = active
+            s = src.prepaid  # Contract.prepaid: ledger.summary(self), kept on the instance
             pending = sum((Decimal(f['prepaid_minutes']) for f in fc.values() if f['agreement'].pk == c.pk), ZERO)
             pending_h = (pending / 60).quantize(CENT, rounding=ROUND_HALF_UP)
             est.hours = {'prepaid': True, 'remaining_now': s.remaining_hours, 'pending': pending_h,
@@ -350,18 +357,23 @@ def ticket_estimate(ticket, *, show_costs=False, include_before_cutoff=False):
         else:
             est.hours = {'prepaid': False, 'unlimited': c.contract_type in Contract.FLAT_FEE_TYPES}
 
-    est.blockers = blockers(ticket, info)
+    est.blockers = blockers(ticket, info, entries=entries)
     return est
 
 
-def blockers(ticket, info):
-    """What stops this ticket being billed cleanly, as sentences."""
+def blockers(ticket, info, entries=None, running=None):
+    """What stops this ticket being billed cleanly, as sentences.
+    `entries`: every time entry of the ticket, already read by the caller;
+    `running`: whether a timer runs on it, already read by the caller."""
     out = []
 
     def n(key):
         return len(info.get(key) or [])
 
-    if ticket.time_entries.filter(ended_at__isnull=True).exists():
+    if running is None:
+        running = (any(e.ended_at is None for e in entries) if entries is not None
+                   else ticket.time_entries.filter(ended_at__isnull=True).exists())
+    if running:
         out.append('A timer is still running.')
     if n('awaiting_approval'):
         out.append(f'{n("awaiting_approval")} time entr{"y waits" if n("awaiting_approval") == 1 else "ies wait"} '

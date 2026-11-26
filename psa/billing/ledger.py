@@ -758,6 +758,40 @@ def summary(contract, as_of=None):
     ids = [b.pk for b in blocks]
     by_kind = {r['kind']: r['t'] or ZERO for r in PrepaidPosting.objects.filter(block_id__in=ids)
                .values('kind').annotate(t=Sum('hours'))}
+    over = PrepaidPosting.objects.filter(contract=contract, block__isnull=True).aggregate(t=Sum('hours'))['t']
+    return _summary_of(contract, acc, blocks, by_kind, over, as_of)
+
+
+def summaries_many(contracts, as_of):
+    """{contract pk: summary(contract, as_of[pk])} for agreements that all
+    have a ledger account, in four queries: the same sums over the same
+    postings as summary() (grouped by agreement as well), folded the same way."""
+    from django.db.models import prefetch_related_objects
+
+    from psa.models import PrepaidLedgerAccount, PrepaidPosting
+    contracts = list(contracts)
+    if not contracts:
+        return {}
+    ids = [c.pk for c in contracts]
+    accounts = {a.contract_id: a for a in PrepaidLedgerAccount.objects.filter(contract_id__in=ids)}
+    prefetch_related_objects(contracts, 'prepaid_blocks')
+    blocks = {c.pk: [b for b in c.prepaid_blocks.all() if b.covers(as_of[c.pk])] for c in contracts}
+    block_ids = [b.pk for bs in blocks.values() for b in bs]
+    by_kind = {pk: {} for pk in ids}
+    for r in (PrepaidPosting.objects.filter(block_id__in=block_ids)
+              .values('block__contract_id', 'kind').annotate(t=Sum('hours')).order_by()):
+        by_kind[r['block__contract_id']][r['kind']] = r['t'] or ZERO
+    over = {r['contract_id']: r['t'] for r in PrepaidPosting.objects.filter(contract_id__in=ids, block__isnull=True)
+            .values('contract_id').annotate(t=Sum('hours')).order_by()}
+    out = {}
+    for c in contracts:
+        acc = accounts.get(c.pk)
+        out[c.pk] = (summary(c, as_of[c.pk]) if acc is None
+                     else _summary_of(c, acc, blocks[c.pk], by_kind[c.pk], over.get(c.pk), as_of[c.pk]))
+    return out
+
+
+def _summary_of(contract, acc, blocks, by_kind, over, as_of):
     purchased = by_kind.get('purchase', ZERO)
     if acc.mode == 'cycle' and not any(b.kind == 'cycle' for b in blocks) and cycle_bounds(contract, as_of):
         purchased += Decimal(contract.total_hours or 0)  # cycle not opened yet: full allowance
@@ -766,7 +800,6 @@ def summary(contract, as_of=None):
         used=-(by_kind.get('consumption', ZERO) + by_kind.get('reversal', ZERO)),
         expired=-by_kind.get('expiry', ZERO), as_of=as_of, mode=acc.mode)
     s.remaining = s.purchased + s.adjusted - s.used - s.expired
-    over = PrepaidPosting.objects.filter(contract=contract, block__isnull=True).aggregate(t=Sum('hours'))['t']
     s.overage = over or ZERO
     s.threshold = _threshold(contract, s.purchased + s.adjusted)
     return s
@@ -784,8 +817,31 @@ def totals(contract, *, start=None, end=None):
         qs = qs.filter(effective_date__gte=start)
     if end is not None:
         qs = qs.filter(effective_date__lt=end)
+    return _fold_totals(qs.values('kind', 'block_id').annotate(t=Sum('hours')).order_by())
+
+
+def totals_many(contracts, *, start=None, end=None):
+    """{contract pk: totals(contract, start=, end=)} in two queries: the
+    same sums (grouped by agreement as well), folded the same way."""
+    from psa.models import PrepaidLedgerAccount, PrepaidPosting
+    ids = [c.pk for c in contracts]
+    if not ids:
+        return {}
+    tracked = set(PrepaidLedgerAccount.objects.filter(contract_id__in=ids).values_list('contract_id', flat=True))
+    qs = PrepaidPosting.objects.filter(contract_id__in=list(tracked))
+    if start is not None:
+        qs = qs.filter(effective_date__gte=start)
+    if end is not None:
+        qs = qs.filter(effective_date__lt=end)
+    rows = {pk: [] for pk in tracked}
+    for r in qs.values('contract_id', 'kind', 'block_id').annotate(t=Sum('hours')).order_by() if tracked else ():
+        rows[r['contract_id']].append(r)
+    return {pk: (_fold_totals(rows[pk]) if pk in tracked else None) for pk in ids}
+
+
+def _fold_totals(rows):
     out = {'purchased': ZERO, 'adjusted': ZERO, 'consumed': ZERO, 'expired': ZERO, 'overage': ZERO}
-    for r in qs.values('kind', 'block_id').annotate(t=Sum('hours')).order_by():
+    for r in rows:
         t = r['t'] or ZERO
         k = r['kind']
         if k == 'purchase':

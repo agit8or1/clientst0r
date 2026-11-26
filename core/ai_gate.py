@@ -35,7 +35,7 @@ def ai_features_enabled() -> bool:
     from core.models import SystemSetting
 
     try:
-        return bool(getattr(SystemSetting.get_settings(), 'psa_ai_enabled', False))
+        return bool(getattr(SystemSetting.get_settings_for_request(), 'psa_ai_enabled', False))
     except Exception:
         logger.warning('Could not read SystemSetting; treating AI as disabled')
         return False

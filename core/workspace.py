@@ -257,7 +257,10 @@ def recent_devices(request, limit=RECENT_DEVICE_LIMIT, next_url=''):
     for kind, ids in by_kind.items():
         if kind not in DEVICE_KINDS:
             continue
-        for obj in _visible_device_ids(request, kind, ids).select_related('organization'):
+        qs = _visible_device_ids(request, kind, ids).select_related('organization')
+        if kind == 'hardware':
+            qs = qs.select_related('asset')  # its label is the asset's name
+        for obj in qs:
             objects[(kind, obj.pk)] = obj
     out = []
     for r in rows:

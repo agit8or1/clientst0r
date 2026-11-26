@@ -216,13 +216,26 @@ def _overrides(user, organization, action, now):
     from .models import RMMPermissionOverride
     role = global_role(user)
     role_id = getattr(role, 'pk', None)
-    qs = RMMPermissionOverride.objects.live(now).filter(action__in=[action, '*'])
-    if organization is not None:
-        qs = qs.filter(Q(organization=organization) | Q(organization__isnull=True))
+    org_pk = getattr(organization, 'pk', None)
+
+    def read():
+        # Active overrides here or everywhere; the action and expiry tests
+        # (RMMPermissionOverrideQuerySet.live) are applied per call below, so
+        # the rows can be memoised for the request (tech_access.request_cache).
+        qs = RMMPermissionOverride.objects.filter(status=RMMPermissionOverride.ACTIVE)
+        if organization is not None:
+            qs = qs.filter(Q(organization=organization) | Q(organization__isnull=True))
+        else:
+            qs = qs.filter(organization__isnull=True)
+        return list(qs.select_related('organization', 'role_template', 'user').order_by('pk'))
+    if organization is not None and org_pk is None:
+        rows = read()
     else:
-        qs = qs.filter(organization__isnull=True)
-    return [o for o in qs.select_related('organization', 'role_template', 'user').order_by('pk')
-            if o.matches(user, role_id)]
+        from tech_access import request_cache
+        rows = request_cache.memo(('rmm_overrides', org_pk), read)
+    return [o for o in rows
+            if o.action in (action, '*') and (o.expires_at is None or o.expires_at > now)
+            and o.matches(user, role_id)]
 
 
 def _perm(user, organization, flag) -> bool:

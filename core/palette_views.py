@@ -3,7 +3,8 @@ and Recent menus (core/palette.py has the rules).
 
 * ``core:palette_home``   GET  — favorites, recent, quick commands and the
   navigation destinations (``?parts=`` narrows it; ``?path=`` adds whether
-  that page can be starred).
+  that page can be starred). ``?parts=starred&path=`` answers only
+  ``{"starred": bool}``, for the top bar's star on every page load.
 * ``core:palette_search`` GET  — grouped record results. The query travels
   in the ``X-Palette-Query`` header (``?q=`` is accepted as a fallback), so
   it does not end up in web-server access logs; the audit middleware does
@@ -52,6 +53,10 @@ def palette_home(request):
         data['commands'] = palette.commands(pal)
     if 'destinations' in wanted:
         data['destinations'] = pal.destinations
+    if request.GET.get('parts') == 'starred':
+        # The top bar's star on every page load: whether this page is a
+        # favorite, nothing else (palette.starred).
+        return _json({'starred': palette.starred(pal, request.GET.get('path') or '')})
     if request.GET.get('path'):
         data['current'] = palette.current_state(pal, request.GET.get('path'))
     return _json(data)

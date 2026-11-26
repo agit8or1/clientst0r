@@ -233,6 +233,10 @@ def _save(connection, mappings):
     from integrations.models import RMMConnection
     connection.field_mappings = mappings
     RMMConnection.objects.filter(pk=connection.pk).update(field_mappings=mappings)
+    # update() sends no post_save: drop this request's technician-access
+    # memo (it holds what the pairing advertises).
+    from tech_access import request_cache
+    request_cache.invalidate()
 
 
 def record_failure(connection, error: str):

@@ -126,7 +126,8 @@ def infer_from_months(months):
 def month_to_month_exempt() -> bool:
     try:
         from core.models import SystemSetting
-        return bool(SystemSetting.get_settings().contracts_esign_exempt_month_to_month)
+        # The per-request copy (one read per page however many agreements it checks).
+        return bool(SystemSetting.get_settings_for_request().contracts_esign_exempt_month_to_month)
     except Exception:  # noqa: BLE001 — fail closed: require the signature
         return False
 

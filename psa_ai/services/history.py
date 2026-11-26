@@ -76,9 +76,9 @@ def default_retention_days() -> int:
 
 def retention_days(organization) -> int:
     """Days of history kept for this customer; 0 = keep."""
-    from psa_ai.models import AIBusinessPolicy
-    value = (AIBusinessPolicy.objects.filter(organization=organization)
-             .values_list('history_retention_days', flat=True).first())
+    from .profiles import policy_for_request
+    policy = policy_for_request(organization)
+    value = policy.history_retention_days if policy is not None else None
     return default_retention_days() if value is None else value
 
 
@@ -190,11 +190,11 @@ def _prompt_label(value):
 def ai_text_allowed(organization) -> bool:
     """AI-written text is shown only while AI is on for this customer."""
     from core.ai_gate import ai_features_enabled
-    from psa_ai.models import AIBusinessPolicy
+    from .profiles import policy_for_request
     if not ai_features_enabled():
         return False
-    return AIBusinessPolicy.objects.filter(organization=organization, analysis_enabled=True,
-                                           ai_excluded=False).exists()
+    policy = policy_for_request(organization)  # one row per customer (OneToOne)
+    return bool(policy is not None and policy.analysis_enabled and not policy.ai_excluded)
 
 
 def _entry(at, kind, title, *, ai=False, actor='', icon='fa-robot'):

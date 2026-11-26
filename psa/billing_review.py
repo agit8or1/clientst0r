@@ -126,31 +126,38 @@ def build_rows(contracts, start, end):
 
     from .billing import ledger
 
+    contracts = list(contracts)
+    # Read once for every agreement (the same rows and sums each one would
+    # read): the ledger's cycle and to-date totals and summary, the invoices
+    # of the cycle, and the qualifying time of the agreements without a ledger.
+    cycles = ledger.totals_many(contracts, start=start, end=end)
+    tracked = [c for c in contracts if cycles[c.pk] is not None]
+    wholes = ledger.totals_many(tracked, end=end)
+    summaries = ledger.summaries_many(tracked, {c.pk: max(c.start_date, min(end - timedelta(days=1),
+                                                                            c.end_date or end))
+                                                for c in tracked})
+    invoices = _invoices_by_contract(contracts, start, end)
+    entries = _qualifying_entries([c for c in contracts if cycles[c.pk] is None], end)
     rows = []
     for c in contracts:
         row = ReviewRow(contract=c, allowance_minutes=c.effective_total_minutes())
-        cycle = ledger.totals(c, start=start, end=end)
+        cycle = cycles[c.pk]
         if cycle is not None:
             # Phase 101.4: the prepaid-hour ledger (approved time; postings
             # dated by work date, reversals net out in the same cycle).
             row.included_minutes = ledger.minutes_of(cycle['consumed'])
             row.overage_minutes = ledger.minutes_of(cycle['overage'])
             row.cycle_minutes = row.included_minutes + row.overage_minutes
-            s = ledger.summary(c, as_of=max(c.start_date, min(end - timedelta(days=1),
-                                                             c.end_date or end)))
+            s = summaries[c.pk]
             row.allowance_minutes = ledger.minutes_of(s.purchased + s.adjusted)
             row.remaining_override = s.remaining
-            whole = ledger.totals(c, end=end)
+            whole = wholes[c.pk]
             row.to_date_minutes = ledger.minutes_of(whole['consumed'] + whole['overage'])
-            _attach_invoices(row, c, start, end)
+            _attach_invoices(row, invoices[c.pk])
             rows.append(row)
             continue
         running = 0
-        entries = (c.qualifying_time_entries()
-                   .filter(started_at__date__lt=end)
-                   .order_by('started_at', 'pk')
-                   .values_list('started_at', 'duration_minutes'))
-        for started_at, minutes in entries:
+        for started_at, minutes in entries[c.pk]:
             minutes = int(minutes or 0)
             before = running
             running += minutes
@@ -164,20 +171,47 @@ def build_rows(contracts, start, end):
                 row.included_minutes += covered
                 row.overage_minutes += minutes - covered
         row.to_date_minutes = running
-        _attach_invoices(row, c, start, end)
+        _attach_invoices(row, invoices[c.pk])
         rows.append(row)
     return rows
 
 
-def _attach_invoices(row, c, start, end):
+def _qualifying_entries(contracts, end):
+    """{contract pk: [(started_at, duration_minutes)]} of each agreement's own
+    `qualifying_time_entries()` started before `end`, in (started_at, pk)
+    order: one UNION ALL query per 200 agreements instead of one each."""
+    from django.db.models import IntegerField, Value
+    out = {c.pk: [] for c in contracts}
+    for i in range(0, len(contracts), 200):
+        parts = [c.qualifying_time_entries().filter(started_at__date__lt=end).order_by()
+                 .annotate(review_cid=Value(c.pk, output_field=IntegerField()))
+                 .values_list('review_cid', 'started_at', 'pk', 'duration_minutes')
+                 for c in contracts[i:i + 200]]
+        qs = parts[0].union(*parts[1:], all=True) if len(parts) > 1 else parts[0]
+        for cid, started_at, _pk, minutes in sorted(qs, key=lambda r: (r[0], r[1], r[2])):
+            out[cid].append((started_at, minutes))
+    return out
+
+
+def _invoices_by_contract(contracts, start, end):
+    """{contract pk: [Invoice]}: each agreement's invoices of the cycle (not
+    void, not a credit memo), newest first."""
     from .models import Invoice
-    invoices = list(Invoice.objects.filter(source_contract=c, is_credit_memo=False)
-                    .exclude(status='void')
-                    .filter(Q(billing_period_start__gte=start, billing_period_start__lt=end)
-                            | Q(billing_period_start__isnull=True,
-                                invoice_date__gte=start, invoice_date__lt=end))
-                    .select_related('approved_by')
-                    .order_by('-invoice_date', '-pk'))
+    out = {c.pk: [] for c in contracts}
+    if not out:
+        return out
+    for inv in (Invoice.objects.filter(source_contract_id__in=list(out), is_credit_memo=False)
+                .exclude(status='void')
+                .filter(Q(billing_period_start__gte=start, billing_period_start__lt=end)
+                        | Q(billing_period_start__isnull=True,
+                            invoice_date__gte=start, invoice_date__lt=end))
+                .select_related('approved_by')
+                .order_by('-invoice_date', '-pk')):
+        out[inv.source_contract_id].append(inv)
+    return out
+
+
+def _attach_invoices(row, invoices):
     if invoices:
         drafts = [i for i in invoices if i.status == 'draft']
         row.invoice = drafts[0] if drafts else invoices[0]

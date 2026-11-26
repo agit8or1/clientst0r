@@ -136,14 +136,14 @@ def targets(ticket) -> List[Target]:
     .ticket_assets: the primary asset, then the affected devices a
     technician added), each through its own verified RMM link."""
     from integrations.models import RMMDevice
-    from integrations.rmm_association import exposed_devices
+    from integrations.rmm_association import exposed_device_list
     from integrations.ticket_rmm import is_processor, settings
     from psa.affected import ticket_assets
     out = []
     for asset in ticket_assets(ticket):
         if asset.organization_id != ticket.organization_id:
             continue
-        for d in exposed_devices(asset).order_by('pk'):
+        for d in sorted(exposed_device_list(asset), key=lambda d: d.pk):
             conn = d.connection
             if (d.organization_id != ticket.organization_id or conn.organization_id != ticket.organization_id
                     or d.linked_asset_id != asset.pk or not conn.is_active or not is_processor(conn)):
@@ -278,13 +278,17 @@ def panel(user, ticket) -> dict:
     # by the scheduler (integrations.rem0te.reconcile -> actions.poll_open,
     # every minute), never while this page renders: an unreachable Rem0te
     # must not hold the ticket page for (5 s + 20 s) per open request.
-    requests = list(RMMRequest.objects.filter(ticket=ticket).select_related('actor', 'connection')[:20])
+    # One read for the panel (first 20) and the device rows (first 50); the
+    # model's ordering is -created_at, as device_panel.enrich asks.
+    recent = list(RMMRequest.objects.filter(ticket=ticket).select_related('actor', 'connection')
+                  .order_by('-created_at')[:50])
+    requests = recent[:20]
     suggestions = analysis_suggestions(ticket) if any(r['actions']['fix_low']['ok'] or r['actions']['fix_high']['ok']
                                                       for r in rows) else []
     data = {'targets': rows, 'requests': requests, 'no_target_reason': no_target_reason,
             'suggestions': suggestions}
     from . import device_panel
-    device_panel.enrich(data, user, ticket, assets)
+    device_panel.enrich(data, user, ticket, assets, recent_requests=recent)
     return data
 
 

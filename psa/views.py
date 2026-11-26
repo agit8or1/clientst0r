@@ -440,13 +440,15 @@ def ticket_detail(request, ticket_number):
     is_closed = bool(ticket.closed_at) or (ticket.status_id and ticket.status.is_terminal)
 
     # Phase 2b — watchers + canned replies
-    watchers_count = ticket.watchers.count()
-    is_watcher = ticket.watchers.filter(user=request.user).exists()
+    watcher_ids = list(ticket.watchers.values_list('user_id', flat=True))
+    watchers_count = len(watcher_ids)
+    is_watcher = request.user.pk in watcher_ids
 
     # Phase 2c — SLA + time + hygiene + similar tickets (recurring detect)
     sla = status_chip(ticket)
-    hygiene = hygiene_flags(ticket)
     time_entries = list(ticket.time_entries.select_related('user').order_by('-started_at')[:30])
+    # An empty first page means no time entry at all.
+    hygiene = hygiene_flags(ticket, has_time_entries=bool(time_entries))
     running_timer = ticket.time_entries.filter(user=request.user, ended_at__isnull=True).first()
     total_minutes = sum(te.duration_minutes for te in time_entries)
     billable_minutes = sum(te.duration_minutes for te in time_entries if te.is_billable)
@@ -562,8 +564,6 @@ def ticket_detail(request, ticket_number):
     kit_items = list(ticket.kit_items.select_related(
         'tool', 'inventory_item', 'packed_by').all())
 
-    workspace = _ticket_workspace_context(request, ticket)
-
     # Conversation: same presentation + sender classification as the portal
     # (psa/conversation.py). Customer users reaching this page get the
     # customer rule from visible_comments / visible_attachments, and
@@ -571,6 +571,9 @@ def ticket_detail(request, ticket_number):
     from .conversation import build_conversation
     comments = list(visible_comments(ticket, request.user)
                     .select_related('author', 'author__profile').order_by('created_at'))
+
+    workspace = _ticket_workspace_context(request, ticket, visible_comment_list=comments,
+                                          time_entry_page=time_entries)
     attachments = list(visible_attachments(ticket, request.user)
                        .select_related('uploaded_by').order_by('-created_at'))
     conversation = build_conversation(
@@ -592,7 +595,7 @@ def ticket_detail(request, ticket_number):
         'vault_entries': vault_entries,
         'vault_count': vault_count,
         'can_view_vault': can_view_vault,
-        'available_statuses': TicketStatus.objects.all(),
+        'available_statuses': workspace['all_statuses'],
         'closure_categories': Ticket.CLOSURE_CATEGORIES,
         'is_closed': is_closed,
         'can_edit_request_answers': _can_edit_request_answers(request.user, ticket),
@@ -1372,7 +1375,6 @@ def _ticket_asset_context(ticket, staff, user=None):
     page. Customers get none of it: the summary, the picker and the RMM
     details are technician-only.
     """
-    from assets.models import Asset
     asset = ticket.related_asset
     foreign = bool(asset and asset.organization_id != ticket.organization_id)
     ctx = {'ticket_asset': None if foreign else asset, 'ticket_asset_foreign': foreign,
@@ -1385,9 +1387,8 @@ def _ticket_asset_context(ticket, staff, user=None):
     if asset and not foreign and (user is None or can_see_rmm_data(user, ticket.organization)):
         from integrations.rmm_association import summaries_for_asset
         ctx['ticket_rmm'] = summaries_for_asset(asset)
-    ctx['ticket_asset_choices'] = list(
-        Asset.objects.filter(organization_id=ticket.organization_id).order_by('name')
-        .only('id', 'name', 'hostname')[:500])
+    from psa.affected import asset_choices
+    ctx['ticket_asset_choices'] = asset_choices(ticket.organization_id)
     return ctx
 
 
@@ -5439,13 +5440,14 @@ def _dispatch_shift_info(users, days):
     from the weekly shift schedule. Never raises."""
     out = {}
     try:
-        from resourcing.shifts import shift_at, week_grid
+        from resourcing.shifts import ShiftBook, week_grid
         techs = [u for u in users if u.is_active]
-        for row in week_grid(techs, days[0], len(days)):
+        book = ShiftBook(techs)  # every technician's rows in a fixed number of queries
+        for row in week_grid(techs, days[0], len(days), book=book):
             u = row['user']
             if not any(c['shifts'] for c in row['cells']):
                 continue
-            current = shift_at(u)
+            current = book.shift_at(u)
             out[u.id] = {
                 'now': current.label if current else '',
                 'days': [[s.label for s in c['shifts']] for c in row['cells']],
@@ -5519,7 +5521,15 @@ def dispatch_board(request):
     from datetime import date, timedelta
 
     org = get_request_organization(request)
-    qs = Ticket.objects.select_related('assigned_to', 'priority', 'status', 'organization')
+    # Only the customers where this technician holds tickets_view, bounded by
+    # their customer scope (the board is staff-only, so the staff rule of
+    # _scoped_ticket_qs applies to everyone who reaches it). Before, with no
+    # customer selected, the grid listed the newest tickets of every customer
+    # regardless of the technician's customer scope.
+    from accounts.permission_utils import filter_by_org_perm
+    qs = filter_by_org_perm(
+        Ticket.objects.select_related('assigned_to', 'assigned_to__profile', 'priority', 'status', 'organization'),
+        request.user, 'tickets_view')
     if org is not None:
         qs = qs.filter(organization=org)
 
@@ -5580,7 +5590,7 @@ def dispatch_board(request):
     # Non-admins still only see techs who have tickets in the visible scope.
     can_assign = _can_assign(request, org)
     if can_assign:
-        for u in _eligible_assignees(org):
+        for u in _eligible_assignees(org).select_related('profile'):
             techs.setdefault(u.id, u)
 
     # A ticket assigned to someone who isn't an MSP technician (a customer
@@ -5636,8 +5646,10 @@ def dispatch_board(request):
             for t in overdue:
                 if t.pk not in seen:
                     seen.add(t.pk); all_tickets_in_view.append(t)
+            from resourcing.views import RankingFacts
+            facts = RankingFacts() if all_tickets_in_view else None
             skill_rankings = {
-                t.pk: rank_techs_for_ticket(t)[:5]
+                t.pk: rank_techs_for_ticket(t, facts=facts)[:5]
                 for t in all_tickets_in_view
             }
         except Exception:
@@ -11662,16 +11674,23 @@ def _display_name(user):
     return (user.get_full_name() or user.username) if user else ''
 
 
-def _ticket_workspace_context(request, ticket):
+def _ticket_workspace_context(request, ticket, visible_comment_list=None, time_entry_page=None):
     """Extra ticket-page context: the user's own draft, concurrency marker,
-    who else has the ticket open, and the closeout panel's state."""
+    who else has the ticket open, and the closeout panel's state.
+    `visible_comment_list`: the page's already-read visible_comments(ticket,
+    user) rows, so the concurrency marker needs no second query.
+    `time_entry_page`: the page's first 30 time entries; when there are fewer
+    than 30 they are all of them, so "time logged" needs no query."""
     from django.db.models import Max
     from .models import TicketDraft, TicketPresence
     from .visibility import is_msp_staff
 
     staff = is_msp_staff(request.user)
     visible = visible_comments(ticket, request.user)
-    last_comment_id = visible.aggregate(m=Max('pk'))['m'] or 0
+    if visible_comment_list is not None:
+        last_comment_id = max((c.pk for c in visible_comment_list), default=0)
+    else:
+        last_comment_id = visible.aggregate(m=Max('pk'))['m'] or 0
 
     stale_ids = []
     stale_since = (request.GET.get('stale_since') or '').strip()
@@ -11697,7 +11716,8 @@ def _ticket_workspace_context(request, ticket):
         kb_links = list(ticket.kb_links.select_related('article'))
 
     closeout_status_id = (request.GET.get('closeout') or '').strip()
-    terminal_statuses = list(TicketStatus.objects.filter(is_terminal=True))
+    all_statuses = list(TicketStatus.objects.all())  # model ordering, as before
+    terminal_statuses = [s for s in all_statuses if s.is_terminal]
     default_close = next((s for s in terminal_statuses if s.slug == 'closed'),
                          terminal_statuses[0] if terminal_statuses else None)
     prefill = request.session.pop(f'psa_closeout_prefill_{ticket.pk}', None) or {}
@@ -11716,12 +11736,15 @@ def _ticket_workspace_context(request, ticket):
             1 for i in checklist_items if i.is_required and not i.is_completed),
         'kb_links': kb_links,
         'terminal_statuses': terminal_statuses,
+        'all_statuses': all_statuses,
         'closeout_default_status_id': getattr(default_close, 'pk', ''),
         'closeout_open_status_id': closeout_status_id if closeout_status_id.isdigit() else '',
         'closeout_prefill': prefill,
         'closeout_require_time': _closeout_requires_time(),
-        'has_time_logged': ticket.time_entries.filter(
-            ended_at__isnull=False, duration_minutes__gt=0).exists(),
+        'has_time_logged': (
+            any(e.ended_at is not None and (e.duration_minutes or 0) > 0 for e in time_entry_page)
+            if time_entry_page is not None and len(time_entry_page) < 30
+            else ticket.time_entries.filter(ended_at__isnull=False, duration_minutes__gt=0).exists()),
         'requires_signoff_statuses': [s.name for s in terminal_statuses if s.requires_signoff],
         # Read by static/js/psa_ticket_workspace.js (json_script, not executed).
         'workspace_config': {

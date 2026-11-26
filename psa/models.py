@@ -2544,10 +2544,34 @@ class Contract(models.Model):
             return []
         if not self.pk:
             return []
+        read = getattr(self, '_signed_documents_read', None)
+        if read is not None:   # read for many agreements at once (preload_signed_documents)
+            return list(read)
         return list(ContractDocument.objects.filter(
             billing_contract_id=self.pk, status=ContractDocument.SIGNED,
             current_version__completed_at__isnull=False).select_related('current_version')
             .order_by('-signed_at', '-pk'))
+
+    @staticmethod
+    def preload_signed_documents(contracts):
+        """Read signed_documents() of many agreements in one query (same
+        filter, and the same '-signed_at, -pk' order within each agreement),
+        for a read-only pass such as the Ready for Billing queue."""
+        try:
+            from contracts.models import ContractDocument
+        except Exception:  # noqa: BLE001
+            return
+        contracts = [c for c in contracts if c.pk]
+        if not contracts:
+            return
+        by_pk = {c.pk: [] for c in contracts}
+        for doc in (ContractDocument.objects.filter(
+                billing_contract_id__in=list(by_pk), status=ContractDocument.SIGNED,
+                current_version__completed_at__isnull=False).select_related('current_version')
+                .order_by('billing_contract_id', '-signed_at', '-pk')):
+            by_pk[doc.billing_contract_id].append(doc)
+        for c in contracts:
+            c._signed_documents_read = by_pk[c.pk]
 
     def document_mismatch(self, document) -> str:
         """'' when this billing contract carries the commercial terms the
@@ -2931,13 +2955,19 @@ class Contract(models.Model):
         if not ticket or not ticket.organization_id:
             return None
         today = timezone.localdate()
-        return cls.objects.filter(
-            client_org=ticket.organization,
-            status='active',
-            start_date__lte=today,
-        ).filter(
-            models.Q(end_date__isnull=True) | models.Q(end_date__gte=today)
-        ).first()
+
+        def read():
+            return cls.objects.filter(
+                client_org=ticket.organization,
+                status='active',
+                start_date__lte=today,
+            ).filter(
+                models.Q(end_date__isnull=True) | models.Q(end_date__gte=today)
+            ).first()
+        # Read once per request (the ticket page asks twice); a save in the
+        # psa app drops it (tech_access.request_cache).
+        from tech_access import request_cache
+        return request_cache.memo(('contract_for_ticket', ticket.organization_id, today), read)
 
     # ----- Phase 1 helpers -------------------------------------------------
 

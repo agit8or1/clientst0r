@@ -654,6 +654,17 @@ def exposed_devices(asset):
             .select_related('connection'))
 
 
+def exposed_device_list(asset):
+    """exposed_devices(asset) as a list in the model's ordering, read once
+    per request (tech_access.request_cache: dropped when the request saves
+    an RMM device, connection or asset). Each caller gets its own list."""
+    if asset is None or not asset.pk:
+        return []
+    from tech_access import request_cache
+    return list(request_cache.memo(('exposed_devices', asset.pk, asset.organization_id),
+                                   lambda: list(exposed_devices(asset))))
+
+
 def stale_after(connection):
     return max(timedelta(minutes=3 * (connection.sync_interval_minutes or 60)), timedelta(hours=2))
 

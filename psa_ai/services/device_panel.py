@@ -79,12 +79,15 @@ def _device_extras(device, ticket, requests, now) -> dict:
     }
 
 
-def enrich(data: dict, user, ticket, assets) -> None:
-    from integrations.rmm_association import exposed_devices, summary
+def enrich(data: dict, user, ticket, assets, recent_requests=None) -> None:
+    from integrations.rmm_association import exposed_device_list, summary
     from psa_ai.models import RMMRequest
     now = timezone.now()
-    requests = list(RMMRequest.objects.filter(ticket=ticket).select_related('actor', 'connection')
-                    .order_by('-created_at')[:50])
+    if recent_requests is not None:
+        requests = list(recent_requests)
+    else:
+        requests = list(RMMRequest.objects.filter(ticket=ticket).select_related('actor', 'connection')
+                        .order_by('-created_at')[:50])
     target_pks = {row['device'].pk for row in data['targets']}
     for row in data['targets']:
         row.update(_device_extras(row['device'], ticket, requests, now))
@@ -94,7 +97,7 @@ def enrich(data: dict, user, ticket, assets) -> None:
     # their RMM status if any RMM reports them, and why nothing can be done.
     devices = []
     for asset in assets:
-        linked = list(exposed_devices(asset))
+        linked = exposed_device_list(asset)
         devices.extend(linked)
         reachable = [d for d in linked if d.pk in target_pks]
         others = [summary(d, now) for d in linked if d.pk not in target_pks]
@@ -108,10 +111,9 @@ def enrich(data: dict, user, ticket, assets) -> None:
 
 
 def _affected_choices(ticket, assets):
-    from assets.models import Asset
+    from psa.affected import asset_choices
     have = {a.pk for a in assets}
-    return [a for a in Asset.objects.filter(organization_id=ticket.organization_id).order_by('name')
-            .only('id', 'name', 'hostname')[:500] if a.pk not in have]
+    return [a for a in asset_choices(ticket.organization_id) if a.pk not in have]
 
 
 # --- notes ----------------------------------------------------------------------

@@ -142,13 +142,72 @@ def availability_problem(user, when=None, *, tz_fallback='') -> Optional[str]:
     return _working_hours_problem(user, local)
 
 
-def is_working(user, when=None) -> bool:
+def is_working(user, when=None, *, book=None) -> bool:
     """Shift-aware "on shift now", ignoring leave. Falls back to the
-    WorkingHours rule (no rows = always working)."""
+    WorkingHours rule (no rows = always working). `book`: a ShiftBook that
+    already holds this user's rows (same answer, no queries)."""
     when = when or timezone.now()
+    if book is not None:
+        return book.is_working(user, when)
     if has_schedule(user, on=when.astimezone(user_tz(user)).date()):
         return shift_at(user, when) is not None
     return _working_hours_problem(user, when.astimezone(user_tz(user))) is None
+
+
+class ShiftBook:
+    """The shift assignments and working hours of several technicians, read
+    in a fixed number of queries (113.7: dispatch and skill ranking used to
+    read them once per technician, and per ticket). Each method gives the
+    same answer as the per-user function it is named after, from the
+    preloaded rows: the same filters, applied row by row, in the same order
+    (ShiftAssignment's and WorkingHours' model ordering)."""
+
+    def __init__(self, users):
+        from django.contrib.auth import get_user_model
+
+        from .models import ShiftAssignment, WorkingHours
+        self.users = list(users)
+        ids = [u.pk for u in self.users]
+        self.teams = {pk: set() for pk in ids}
+        through = get_user_model().groups.through
+        for uid, gid in through.objects.filter(user_id__in=ids).values_list('user_id', 'group_id'):
+            self.teams[uid].add(gid)
+        all_teams = set().union(*self.teams.values()) if self.teams else set()
+        rows = list(ShiftAssignment.objects
+                    .filter(Q(user_id__in=ids) | Q(team_id__in=all_teams))
+                    .filter(template__is_active=True)
+                    .select_related('template', 'team'))
+        self._rows = {pk: [a for a in rows if a.user_id == pk or (a.team_id is not None and a.team_id in self.teams[pk])]
+                      for pk in ids}
+        self._hours = {pk: [] for pk in ids}
+        for wh in WorkingHours.objects.filter(user_id__in=ids, is_active=True):
+            self._hours.setdefault(wh.user_id, []).append(wh)
+
+    def rows(self, user):
+        """list(assignments_qs(user))."""
+        return list(self._rows.get(user.pk, []))
+
+    def has_schedule(self, user, on=None) -> bool:
+        on = on or timezone.localdate()
+        return any(a.effective_until is None or a.effective_until >= on for a in self._rows.get(user.pk, []))
+
+    def shift_at(self, user, when=None):
+        return shift_at(user, when, rows=self.rows(user))
+
+    def working_hours_problem(self, user, local):
+        rows = self._hours.get(user.pk, [])
+        if rows:
+            t = local.time()
+            if not any(r.weekday == local.weekday() and r.start_time <= t < r.end_time for r in rows):
+                return 'outside their working hours'
+        return None
+
+    def is_working(self, user, when=None) -> bool:
+        when = when or timezone.now()
+        tz = user_tz(user)
+        if self.has_schedule(user, on=when.astimezone(tz).date()):
+            return self.shift_at(user, when) is not None
+        return self.working_hours_problem(user, when.astimezone(tz)) is None
 
 
 # ---------------------------------------------------------------------------
@@ -159,7 +218,7 @@ def week_start(day: date) -> date:
     return day - timedelta(days=day.weekday())
 
 
-def week_grid(users, start: date, days: int = 7):
+def week_grid(users, start: date, days: int = 7, *, book=None):
     """Rows of {'user', 'cells': [{'day', 'shifts', 'leave', 'pending_leave',
     'holiday', 'conflict'}]} for the schedule page.
 
@@ -177,7 +236,7 @@ def week_grid(users, start: date, days: int = 7):
         holidays.setdefault((h.date.month, h.date.day) if h.is_recurring_yearly else h.date, h)
     rows = []
     for u in users:
-        rows_for_user = list(assignments_qs(u))
+        rows_for_user = book.rows(u) if book is not None else list(assignments_qs(u))
         tz = user_tz(u)
         cells = []
         for i in range(days):

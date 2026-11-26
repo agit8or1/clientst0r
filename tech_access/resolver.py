@@ -20,9 +20,12 @@ Order, first match wins:
      assignment B).
   9. No live assignment → Off.
 
-Nothing is cached: every call reads the current rows, so demotion,
-reassignment, expiry and policy changes apply to the next call, including
-a call made while a job sits in a queue.
+Outside an HTTP request nothing is cached: every call reads the current
+rows, so demotion, reassignment, expiry and policy changes apply to the next
+call, including a call made while a job sits in a queue. Inside a request the
+rows (never the decisions) are memoised for that request only and dropped
+when the request writes any rule row — see tech_access/request_cache.py for
+the exact semantics.
 """
 from __future__ import annotations
 
@@ -33,6 +36,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from . import catalog
+from . import request_cache
 
 LOCKED, UNAVAILABLE = 'locked', 'unavailable'
 
@@ -73,7 +77,11 @@ def is_technician(user) -> bool:
 
 def active_containment(user):
     from .models import Containment
-    return Containment.objects.filter(user=user, lifted_at__isnull=True).order_by('-created_at').first()
+
+    def read():
+        return Containment.objects.filter(user=user, lifted_at__isnull=True).order_by('-created_at').first()
+    pk = getattr(user, 'pk', None)
+    return read() if pk is None else request_cache.memo(('containment', pk), read)
 
 
 def live_assignments(user, organization, now=None):
@@ -86,18 +94,67 @@ def live_assignments(user, organization, now=None):
             .order_by('pk'))
 
 
-def _deny(user, organization, capability, now):
+def _live_assignment_rows(user, organization):
+    """Every assignment row that could be live for this technician at this
+    customer, liveness not yet applied (that depends on `now`). Memoised per
+    request; the filter is live_assignments' own minus `.live()`."""
+    from .models import AccessAssignment
+
+    def read():
+        return list(AccessAssignment.objects
+                    .filter(organization=organization)
+                    .filter(Q(user=user) | Q(group__members=user))
+                    .select_related('preset', 'group', 'user')
+                    .distinct()
+                    .order_by('pk'))
+    if getattr(user, 'pk', None) is None or getattr(organization, 'pk', None) is None:
+        return read()
+    return request_cache.memo(('assignments', user.pk, organization.pk), read)
+
+
+def _is_live(assignment, now) -> bool:
+    # AccessAssignmentQuerySet.live(), row by row.
+    return assignment.revoked_at is None and (assignment.expires_at is None or assignment.expires_at > now)
+
+
+def live_assignment_list(user, organization, now=None):
+    """live_assignments() as a list, read through the request memo."""
+    now = now or timezone.now()
+    return [a for a in _live_assignment_rows(user, organization) if _is_live(a, now)]
+
+
+def _deny_rows(user):
     from .models import ExplicitDeny
-    return (ExplicitDeny.objects
-            .filter(user=user, capability__in=[capability, '*'])
-            .filter(Q(organization=organization) | Q(organization__isnull=True))
-            .filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now))
-            .first())
+
+    def read():
+        return list(ExplicitDeny.objects.filter(user=user).order_by('pk'))
+    pk = getattr(user, 'pk', None)
+    return read() if pk is None else request_cache.memo(('denies', pk), read)
+
+
+def _deny(user, organization, capability, now):
+    """The first (lowest pk, as `.first()` on the unordered query) deny of
+    this capability or '*', here or everywhere, not expired at `now`."""
+    org_id = getattr(organization, 'pk', None)
+    for d in _deny_rows(user):
+        if (d.capability in (capability, '*')
+                and (d.organization_id is None or (org_id is not None and d.organization_id == org_id))
+                and (d.expires_at is None or d.expires_at > now)):
+            return d
+    return None
+
+
+def _policy(organization):
+    from .models import CustomerAccessPolicy
+
+    def read():
+        return CustomerAccessPolicy.objects.filter(organization=organization).first()
+    pk = getattr(organization, 'pk', None)
+    return read() if pk is None else request_cache.memo(('policy', pk), read)
 
 
 def _restricted(organization, capability) -> bool:
-    from .models import CustomerAccessPolicy
-    policy = CustomerAccessPolicy.objects.filter(organization=organization).first()
+    policy = _policy(organization)
     return bool(policy and capability in (policy.restricted or []))
 
 
@@ -113,10 +170,14 @@ def unavailable_reason(capability, organization) -> str:
     if need is None:
         return ''
     from integrations.ticket_rmm import advertised, paired_connections
-    conns = paired_connections(organization)
-    if not conns:
+
+    def read():
+        return [advertised(c) for c in paired_connections(organization)]
+    pk = getattr(organization, 'pk', None)
+    offers = read() if pk is None else request_cache.memo(('paired', pk), read)
+    if not offers:
         return 'No RMM is paired with this customer for ticket integration.'
-    if not any(need in advertised(c) for c in conns):
+    if not any(need in caps for caps in offers):
         return f"This customer's paired RMM doesn't offer this (it hasn't advertised “{need}”)."
     return ''
 
@@ -174,7 +235,7 @@ def decide(user, organization, capability, ticket=None, asset=None, now=None, in
 
     best: Optional[Decision] = None
     notes = []
-    for a in live_assignments(user, organization, now):
+    for a in live_assignment_list(user, organization, now):
         d = _evaluate(a, user, capability, ticket, asset)
         notes.append(f'{a.preset.name} via {a.subject_label}: {d.label}')
         if best is None or catalog.RANK[d.state] > catalog.RANK[best.state]:
@@ -198,4 +259,4 @@ def effective_access(user, organization) -> List[Decision]:
 
 
 def has_any_assignment(user, organization) -> bool:
-    return is_technician(user) and live_assignments(user, organization).exists()
+    return is_technician(user) and bool(live_assignment_list(user, organization))

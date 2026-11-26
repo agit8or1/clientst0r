@@ -143,7 +143,12 @@ _agreement_memo = contextvars.ContextVar('psa_coverage_agreement_memo', default=
 def agreements_read_once():
     """Within the block, candidate_agreements reads a customer's agreements
     for a date once: for a read-only pass over many entries (the ticket's
-    billing lines), which changes no agreement while it runs."""
+    billing lines), which changes no agreement while it runs. Nested inside
+    another such block it shares the outer block's reads (the Ready for
+    Billing queue reads many tickets in one read-only pass)."""
+    if _agreement_memo.get() is not None:
+        yield
+        return
     token = _agreement_memo.set({})
     try:
         yield
@@ -161,6 +166,30 @@ def _agreements_on(client_org_id, on_date):
     return list(qs)
 
 
+def preload_agreements(client_org_ids):
+    """Inside agreements_read_once: read the agreements of these customers
+    for every date in one query. candidate_agreements then takes a date's
+    agreements from these rows: the same filter as _agreements_on, with the
+    dates applied in Python to rows kept in the database's own order (so the
+    order, NULLs included, is exactly the query's)."""
+    from psa.models import Contract
+    memo = _agreement_memo.get()
+    ids = [i for i in set(client_org_ids) if i and ('rows', i) not in (memo or {})]
+    if memo is None or not ids:
+        return
+    for i in ids:
+        memo[('rows', i)] = []
+    for c in (Contract.objects.filter(client_org_id__in=ids, start_date__isnull=False)
+              .exclude(status='draft')
+              .exclude(status='cancelled', end_date__isnull=True)
+              .order_by('-billing_priority', 'start_date', 'pk')):
+        memo[('rows', c.client_org_id)].append(c)
+
+
+def _agreements_from_rows(rows, on_date):
+    return [c for c in rows if c.start_date <= on_date and (c.end_date is None or c.end_date >= on_date)]
+
+
 def candidate_agreements(client_org_id, on_date, role_code=None):
     """Agreements of this customer that can cover work on `on_date`."""
     if not client_org_id or on_date is None:
@@ -171,7 +200,9 @@ def candidate_agreements(client_org_id, on_date, role_code=None):
     else:
         key = (client_org_id, on_date)
         if key not in memo:
-            memo[key] = _agreements_on(client_org_id, on_date)
+            rows = memo.get(('rows', client_org_id))
+            memo[key] = (_agreements_from_rows(rows, on_date) if rows is not None and type(on_date) is date
+                         else _agreements_on(client_org_id, on_date))
         out = list(memo[key])
     if role_code is not None:
         out = [c for c in out if role_allows(c, role_code)]
