@@ -1,0 +1,75 @@
+/* Interface components showcase (113.11). Layout of the showcase page only:
+   the components themselves use the app's existing classes. */
+.cs-switcher {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--ui-3, 12px) var(--ui-4, 16px);
+    padding: var(--ui-2, 8px) var(--ui-3, 12px); margin-bottom: var(--ui-3, 12px);
+    background: var(--ui-surface, var(--surface, #fff)); border: 1px solid var(--ui-border, #dee2e6);
+    border-radius: var(--ui-radius, 6px);
+}
+.cs-switcher__field { display: flex; flex-direction: column; gap: 2px; font-size: var(--ui-text-xs, 12px); font-weight: 600; color: var(--ui-muted, #6c757d); }
+.cs-switcher__field .form-select { min-width: 11rem; }
+.cs-switcher__note { font-size: var(--ui-text-sm, 13px); color: var(--ui-muted, #6c757d); }
+
+.cs-layout { display: grid; grid-template-columns: 13rem minmax(0, 1fr); gap: var(--ui-4, 16px); align-items: start; }
+.cs-toc { position: sticky; top: 4.5rem; max-height: calc(100vh - 6rem); overflow-y: auto; font-size: var(--ui-text-sm, 13px); }
+.cs-toc ol { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--ui-border, #dee2e6); }
+.cs-toc a { display: block; padding: 3px var(--ui-3, 12px); text-decoration: none; }
+.cs-toc a:hover { text-decoration: underline; }
+.cs-main { min-width: 0; }
+@media (max-width: 991.98px) {
+    .cs-layout { grid-template-columns: minmax(0, 1fr); }
+    .cs-toc { position: static; max-height: none; }
+    .cs-toc ol { display: flex; flex-wrap: wrap; gap: 2px 12px; border-left: 0; }
+    .cs-switcher { position: static; }
+}
+
+.cs-sc { padding: var(--ui-4, 16px) 0; border-top: 1px solid var(--ui-border, #dee2e6); scroll-margin-top: 5rem; }
+.cs-sc:first-child { border-top: 0; padding-top: 0; }
+.cs-sc__head { margin-bottom: var(--ui-3, 12px); }
+.cs-sc__title { font-size: var(--ui-section, 16px); font-weight: 600; margin: 0 0 var(--ui-1, 4px); }
+.cs-sc__meta { display: grid; gap: 2px; margin: 0; font-size: var(--ui-text-sm, 13px); color: var(--ui-muted, #6c757d); }
+.cs-sc__meta > div { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: var(--ui-2, 8px); }
+.cs-sc__meta dt { font-weight: 600; }
+.cs-sc__meta dd { margin: 0; overflow-wrap: anywhere; }
+.cs-sc__meta code { font-size: inherit; }
+@media (max-width: 575.98px) { .cs-sc__meta > div { grid-template-columns: minmax(0, 1fr); } }
+
+.cs-demo { min-width: 0; }
+.cs-demo__label { margin: var(--ui-3, 12px) 0 var(--ui-1, 4px); font-size: var(--ui-text-xs, 12px); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ui-muted, #6c757d); }
+.cs-demo__label:first-child { margin-top: 0; }
+.cs-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ui-2, 8px); }
+.cs-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: var(--ui-3, 12px); }
+.cs-flag { outline: 2px dashed var(--bs-danger, #dc3545); outline-offset: 2px; }
+
+.cs-formgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: var(--ui-3, 12px) var(--ui-4, 16px); }
+.cs-formgrid__wide { grid-column: 1 / -1; }
+fieldset.cs-formgrid__wide { border: 0; padding: 0; margin: 0; }
+.cs-form { max-width: 60rem; }
+
+.cs-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 2px; }
+.cs-dot--ok { background: var(--bs-success, #198754); }
+.cs-dot--warn { background: var(--bs-warning, #ffc107); }
+.cs-dot--bad { background: var(--bs-danger, #dc3545); }
+
+.cs-toasts { display: grid; gap: var(--ui-2, 8px); max-width: 26rem; }
+.cs-toast { position: static; display: flex; align-items: center; justify-content: space-between; gap: var(--ui-2, 8px); max-width: 26rem; }
+
+.cs-chartgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: var(--ui-4, 16px); }
+.cs-chart { margin: 0; padding: var(--ui-3, 12px); border: 1px solid var(--ui-border, #dee2e6); border-radius: var(--ui-radius, 6px); background: var(--ui-surface, var(--surface, #fff)); min-width: 0; }
+.cs-chart figcaption { font-size: var(--ui-text-sm, 13px); margin-bottom: var(--ui-2, 8px); display: flex; flex-direction: column; }
+.cs-svg { width: 100%; height: auto; display: block; }
+.cs-svg__grid line { stroke: var(--ui-border, #dee2e6); stroke-width: 1; }
+.cs-svg__line { fill: none; stroke: var(--ui-primary, #0d6efd); stroke-width: 2; stroke-linejoin: round; }
+.cs-svg__dots circle { fill: var(--ui-primary, #0d6efd); }
+.cs-kpis { display: grid; gap: var(--ui-2, 8px); }
+.cs-bulk { padding: var(--ui-2, 8px) var(--ui-3, 12px); border: 1px solid var(--ui-border, #dee2e6); border-radius: var(--ui-radius, 6px); background: var(--ui-surface, var(--surface, #fff)); }
+
+/* The dashboard bar and KPI components read these from the dashboard page
+   root (dashboard.css); the showcase is not that page, so it supplies them. */
+.cs-chart {
+    --dash-surface: var(--surface, var(--bs-body-bg, #fff));
+    --dash-border: var(--bs-border-color, rgba(0, 0, 0, .14));
+    --dash-muted: var(--bs-secondary-color, #6c757d);
+    --dash-accent: var(--primary-color, var(--bs-primary, #0d6efd));
+}

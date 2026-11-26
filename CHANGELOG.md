@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.787] - 2026-11-26
+
+### Added
+- **Interface components page** (`/core/ui/components/`, for MSP staff; listed under Administration → System for
+  superusers). Every shared component from the design specification — page header, buttons, tables, forms, tabs,
+  dialogs, badges, alerts and messages, toasts, pagination, loading, empty and error states, charts and more — built
+  from the app's own markup, each with where it is defined and a link to its specification section. A switcher previews
+  every theme in light or dark and both densities without changing your saved settings. The page saves nothing and
+  makes no outside requests.
+
+### Changed
+- The search rate-limit test no longer depends on the clock.
+- Roadmap: 113.11 interface components page shipped.
+
 ## [3.17.786] - 2026-11-26
 
 ### Added

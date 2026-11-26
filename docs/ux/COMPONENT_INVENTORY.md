@@ -359,3 +359,22 @@ Target: a chart wrapper with a shared categorical and sequential palette that me
 | Persistent preferences | Theme, density, rail, pins: persisted per user. |
 | Focus indicators, reduced motion | Present but ring contrast is below 3:1 on light (UX_AUDIT F-7); 10 reduced-motion rules in 6 files. |
 | Component showcase in both themes and densities | Not present. Planned. |
+
+## Showcase findings (113.11)
+
+Source: the interface components showcase at `/core/ui/components/` (staff only; `core/component_showcase.py`, `templates/core/component_showcase.html`), captured 2026-11-25 at 1440 and 390 px, light (Default) and dark (Professional Dark), against a copy of the demo database. Observations only; none is fixed by this increment.
+
+1. **Outline buttons have no visible border** in light and dark (`btn-outline-secondary`, `btn-outline-danger`, `btn-outline-secondary` in button groups and icon-only actions). Only the text shows, so a secondary action looks like a link and the boundary fails the 3:1 non-text contrast rule (spec: secondary buttons use `border.strong`). Disabled outline buttons are indistinguishable from plain text.
+2. **On phones every `.btn` in a flex row becomes full width** (`mobile.css`: `.btn`, `.d-flex .btn`, `.gap-2 .btn`). Icon-only actions then stretch into 340 px bars, a button group stacks oddly and the buttons section is about 1,800 px tall at 390 px. Icon-only and `btn-sm` buttons should be exempt.
+3. **Icon-only buttons have no shared component**: size, padding and name are per template; the unnamed pattern is common (49 of 49 sampled). The showcase marks the unnamed example as an anti-pattern.
+4. **Two status systems and two empty-state components.** `.ui-badge--*` (tinted, icon + word) and Bootstrap `.badge text-bg-*` (solid, uppercase, no icon) look unrelated; there is no pill/solid/dot trio. `core/_empty_state.html` (large icon, `text-body-secondary`) and `.ui-empty` differ in icon size and weight.
+5. **Alerts are solid saturated fills** (`alert-success/info/warning/danger`): Bootstrap 5.3 subtle style is not used, banner text on the cyan info and yellow warning fills is dark while the others are white-on-colour, and there is no left border or consistent icon. Heavy compared with the spec's subtle tint.
+6. **Toast and alert vocabularies differ**: toasts use `info` (dark slate), `success`, `error`; Django messages use `success`, `info`, `warning`, `danger`. A toast has no warning level and no title or Undo slot.
+7. **Dashboard bars and KPIs depend on page-scoped variables** (`--dash-muted`, `--dash-accent`, defined on `.dash`); outside the dashboard the bar track is transparent and fills collapse. The showcase supplies them in its own CSS. Charts elsewhere load Chart.js from a CDN (5 report pages), so there is no chart component that works without a network.
+8. **Tabs**: in-page `.nav-tabs` render smaller than the section strip and the navigation pills; a tab badge sits at a different baseline from its label in dark themes. There is no keyboard arrow handling beyond Bootstrap's.
+9. **Page header**: a status pill beside the title has no slot in `.ui-page-head` (it sits inline in the title), and the title icon renders as a heavy dark glyph at 20 px.
+10. **Form validation**: `is-invalid` shows the border and icon but `invalid-feedback` is hidden by default, so every template must add `d-block`; the multi-select highlight is a flat grey in both themes.
+11. **Disabled states**: `disabled` buttons use opacity only and are dropped from the tab order; no `aria-disabled` + reason pattern exists, so "why is this disabled" cannot be reached by keyboard.
+12. **Section headers**: `.ui-section-title` exists but cards use `h2.h6` card headers on most pages, so section header and card header cannot be told apart.
+13. **Breadcrumbs**: the separator slash sits unevenly spaced (more room before than after) and the shell trail (`.app-trail`) is a second style.
+14. **Dark mode**: skeleton `placeholder` bars are mid-grey blocks that outweigh the content they stand for.

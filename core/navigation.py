@@ -1012,6 +1012,8 @@ SECTIONS = (
             keywords='update upgrade version release'),
         Tab(_('Mobile Apps'), 'core:mobile_apps_admin', 'fa-mobile-alt', gate=_django_staff_or_superuser,
             keywords='android apk builds'),
+        Tab(_('Interface components'), 'core:component_showcase', 'fa-swatchbook', gate=_superuser,
+            keywords='ui style guide design system components showcase theme density'),
     )),
     Section('settings_maintenance', 'settings', _('Maintenance'), icon='fa-tools', render_tabs=False, tabs=(
         Tab(_('Maintenance'), 'core:maintenance', 'fa-tools', gate=_superuser, keywords='cleanup backup'),

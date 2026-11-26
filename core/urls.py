@@ -24,6 +24,7 @@ from . import palette_views
 from . import settings_home_views
 from . import setup_assistant_views
 from . import offhost_backup_views
+from . import showcase_views
 
 app_name = 'core'
 
@@ -87,6 +88,7 @@ urlpatterns = [
     path('report-bug/', views.report_bug, name='report_bug'),
     path('download-mobile-app/<str:app_type>/', views.download_mobile_app, name='download_mobile_app'),
     path('mobile-apps/', views.mobile_apps_admin, name='mobile_apps_admin'),
+    path('ui/components/', showcase_views.component_showcase, name='component_showcase'),
     path('mobile-apps/build-progress/<str:app_type>/', views.mobile_app_build_progress, name='mobile_app_build_progress'),
     path('download-browser-extension/', views.download_browser_extension, name='download_browser_extension'),
 

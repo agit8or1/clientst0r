@@ -1,0 +1,643 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Interface components - {{ system_settings.custom_company_name|default:"Clientst0r" }}{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/component_showcase.css' %}">
+{% endblock %}
+{% block main_class %}container-fluid mt-2{% endblock %}
+{% block content %}
+{% comment %}
+Interface components showcase (roadmap 113.11). Staff only. Every demo uses the
+app's real markup and classes; the sample data is invented, no form posts and
+nothing is fetched. The theme/density switcher only sets attributes on <html>
+in this tab (static/js/component_showcase.js) and saves nothing.
+{% endcomment %}
+
+<div class="ui-page-head">
+    <div class="ui-page-head__main">
+        <h1 class="ui-page-title"><i class="fas fa-swatchbook" aria-hidden="true"></i> Interface components</h1>
+        <p class="ui-page-sub">Every shared component from the design specification ({{ sections|length }} sections), drawn with the real markup. Sample data is invented; nothing on this page saves.</p>
+    </div>
+    <div class="ui-page-head__actions">
+        <a class="btn btn-outline-secondary" href="{{ spec_url }}" target="_blank" rel="noopener"><i class="fas fa-book" aria-hidden="true"></i> Specification</a>
+    </div>
+</div>
+
+<div class="cs-switcher" role="group" aria-label="Preview theme and density (this tab only, not saved)">
+    <label class="cs-switcher__field">Theme
+        <select class="form-select form-select-sm" id="csTheme">
+            {% for key, label, dark in themes %}<option value="{{ key }}" data-dark="{{ dark|yesno:'1,0' }}">{{ label }}</option>{% endfor %}
+        </select>
+    </label>
+    <div class="cs-switcher__field">Mode
+        <div class="btn-group btn-group-sm" role="group" aria-label="Light or dark">
+            <button type="button" class="btn btn-outline-secondary" id="csLight"><i class="fas fa-sun" aria-hidden="true"></i> Light</button>
+            <button type="button" class="btn btn-outline-secondary" id="csDark"><i class="fas fa-moon" aria-hidden="true"></i> Dark</button>
+        </div>
+    </div>
+    <div class="cs-switcher__field">Density
+        <div class="btn-group btn-group-sm" role="group" aria-label="Density">
+            <button type="button" class="btn btn-outline-secondary" id="csCompact" aria-pressed="false">Compact</button>
+            <button type="button" class="btn btn-outline-secondary" id="csComfortable" aria-pressed="false">Comfortable</button>
+        </div>
+    </div>
+    <button type="button" class="btn btn-sm btn-link" id="csReset">Reset to my settings</button>
+    <span class="cs-switcher__note" id="csState" role="status"></span>
+</div>
+
+<div class="cs-layout">
+<nav class="cs-toc" aria-label="Components on this page">
+    <ol>
+    {% for c in sections %}<li><a href="#cmp-{{ c.key }}">{{ c.title }}</a></li>{% endfor %}
+    </ol>
+</nav>
+
+<div class="cs-main">
+
+{# ---------------------------------------------------------------- page header #}
+<section class="cs-sc" id="cmp-page-header" aria-labelledby="cmp-page-header-title">
+    {% include "core/showcase/_head.html" with m=meta.page_header %}
+    <div class="cs-demo">
+        <nav aria-label="Breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="#cmp-page-header">Tickets</a></li><li class="breadcrumb-item active" aria-current="page">T-10482</li></ol></nav>
+        <div class="ui-page-head mb-0">
+            <div class="ui-page-head__main">
+                <p class="ui-page-title h1"><i class="fas fa-ticket-alt" aria-hidden="true"></i> Printer offline on 2nd floor <span class="ui-badge ui-badge--open"><i class="fas fa-circle-dot" aria-hidden="true"></i> Open</span></p>
+                <p class="ui-page-sub">Northwind Dental &middot; opened 12 min ago &middot; assigned to Sam Rivera</p>
+            </div>
+            <div class="ui-page-head__actions">
+                <button type="button" class="btn btn-outline-secondary"><i class="fas fa-pen" aria-hidden="true"></i> Edit</button>
+                <button type="button" class="btn btn-primary"><i class="fas fa-reply" aria-hidden="true"></i> Reply</button>
+            </div>
+        </div>
+    </div>
+</section>
+
+{# ------------------------------------------------------------- section header #}
+<section class="cs-sc" id="cmp-section-header" aria-labelledby="cmp-section-header-title">
+    {% include "core/showcase/_head.html" with m=meta.section_header %}
+    <div class="cs-demo">
+        <div class="d-flex align-items-center justify-content-between">
+            <p class="ui-section-title mb-0">Open assets <span class="text-body-secondary fw-normal">(24)</span></p>
+            <button type="button" class="btn btn-sm btn-link">View all</button>
+        </div>
+    </div>
+</section>
+
+{# ----------------------------------------------------------------- buttons #}
+<section class="cs-sc" id="cmp-buttons" aria-labelledby="cmp-buttons-title">
+    {% include "core/showcase/_head.html" with m=meta.buttons %}
+    <div class="cs-demo">
+        <p class="cs-demo__label">Variants, default size</p>
+        <div class="cs-row">
+            <button type="button" class="btn btn-primary">Primary</button>
+            <button type="button" class="btn btn-secondary">Secondary</button>
+            <button type="button" class="btn btn-outline-primary">Outline primary</button>
+            <button type="button" class="btn btn-outline-secondary">Outline secondary</button>
+            <button type="button" class="btn btn-success">Success</button>
+            <button type="button" class="btn btn-warning">Warning</button>
+            <button type="button" class="btn btn-danger">Danger</button>
+            <button type="button" class="btn btn-outline-danger">Outline danger</button>
+            <button type="button" class="btn btn-info">Info</button>
+            <button type="button" class="btn btn-link">Link</button>
+        </div>
+        <p class="cs-demo__label">Sizes</p>
+        <div class="cs-row">
+            <button type="button" class="btn btn-primary btn-lg">Large</button>
+            <button type="button" class="btn btn-primary">Default</button>
+            <button type="button" class="btn btn-primary btn-sm">Small</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm"><i class="fas fa-plus" aria-hidden="true"></i> With icon</button>
+        </div>
+        <p class="cs-demo__label">States: disabled, loading, pressed, button group</p>
+        <div class="cs-row">
+            <button type="button" class="btn btn-primary" disabled>Disabled</button>
+            <button type="button" class="btn btn-outline-secondary" disabled>Disabled outline</button>
+            <button type="button" class="btn btn-primary" disabled aria-busy="true"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Saving</button>
+            <button type="button" class="btn btn-outline-secondary active" aria-pressed="true">Pressed</button>
+            <div class="btn-group" role="group" aria-label="Sample group">
+                <button type="button" class="btn btn-outline-secondary">Day</button>
+                <button type="button" class="btn btn-outline-secondary active" aria-pressed="true">Week</button>
+                <button type="button" class="btn btn-outline-secondary">Month</button>
+            </div>
+            <div class="btn-group">
+                <button type="button" class="btn btn-primary">Split action</button>
+                <button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false"><span class="visually-hidden">More actions</span></button>
+                <ul class="dropdown-menu"><li><a class="dropdown-item" href="#cmp-buttons">Save and add another</a></li><li><a class="dropdown-item" href="#cmp-buttons">Save as draft</a></li></ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+{# --------------------------------------------------------- icon-only actions #}
+<section class="cs-sc" id="cmp-icon-only-actions" aria-labelledby="cmp-icon-only-actions-title">
+    {% include "core/showcase/_head.html" with m=meta.icon_only_actions %}
+    <div class="cs-demo">
+        <p class="cs-demo__label">With accessible name and tooltip</p>
+        <div class="cs-row">
+            <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Edit" data-bs-toggle="tooltip" title="Edit"><i class="fas fa-pen" aria-hidden="true"></i></button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Copy link" data-bs-toggle="tooltip" title="Copy link"><i class="fas fa-copy" aria-hidden="true"></i></button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Refresh" data-bs-toggle="tooltip" title="Refresh"><i class="fas fa-rotate" aria-hidden="true"></i></button>
+            <button type="button" class="btn btn-sm btn-outline-danger" aria-label="Delete" data-bs-toggle="tooltip" title="Delete"><i class="fas fa-trash" aria-hidden="true"></i></button>
+            <button type="button" class="btn btn-sm btn-outline-secondary active" aria-label="Pin to top" aria-pressed="true" data-bs-toggle="tooltip" title="Pin to top"><i class="fas fa-thumbtack" aria-hidden="true"></i></button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="More actions" data-bs-toggle="tooltip" title="More actions"><i class="fas fa-ellipsis" aria-hidden="true"></i></button>
+            <button type="button" class="btn-close" aria-label="Close"></button>
+        </div>
+        <p class="cs-demo__label">Anti-pattern kept for comparison: no name (found on 49 of 49 sampled pages); do not copy</p>
+        <div class="cs-row">
+            <button type="button" class="btn btn-sm btn-outline-secondary cs-flag"><i class="fas fa-pen"></i></button>
+        </div>
+    </div>
+</section>
+
+{# ------------------------------------------------------------------ tables #}
+<section class="cs-sc" id="cmp-tables" aria-labelledby="cmp-tables-title">
+    {% include "core/showcase/_head.html" with m=meta.tables %}
+    <div class="cs-demo">
+        <p class="cs-demo__label">Sortable, selectable, with row actions</p>
+        <div class="card"><div class="ui-table-wrap">
+        <table class="table table-hover">
+            <caption class="visually-hidden">Sample devices</caption>
+            <thead><tr>
+                <th scope="col" style="width:1%"><input class="form-check-input" type="checkbox" aria-label="Select all rows"></th>
+                <th scope="col" aria-sort="ascending"><button type="button" class="btn btn-link btn-sm p-0 text-reset fw-semibold">Device <i class="fas fa-arrow-up" aria-hidden="true"></i></button></th>
+                <th scope="col" aria-sort="none"><button type="button" class="btn btn-link btn-sm p-0 text-reset fw-semibold">Client <i class="fas fa-sort text-body-secondary" aria-hidden="true"></i></button></th>
+                <th scope="col">Status</th>
+                <th scope="col" class="ui-num">Open tickets</th>
+                <th scope="col">Last seen</th>
+                <th scope="col" class="ui-actions"><span class="visually-hidden">Actions</span></th>
+            </tr></thead>
+            <tbody>
+                <tr><td><input class="form-check-input" type="checkbox" aria-label="Select DC-01"></td>
+                    <td><a class="ui-primary-cell" href="#cmp-tables">DC-01</a> <span class="ui-ref">A-2041</span></td>
+                    <td class="ui-wrap"><span class="ui-org">Northwind Dental</span></td>
+                    <td><span class="ui-badge ui-badge--active"><i class="fas fa-circle-check" aria-hidden="true"></i> Online</span></td>
+                    <td class="ui-num">0</td><td><time datetime="2026-11-25T09:48:00">12 min ago</time></td>
+                    <td class="ui-actions"><button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Edit DC-01"><i class="fas fa-pen" aria-hidden="true"></i></button> <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="More actions for DC-01"><i class="fas fa-ellipsis" aria-hidden="true"></i></button></td></tr>
+                <tr class="table-active"><td><input class="form-check-input" type="checkbox" checked aria-label="Select SW-14"></td>
+                    <td><a class="ui-primary-cell" href="#cmp-tables">SW-14</a> <span class="ui-ref">A-2057</span></td>
+                    <td class="ui-wrap"><span class="ui-org">Harbor Logistics</span></td>
+                    <td><span class="ui-badge ui-badge--danger"><i class="fas fa-circle-xmark" aria-hidden="true"></i> Offline</span></td>
+                    <td class="ui-num">3</td><td><time datetime="2026-11-24T22:10:00">Yesterday 22:10</time></td>
+                    <td class="ui-actions"><button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Edit SW-14"><i class="fas fa-pen" aria-hidden="true"></i></button> <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="More actions for SW-14"><i class="fas fa-ellipsis" aria-hidden="true"></i></button></td></tr>
+                <tr><td><input class="form-check-input" type="checkbox" aria-label="Select FW-02"></td>
+                    <td><a class="ui-primary-cell" href="#cmp-tables">FW-02</a> <span class="ui-ref">A-2060</span></td>
+                    <td class="ui-wrap"><span class="ui-org">Birchwood Legal</span></td>
+                    <td><span class="ui-badge ui-badge--warn"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i> Degraded</span></td>
+                    <td class="ui-num">12</td><td><time datetime="2026-11-25T09:20:00">40 min ago</time></td>
+                    <td class="ui-actions"><button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Edit FW-02"><i class="fas fa-pen" aria-hidden="true"></i></button> <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="More actions for FW-02"><i class="fas fa-ellipsis" aria-hidden="true"></i></button></td></tr>
+            </tbody>
+        </table></div></div>
+        <p class="cs-demo__label">Empty table frame</p>
+        <div class="card"><div class="ui-table-wrap">
+        <table class="table"><thead><tr><th scope="col">Device</th><th scope="col">Client</th><th scope="col">Status</th></tr></thead>
+        <tbody><tr><td colspan="3">{% include "core/_empty_state.html" with compact=True title="No devices match" text="Try a different status or clear the filters." %}</td></tr></tbody></table>
+        </div></div>
+    </div>
+</section>
+
+{# ------------------------------------------------------------------- forms #}
+<section class="cs-sc" id="cmp-forms" aria-labelledby="cmp-forms-title">
+    {% include "core/showcase/_head.html" with m=meta.forms %}
+    <div class="cs-demo">
+        <form method="dialog" novalidate data-demo-form aria-label="Sample form (does not submit)" class="cs-form">
+            <div class="cs-formgrid">
+                <div>
+                    <label class="form-label" for="csf-name">Name <span aria-hidden="true">*</span><span class="visually-hidden">(required)</span></label>
+                    <input class="form-control" id="csf-name" type="text" value="Northwind Dental" required aria-describedby="csf-name-help">
+                    <div class="form-text" id="csf-name-help">Shown on invoices and in the client switcher.</div>
+                </div>
+                <div>
+                    <label class="form-label" for="csf-email">Contact email <span aria-hidden="true">*</span><span class="visually-hidden">(required)</span></label>
+                    <input class="form-control is-invalid" id="csf-email" type="email" value="front-desk@" aria-invalid="true" aria-describedby="csf-email-err">
+                    <div class="invalid-feedback d-block" id="csf-email-err"><i class="fas fa-circle-exclamation" aria-hidden="true"></i> Enter a full email address, such as name@example.com.</div>
+                </div>
+                <div>
+                    <label class="form-label" for="csf-ok">Valid field</label>
+                    <input class="form-control is-valid" id="csf-ok" type="text" value="Looks good">
+                </div>
+                <div>
+                    <label class="form-label" for="csf-ro">Read-only</label>
+                    <input class="form-control" id="csf-ro" type="text" value="CL-0042" readonly>
+                </div>
+                <div>
+                    <label class="form-label" for="csf-dis">Disabled</label>
+                    <input class="form-control" id="csf-dis" type="text" value="Locked by contract" disabled>
+                </div>
+                <div>
+                    <label class="form-label" for="csf-pw">Password</label>
+                    <input class="form-control" id="csf-pw" type="password" value="sample-only" autocomplete="off">
+                </div>
+                <div>
+                    <label class="form-label" for="csf-num">Hours</label>
+                    <input class="form-control" id="csf-num" type="number" min="0" step="0.25" value="1.5">
+                </div>
+                <div>
+                    <label class="form-label" for="csf-sel">Priority</label>
+                    <select class="form-select" id="csf-sel"><option>Low</option><option selected>Normal</option><option>High</option><option>Urgent</option></select>
+                </div>
+                <div>
+                    <label class="form-label" for="csf-msel">Technicians (multiple)</label>
+                    <select class="form-select" id="csf-msel" multiple size="3"><option selected>Sam Rivera</option><option>Priya Nair</option><option selected>Lee Chen</option></select>
+                </div>
+                <div>
+                    <label class="form-label" for="csf-file">Attachment</label>
+                    <input class="form-control" id="csf-file" type="file">
+                </div>
+                <div>
+                    <label class="form-label" for="csf-range">Priority weight</label>
+                    <input class="form-range" id="csf-range" type="range" min="0" max="10" value="6">
+                </div>
+                <div>
+                    <label class="form-label" for="csf-color">Accent colour</label>
+                    <input class="form-control form-control-color" id="csf-color" type="color" value="#2563eb">
+                </div>
+                <div class="cs-formgrid__wide">
+                    <label class="form-label" for="csf-text">Notes</label>
+                    <textarea class="form-control" id="csf-text" rows="3">Shared printer is on the second floor. Ask reception for the key.</textarea>
+                </div>
+                <fieldset class="cs-formgrid__wide">
+                    <legend class="form-label fs-6">Notifications</legend>
+                    <div class="form-check"><input class="form-check-input" type="checkbox" id="csf-c1" checked><label class="form-check-label" for="csf-c1">Email me on new replies</label></div>
+                    <div class="form-check"><input class="form-check-input" type="checkbox" id="csf-c2"><label class="form-check-label" for="csf-c2">Weekly summary</label></div>
+                    <div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="csf-sw" checked><label class="form-check-label" for="csf-sw">Notify the customer</label></div>
+                </fieldset>
+                <fieldset class="cs-formgrid__wide">
+                    <legend class="form-label fs-6">Billing type</legend>
+                    <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="csf-r" id="csf-r1" checked><label class="form-check-label" for="csf-r1">Time and materials</label></div>
+                    <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="csf-r" id="csf-r2"><label class="form-check-label" for="csf-r2">Fixed fee</label></div>
+                </fieldset>
+                <div class="cs-formgrid__wide">
+                    <label class="form-label" for="csf-ig">Hourly rate</label>
+                    <div class="input-group"><span class="input-group-text">$</span><input class="form-control" id="csf-ig" type="text" inputmode="decimal" value="145.00"><span class="input-group-text">per hour</span></div>
+                </div>
+            </div>
+            <div class="alert alert-danger mt-3 mb-0 py-2" role="alert"><i class="fas fa-circle-exclamation" aria-hidden="true"></i> <strong>1 problem to fix.</strong> <a href="#csf-email" class="alert-link">Contact email</a></div>
+            <div class="d-flex gap-2 mt-3"><button type="submit" class="btn btn-primary">Save</button><button type="button" class="btn btn-outline-secondary">Cancel</button></div>
+        </form>
+    </div>
+</section>
+
+{# -------------------------------------------------------------------- tabs #}
+<section class="cs-sc" id="cmp-tabs" aria-labelledby="cmp-tabs-title">
+    {% include "core/showcase/_head.html" with m=meta.tabs %}
+    <div class="cs-demo">
+        <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item" role="presentation"><button class="nav-link active" id="cst-1" data-bs-toggle="tab" data-bs-target="#cst-p1" type="button" role="tab" aria-controls="cst-p1" aria-selected="true">Overview</button></li>
+            <li class="nav-item" role="presentation"><button class="nav-link" id="cst-2" data-bs-toggle="tab" data-bs-target="#cst-p2" type="button" role="tab" aria-controls="cst-p2" aria-selected="false" tabindex="-1">Tickets <span class="badge text-bg-secondary">12</span></button></li>
+            <li class="nav-item" role="presentation"><button class="nav-link" id="cst-3" data-bs-toggle="tab" data-bs-target="#cst-p3" type="button" role="tab" aria-controls="cst-p3" aria-selected="false" tabindex="-1">Assets</button></li>
+            <li class="nav-item" role="presentation"><button class="nav-link disabled" type="button" role="tab" disabled>Billing</button></li>
+        </ul>
+        <div class="tab-content border border-top-0 p-3">
+            <div class="tab-pane fade show active" id="cst-p1" role="tabpanel" aria-labelledby="cst-1" tabindex="0">Overview panel: summary of the client.</div>
+            <div class="tab-pane fade" id="cst-p2" role="tabpanel" aria-labelledby="cst-2" tabindex="0">Tickets panel: 12 open.</div>
+            <div class="tab-pane fade" id="cst-p3" role="tabpanel" aria-labelledby="cst-3" tabindex="0">Assets panel: 38 devices.</div>
+        </div>
+        <p class="cs-demo__label">Navigation-style tabs (the section strip)</p>
+        <ul class="nav nav-pills">
+            <li class="nav-item"><a class="nav-link active" aria-current="page" href="#cmp-tabs">Open</a></li>
+            <li class="nav-item"><a class="nav-link" href="#cmp-tabs">Unassigned</a></li>
+            <li class="nav-item"><a class="nav-link" href="#cmp-tabs">Approvals</a></li>
+        </ul>
+    </div>
+</section>
+
+{# ----------------------------------------------------------------- dialogs #}
+<section class="cs-sc" id="cmp-dialogs" aria-labelledby="cmp-dialogs-title">
+    {% include "core/showcase/_head.html" with m=meta.dialogs %}
+    <div class="cs-demo">
+        <div class="cs-row">
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#csModalConfirm">Confirm dialog</button>
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#csModalForm">Form dialog</button>
+        </div>
+        <div class="modal fade" id="csModalConfirm" tabindex="-1" aria-labelledby="csModalConfirmT" aria-hidden="true"><div class="modal-dialog modal-sm"><div class="modal-content">
+            <div class="modal-header"><h2 class="modal-title fs-5" id="csModalConfirmT">Delete 3 tickets?</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body">This sample dialog changes nothing. A real one names what will be removed and whether it can be undone.</div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn btn-danger" data-bs-dismiss="modal">Delete 3 tickets</button></div>
+        </div></div></div>
+        <div class="modal fade" id="csModalForm" tabindex="-1" aria-labelledby="csModalFormT" aria-hidden="true"><div class="modal-dialog"><div class="modal-content">
+            <form method="dialog" novalidate data-demo-form>
+            <div class="modal-header"><h2 class="modal-title fs-5" id="csModalFormT">Add note</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body"><label class="form-label" for="csm-note">Note</label><textarea class="form-control" id="csm-note" rows="3"></textarea></div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary" data-bs-dismiss="modal">Add note</button></div>
+            </form>
+        </div></div></div>
+    </div>
+</section>
+
+{# --------------------------------------------------------- dropdown menus #}
+<section class="cs-sc" id="cmp-dropdown-menus" aria-labelledby="cmp-dropdown-menus-title">
+    {% include "core/showcase/_head.html" with m=meta.dropdown_menus %}
+    <div class="cs-demo">
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Actions</button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#cmp-dropdown-menus"><i class="fas fa-pen fa-fw" aria-hidden="true"></i> Edit</a></li>
+                <li><a class="dropdown-item" href="#cmp-dropdown-menus"><i class="fas fa-copy fa-fw" aria-hidden="true"></i> Duplicate</a></li>
+                <li><a class="dropdown-item active" aria-current="true" href="#cmp-dropdown-menus"><i class="fas fa-check fa-fw" aria-hidden="true"></i> Pinned</a></li>
+                <li><span class="dropdown-item disabled" aria-disabled="true">Archive (needs approver role)</span></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item text-danger" href="#cmp-dropdown-menus"><i class="fas fa-trash fa-fw" aria-hidden="true"></i> Delete</a></li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+{# ---------------------------------------------------------------- tooltips #}
+<section class="cs-sc" id="cmp-tooltips" aria-labelledby="cmp-tooltips-title">
+    {% include "core/showcase/_head.html" with m=meta.tooltips %}
+    <div class="cs-demo cs-row">
+        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="tooltip" data-bs-placement="top" title="Shown on hover and on keyboard focus">Top</button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="tooltip" data-bs-placement="right" title="Placed to the right">Right</button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Placed below">Bottom</button>
+        <span class="text-body-secondary small">Hover or focus a button. Press Esc to dismiss.</span>
+    </div>
+</section>
+
+{# ------------------------------------------------------- status indicators #}
+<section class="cs-sc" id="cmp-status-indicators" aria-labelledby="cmp-status-indicators-title">
+    {% include "core/showcase/_head.html" with m=meta.status_indicators %}
+    <div class="cs-demo">
+        <p class="cs-demo__label">Pills (.ui-badge): word + icon + colour</p>
+        <div class="cs-row">
+            <span class="ui-badge ui-badge--active"><i class="fas fa-circle-check" aria-hidden="true"></i> Healthy</span>
+            <span class="ui-badge ui-badge--warn"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i> Warning</span>
+            <span class="ui-badge ui-badge--danger"><i class="fas fa-circle-xmark" aria-hidden="true"></i> Critical</span>
+            <span class="ui-badge ui-badge--info"><i class="fas fa-circle-info" aria-hidden="true"></i> Info</span>
+            <span class="ui-badge ui-badge--open"><i class="fas fa-circle-dot" aria-hidden="true"></i> Open</span>
+            <span class="ui-badge ui-badge--neutral"><i class="fas fa-minus" aria-hidden="true"></i> Unknown</span>
+            <span class="ui-badge ui-badge--done"><i class="fas fa-check" aria-hidden="true"></i> Closed</span>
+        </div>
+        <p class="cs-demo__label">Solid badges (Bootstrap .badge) and counts</p>
+        <div class="cs-row">
+            <span class="badge text-bg-primary">New</span><span class="badge text-bg-success">Paid</span>
+            <span class="badge text-bg-warning">Due soon</span><span class="badge text-bg-danger">Overdue</span>
+            <span class="badge text-bg-secondary">Draft</span><span class="badge text-bg-info">Sent</span>
+            <span class="badge rounded-pill text-bg-danger" aria-label="9 or more unread">9+</span>
+        </div>
+        <p class="cs-demo__label">Dots with text, and stale data</p>
+        <div class="cs-row">
+            <span class="cs-dot cs-dot--ok"></span> Online
+            <span class="cs-dot cs-dot--warn"></span> Degraded
+            <span class="cs-dot cs-dot--bad"></span> Offline
+            <span class="ui-badge ui-badge--neutral"><i class="fas fa-clock" aria-hidden="true"></i> Last synced 3 days ago</span>
+        </div>
+    </div>
+</section>
+
+{# ------------------------------------------------------------------ alerts #}
+<section class="cs-sc" id="cmp-alerts" aria-labelledby="cmp-alerts-title">
+    {% include "core/showcase/_head.html" with m=meta.alerts %}
+    <div class="cs-demo">
+        <div class="alert alert-success" role="status"><i class="fas fa-circle-check" aria-hidden="true"></i> <strong>Saved.</strong> Ticket #1042 was closed.</div>
+        <div class="alert alert-info" role="status"><i class="fas fa-circle-info" aria-hidden="true"></i> <strong>Heads up.</strong> Backups run at 02:00 local time.</div>
+        <div class="alert alert-warning" role="status"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i> <strong>Certificate expires in 9 days.</strong> <a href="#cmp-alerts" class="alert-link">Renew</a></div>
+        <div class="alert alert-danger" role="alert"><i class="fas fa-circle-exclamation" aria-hidden="true"></i> <strong>Sync failed.</strong> The last attempt returned an error. <a href="#cmp-alerts" class="alert-link">Retry</a></div>
+        <div class="alert alert-secondary alert-dismissible fade show" role="status"><i class="fas fa-bell" aria-hidden="true"></i> Dismissible neutral message.<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Dismiss"></button></div>
+        <p class="cs-demo__label">Django message tags rendered by base.html as alert-(tag): success, info, warning, danger (error is mapped by MESSAGE_TAGS)</p>
+    </div>
+</section>
+
+{# ----------------------------------------------------------- notifications #}
+<section class="cs-sc" id="cmp-notifications" aria-labelledby="cmp-notifications-title">
+    {% include "core/showcase/_head.html" with m=meta.notifications %}
+    <div class="cs-demo">
+        <div class="cs-row">
+            <button type="button" class="btn btn-outline-secondary" data-cs-toast="info">Info toast</button>
+            <button type="button" class="btn btn-outline-secondary" data-cs-toast="success">Success toast</button>
+            <button type="button" class="btn btn-outline-secondary" data-cs-toast="error">Error toast</button>
+        </div>
+        <p class="cs-demo__label">Static samples of the toast styles</p>
+        <div class="cs-toasts">
+            <div class="app-toast app-toast--info cs-toast" role="status"><span>Info: sample message.</span></div>
+            <div class="app-toast app-toast--success cs-toast" role="status"><span>Success: ticket #1042 closed.</span></div>
+            <div class="app-toast app-toast--error cs-toast" role="alert"><span>Error: could not reach the sample server.</span></div>
+        </div>
+    </div>
+</section>
+
+{# ------------------------------------------------------------- breadcrumbs #}
+<section class="cs-sc" id="cmp-breadcrumbs" aria-labelledby="cmp-breadcrumbs-title">
+    {% include "core/showcase/_head.html" with m=meta.breadcrumbs %}
+    <div class="cs-demo">
+        <nav aria-label="Breadcrumb"><ol class="breadcrumb mb-2"><li class="breadcrumb-item"><a href="#cmp-breadcrumbs">Home</a></li><li class="breadcrumb-item"><a href="#cmp-breadcrumbs">Clients</a></li><li class="breadcrumb-item"><a href="#cmp-breadcrumbs">Northwind Dental</a></li><li class="breadcrumb-item active" aria-current="page">Assets</li></ol></nav>
+    </div>
+</section>
+
+{# ------------------------------------------------------------------ search #}
+<section class="cs-sc" id="cmp-search" aria-labelledby="cmp-search-title">
+    {% include "core/showcase/_head.html" with m=meta.search %}
+    <div class="cs-demo">
+        <form method="dialog" role="search" novalidate data-demo-form aria-label="Sample search (does not search)">
+            <label class="form-label" for="css-q">Search devices</label>
+            <div class="input-group" style="max-width:28rem">
+                <span class="input-group-text"><i class="fas fa-magnifying-glass" aria-hidden="true"></i></span>
+                <input class="form-control" id="css-q" type="search" value="dc-" placeholder="Search... Ctrl+K">
+                <button type="button" class="btn btn-outline-secondary" aria-label="Clear search"><i class="fas fa-xmark" aria-hidden="true"></i></button>
+            </div>
+            <div class="form-text" role="status">2 results</div>
+        </form>
+        <p class="cs-demo__label">Palette result rows (static)</p>
+        <ul class="list-group" style="max-width:28rem">
+            <li class="list-group-item d-flex justify-content-between"><span><i class="fas fa-server fa-fw" aria-hidden="true"></i> DC-01</span><span class="text-body-secondary small">Device</span></li>
+            <li class="list-group-item d-flex justify-content-between"><span><i class="fas fa-server fa-fw" aria-hidden="true"></i> DC-02</span><span class="text-body-secondary small">Device</span></li>
+        </ul>
+    </div>
+</section>
+
+{# ------------------------------------------------------------------ charts #}
+<section class="cs-sc" id="cmp-charts" aria-labelledby="cmp-charts-title">
+    {% include "core/showcase/_head.html" with m=meta.charts %}
+    <div class="cs-demo">
+        <div class="cs-chartgrid">
+            <figure class="cs-chart">
+                <figcaption><strong>Tickets by status</strong> <span class="text-body-secondary">Most are waiting on customers.</span></figcaption>
+                <ul class="dash-bars">
+                    <li><div class="dash-bar-row"><span class="dash-bar-label">Open</span><span class="dash-bar-track" aria-hidden="true"><span class="dash-bar-fill" style="width: 72%"></span></span><strong class="dash-bar-value">36</strong></div></li>
+                    <li><div class="dash-bar-row"><span class="dash-bar-label">Waiting on customer</span><span class="dash-bar-track" aria-hidden="true"><span class="dash-bar-fill dash-fill-warning" style="width: 48%"></span></span><strong class="dash-bar-value">24</strong></div></li>
+                    <li><div class="dash-bar-row"><span class="dash-bar-label">Escalated</span><span class="dash-bar-track" aria-hidden="true"><span class="dash-bar-fill dash-fill-danger" style="width: 12%"></span></span><strong class="dash-bar-value">6</strong></div></li>
+                    <li><div class="dash-bar-row"><span class="dash-bar-label">Resolved today</span><span class="dash-bar-track" aria-hidden="true"><span class="dash-bar-fill dash-fill-success" style="width: 38%"></span></span><strong class="dash-bar-value">19</strong></div></li>
+                </ul>
+            </figure>
+            <figure class="cs-chart">
+                <figcaption><strong>Tickets opened, last 14 days</strong> <span class="text-body-secondary">Peak on Monday.</span></figcaption>
+                <svg viewBox="0 0 280 100" role="img" aria-labelledby="csSvgT csSvgD" class="cs-svg">
+                    <title id="csSvgT">Tickets opened per day</title>
+                    <desc id="csSvgD">14 days, between 4 and 19 tickets a day, highest on day 11 at 19.</desc>
+                    <g class="cs-svg__grid"><line x1="0" y1="20" x2="280" y2="20"/><line x1="0" y1="50" x2="280" y2="50"/><line x1="0" y1="80" x2="280" y2="80"/></g>
+                    <polyline class="cs-svg__line" points="0,70 20,62 40,66 60,48 80,52 100,40 120,58 140,44 160,36 180,50 200,24 220,32 240,28 260,40"/>
+                    <g class="cs-svg__dots"><circle cx="200" cy="24" r="3.5"/></g>
+                </svg>
+                <details class="small mt-1"><summary>Show as table</summary>
+                    <table class="table table-sm mb-0"><thead><tr><th scope="col">Day</th><th scope="col" class="ui-num">Opened</th></tr></thead>
+                    <tbody><tr><td>Day 11 (peak)</td><td class="ui-num">19</td></tr><tr><td>Day 1</td><td class="ui-num">8</td></tr><tr><td>Day 14</td><td class="ui-num">12</td></tr></tbody></table></details>
+            </figure>
+            <figure class="cs-chart">
+                <figcaption><strong>KPI tiles</strong></figcaption>
+                <div class="cs-kpis">
+                    <div class="dash-kpi dash-tone-primary"><span class="dash-kpi-icon" aria-hidden="true"><i class="fas fa-ticket-alt"></i></span><span class="dash-kpi-text"><span class="dash-kpi-value">42</span><span class="dash-kpi-label">Open tickets</span></span></div>
+                    <div class="dash-kpi dash-tone-danger"><span class="dash-kpi-icon" aria-hidden="true"><i class="fas fa-triangle-exclamation"></i></span><span class="dash-kpi-text"><span class="dash-kpi-value">3</span><span class="dash-kpi-label">SLA breaches</span></span></div>
+                </div>
+                <div class="progress mt-2" role="progressbar" aria-label="Backup coverage" aria-valuenow="82" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar" style="width:82%">82%</div></div>
+            </figure>
+        </div>
+    </div>
+</section>
+
+{# ----------------------------------------------------------------- filters #}
+<section class="cs-sc" id="cmp-filters" aria-labelledby="cmp-filters-title">
+    {% include "core/showcase/_head.html" with m=meta.filters %}
+    <div class="cs-demo">
+        <form method="dialog" novalidate data-demo-form class="ui-filter-bar" aria-label="Sample filters (do not filter)">
+            <div class="ui-field ui-field--grow"><label for="csfl-q">Search</label><input class="form-control" id="csfl-q" type="search" placeholder="Name or number"></div>
+            <div class="ui-field"><label for="csfl-s">Status</label><select class="form-select" id="csfl-s"><option>Open</option><option>Closed</option></select></div>
+            <div class="ui-field"><label for="csfl-c">Client</label><select class="form-select" id="csfl-c"><option>All clients</option><option>Northwind Dental</option></select></div>
+            <div class="ui-field ui-field--auto"><button type="submit" class="btn btn-primary">Apply</button></div>
+        </form>
+        <div class="ui-applied">
+            <span class="text-body-secondary">Filtered by</span>
+            <span class="ui-chip">Status: Open <button type="button" class="btn-close btn-close-sm" style="font-size:.6rem" aria-label="Remove filter Status: Open"></button></span>
+            <span class="ui-chip">Client: Northwind Dental <button type="button" class="btn-close" style="font-size:.6rem" aria-label="Remove filter Client: Northwind Dental"></button></span>
+            <button type="button" class="btn btn-sm btn-link">Clear all</button>
+        </div>
+    </div>
+</section>
+
+{# -------------------------------------------------------------- pagination #}
+<section class="cs-sc" id="cmp-pagination" aria-labelledby="cmp-pagination-title">
+    {% include "core/showcase/_head.html" with m=meta.pagination %}
+    <div class="cs-demo">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <span class="text-body-secondary small" role="status">1&ndash;50 of 1,234</span>
+            <nav aria-label="Pagination">
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item disabled"><span class="page-link" aria-label="Previous page"><i class="fas fa-chevron-left" aria-hidden="true"></i></span></li>
+                    <li class="page-item active"><a class="page-link" href="#cmp-pagination" aria-current="page">1</a></li>
+                    <li class="page-item"><a class="page-link" href="#cmp-pagination">2</a></li>
+                    <li class="page-item"><a class="page-link" href="#cmp-pagination">3</a></li>
+                    <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                    <li class="page-item"><a class="page-link" href="#cmp-pagination">25</a></li>
+                    <li class="page-item"><a class="page-link" href="#cmp-pagination" aria-label="Next page"><i class="fas fa-chevron-right" aria-hidden="true"></i></a></li>
+                </ul>
+            </nav>
+            <label class="small d-flex align-items-center gap-2 mb-0">Rows <select class="form-select form-select-sm" style="width:auto"><option>25</option><option selected>50</option><option>100</option></select></label>
+        </div>
+    </div>
+</section>
+
+{# -------------------------------------------------------- bulk toolbar #}
+<section class="cs-sc" id="cmp-bulk-action-toolbar" aria-labelledby="cmp-bulk-action-toolbar-title">
+    {% include "core/showcase/_head.html" with m=meta.bulk_action_toolbar %}
+    <div class="cs-demo">
+        <div class="ui-toolbar cs-bulk" role="toolbar" aria-label="Bulk actions for selected rows">
+            <strong role="status">3 selected</strong>
+            <button type="button" class="btn btn-sm btn-link">Select all 1,234</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary"><i class="fas fa-user-plus" aria-hidden="true"></i> Assign</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary"><i class="fas fa-tag" aria-hidden="true"></i> Set status</button>
+            <button type="button" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash" aria-hidden="true"></i> Delete 3</button>
+            <span class="ui-toolbar__spacer"></span>
+            <button type="button" class="btn btn-sm btn-outline-secondary">Clear</button>
+        </div>
+        <div class="alert alert-info py-2 mb-0" role="status"><i class="fas fa-circle-info" aria-hidden="true"></i> 12 updated, 2 skipped (no permission). <a href="#cmp-bulk-action-toolbar" class="alert-link">View skipped</a></div>
+    </div>
+</section>
+
+{# --------------------------------------------------------------- date-time #}
+<section class="cs-sc" id="cmp-date-time" aria-labelledby="cmp-date-time-title">
+    {% include "core/showcase/_head.html" with m=meta.date_time %}
+    <div class="cs-demo">
+        <form method="dialog" novalidate data-demo-form aria-label="Sample date controls (do not submit)">
+        <div class="cs-formgrid">
+            <div><label class="form-label" for="csd-d">Date</label><input class="form-control" id="csd-d" type="date" value="2026-11-25"><div class="form-text">Format follows your browser locale.</div></div>
+            <div><label class="form-label" for="csd-t">Time</label><input class="form-control" id="csd-t" type="time" value="09:30"></div>
+            <div><label class="form-label" for="csd-dt">Date and time</label><input class="form-control" id="csd-dt" type="datetime-local" value="2026-11-25T09:30"></div>
+            <div><label class="form-label" for="csd-p">Range</label><select class="form-select" id="csd-p"><option>Today</option><option selected>Last 7 days</option><option>This month</option><option>Custom</option></select></div>
+        </div>
+        </form>
+        <p class="mt-2 mb-0">Updated <time datetime="2026-11-25T09:48:00" title="25 Nov 2026, 09:48">12 min ago</time> &middot; created <time datetime="2026-10-02T14:05:00">2 Oct 2026, 14:05</time></p>
+    </div>
+</section>
+
+{# ----------------------------------------------------------------- loading #}
+<section class="cs-sc" id="cmp-loading" aria-labelledby="cmp-loading-title">
+    {% include "core/showcase/_head.html" with m=meta.loading %}
+    <div class="cs-demo">
+        <div class="cs-row">
+            <div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div>
+            <div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div>
+            <div class="spinner-grow spinner-grow-sm" role="status"><span class="visually-hidden">Loading...</span></div>
+        </div>
+        <div class="progress mt-3" role="progressbar" aria-label="Import progress" aria-valuenow="45" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar progress-bar-striped" style="width:45%">Importing 45%</div></div>
+        <div class="card mt-3" aria-busy="true"><div class="card-body d-flex align-items-center gap-2"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Loading recent activity<span class="visually-hidden">, please wait</span></div></div>
+    </div>
+</section>
+
+{# --------------------------------------------------------------- skeletons #}
+<section class="cs-sc" id="cmp-skeletons" aria-labelledby="cmp-skeletons-title">
+    {% include "core/showcase/_head.html" with m=meta.skeletons %}
+    <div class="cs-demo">
+        <div class="card" aria-busy="true"><span class="visually-hidden" role="status">Loading</span>
+            <div class="card-body" aria-hidden="true">
+                <p class="placeholder-glow mb-2"><span class="placeholder col-4"></span></p>
+                <p class="placeholder-glow mb-1"><span class="placeholder col-12"></span></p>
+                <p class="placeholder-glow mb-1"><span class="placeholder col-10"></span></p>
+                <p class="placeholder-glow mb-0"><span class="placeholder col-7"></span></p>
+            </div></div>
+    </div>
+</section>
+
+{# ------------------------------------------------------------ empty states #}
+<section class="cs-sc" id="cmp-empty-states" aria-labelledby="cmp-empty-states-title">
+    {% include "core/showcase/_head.html" with m=meta.empty_states %}
+    <div class="cs-demo">
+        <div class="cs-two">
+            <div class="card">{% include "core/_empty_state.html" with icon="fa-box" title="No assets yet" text="Add the first device, or import them from your RMM." action_url="#cmp-empty-states" action_label="Add asset" secondary_url="#cmp-empty-states" secondary_label="Import" %}</div>
+            <div class="card">{% include "core/_empty_state.html" with icon="fa-filter" title="No results for these filters" text="Clear the filters to see all tickets." action_url="#cmp-empty-states" action_label="Clear filters" %}</div>
+        </div>
+        <p class="cs-demo__label">The second empty-state component (.ui-empty), kept for comparison</p>
+        <div class="card"><div class="ui-empty"><i class="fas fa-inbox ui-empty__icon" aria-hidden="true"></i><div class="ui-empty__title">Nothing here yet</div><div class="ui-empty__body">Records you create will appear here.</div></div></div>
+    </div>
+</section>
+
+{# ------------------------------------------------------------ error states #}
+<section class="cs-sc" id="cmp-error-states" aria-labelledby="cmp-error-states-title">
+    {% include "core/showcase/_head.html" with m=meta.error_states %}
+    <div class="cs-demo">
+        <div class="alert alert-danger d-flex flex-wrap align-items-center gap-2" role="alert"><i class="fas fa-circle-exclamation" aria-hidden="true"></i> <span><strong>Could not load monitors.</strong> Showing data from 09:12 (36 min ago).</span> <button type="button" class="btn btn-sm btn-outline-danger ms-auto">Retry</button></div>
+        <div class="ui-state-error" role="alert"><i class="fas fa-circle-exclamation" aria-hidden="true"></i> The report could not be built. Reference <code>E-7F3A21</code>.</div>
+        <p class="cs-demo__label">Page-level (403 style)</p>
+        <div class="card"><div class="card-body text-center py-4"><i class="fas fa-lock fa-2x text-body-secondary mb-2" aria-hidden="true"></i><h3 class="h5">You do not have access to this page</h3><p class="text-body-secondary mb-2">Ask an administrator for the Billing role. Reference <code>E-5C12B0</code>.</p><a class="btn btn-outline-secondary" href="#cmp-error-states">Back to dashboard</a></div></div>
+    </div>
+</section>
+
+{# ------------------------------------------------------- success messages #}
+<section class="cs-sc" id="cmp-success-messages" aria-labelledby="cmp-success-messages-title">
+    {% include "core/showcase/_head.html" with m=meta.success_messages %}
+    <div class="cs-demo">
+        <div class="alert alert-success d-flex flex-wrap align-items-center gap-2" role="status"><i class="fas fa-circle-check" aria-hidden="true"></i> <span><strong>Import finished.</strong> 148 assets added, 6 skipped.</span> <a class="alert-link ms-auto" href="#cmp-success-messages">View summary</a></div>
+        <div class="app-toast app-toast--success cs-toast" role="status"><span>Ticket #1042 closed.</span> <button type="button" class="btn btn-sm btn-link text-white">Undo</button></div>
+    </div>
+</section>
+
+{# ----------------------------------------------------------- disabled states #}
+<section class="cs-sc" id="cmp-disabled-states" aria-labelledby="cmp-disabled-states-title">
+    {% include "core/showcase/_head.html" with m=meta.disabled_states %}
+    <div class="cs-demo">
+        <div class="cs-row">
+            <button type="button" class="btn btn-primary" disabled>Disabled (removed from tab order)</button>
+            <button type="button" class="btn btn-primary" aria-disabled="true" aria-describedby="csDisWhy">Approve invoice</button>
+            <span class="text-body-secondary small" id="csDisWhy">Requires the Approver role.</span>
+        </div>
+        <div class="cs-row mt-2">
+            <input class="form-control w-auto" type="text" value="Disabled input" disabled aria-label="Disabled input">
+            <select class="form-select w-auto" disabled aria-label="Disabled select"><option>Disabled select</option></select>
+            <div class="form-check"><input class="form-check-input" type="checkbox" id="csDisC" disabled><label class="form-check-label" for="csDisC">Disabled checkbox</label></div>
+        </div>
+    </div>
+</section>
+
+</div>{# cs-main #}
+</div>{# cs-layout #}
+{% endblock %}
+{% block extra_js %}
+<script src="{% static 'js/component_showcase.js' %}"></script>
+{% endblock %}

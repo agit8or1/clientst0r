@@ -284,6 +284,12 @@ class SearchHardeningTests(R681Base):
         from core import search_views
         old = search_views.SEARCH_RATE
         search_views.SEARCH_RATE = '2/m'
+        # Fixed one-minute windows: hold the clock so the three requests can't
+        # straddle a window boundary on a loaded machine.
+        from unittest import mock
+        frozen = mock.patch('django_ratelimit.core.time.time', return_value=1_800_000_000.0)
+        frozen.start()
+        self.addCleanup(frozen.stop)
         try:
             c = self.login(self.l1)
             for _ in range(2):
