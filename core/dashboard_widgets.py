@@ -1402,6 +1402,37 @@ def gate_billing(request):
             and org_perm(request, 'billing_view_invoices'))
 
 
+def gate_billing_review(request):
+    # psa.views.billing_review: PSA on, require_admin, MSP staff (or a
+    # superuser), billing_view_invoices for the selected customer; the
+    # sidebar's own check (core.navigation._check_billing_reviewer).
+    user = request.user
+    if not (gate_org(request) and psa_on(request) and (user.is_superuser or is_staff(request))):
+        return False
+    if not path_ok(request, url('psa:billing_review') or '/psa/billing-review/'):
+        return False
+    from core.navigation import _check_billing_reviewer
+    return (_memo(request, 'billing_reviewer', lambda: bool(_check_billing_reviewer(user, {'request': request})))
+            and org_perm(request, 'billing_view_invoices'))
+
+
+def _billing_review_url():
+    u = url('psa:billing_review')
+    return f'{u}#ready-for-billing' if u else ''
+
+
+def build_kpi_ready_to_invoice(request, org):
+    """113.9: customers with lines ready to draft on the Billing Review's
+    Ready for Billing queue (psa.billing.queue: the same queue and totals
+    the page shows; across the customers the user may bill)."""
+    from psa.billing import queue as bq
+    q = bq.build_queue(request.user)
+    n = sum(1 for g in q if g.draftable_tickets or g.charges_ready)
+    sub = f"{bq.summary(q)['ready_total']} before tax" if n else ''
+    return _kpi(n, 'Ready to invoice', 'fa-file-invoice-dollar', _billing_review_url(),
+                tone='warning' if n else 'secondary', sub=sub)
+
+
 def build_billing_summary(request, org):
     from django.db.models import DecimalField, ExpressionWrapper, F, Sum
     from accounts.permission_utils import orgs_with_perm
@@ -1427,6 +1458,8 @@ def build_billing_summary(request, org):
             'open_url': f'{base}?status=sent' if base else '',
             'overdue_url': f'{base}?status=overdue' if base else '',
             'draft_url': f'{base}?status=draft' if base else '',
+            # 113.9: one click to the Billing Review's Ready for Billing queue.
+            'ready_url': _billing_review_url() if gate_billing_review(request) else '',
             'more_url': base}
 
 
@@ -1615,6 +1648,11 @@ WIDGETS = (
     Widget('kpi_crm_won', 'Deals won', 'fa-trophy', gate_crm, build_kpi_crm_won, _KPI_TPL,
            zone='kpi', expandable=False,
            description='Opportunities closed won (and lost) in the last 90 days.'),
+
+    Widget('kpi_ready_to_invoice', 'Ready to invoice', 'fa-file-invoice-dollar', gate_billing_review,
+           build_kpi_ready_to_invoice, _KPI_TPL, zone='kpi', lazy=True, expandable=False,
+           link='psa:billing_review',
+           description='Customers with charges ready to draft on the Billing Review (opens it).'),
 
     Widget('kpi_tickets', 'Open tickets', 'fa-ticket', gate_tickets, build_kpi_tickets,
            _KPI_TPL, zone='kpi', expandable=False),
@@ -1838,7 +1876,7 @@ MSP_ONLY = frozenset({
     'crm_closing', 'my_time', 'rmm_alerts', 'system_status',
     'kpi_quotes_open', 'kpi_quotes_waiting', 'kpi_contracts_signing', 'kpi_contracts_expiring',
     'kpi_crm_won', 'quotes', 'contract_docs', 'contract_renewals', 'crm_won_lost', 'crm_activity',
-    'team_utilization', 'billing_summary', 'reports',
+    'team_utilization', 'billing_summary', 'reports', 'kpi_ready_to_invoice',
 }) | frozenset(w.key for w in WIDGETS if w.scope == 'global')
 
 _PRESET_SIZES = {

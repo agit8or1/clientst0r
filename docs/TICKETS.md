@@ -168,6 +168,19 @@ invoiced automatically.
 4. Logged entries, with classification and agreement.
 <!-- /guide-figure -->
 
+MSP staff also get a compact **timer** at the top of the ticket, above the conversation, so it is visible
+without scrolling. **Start timer** and **Stop & log** work without reloading the page: the button shows the
+running state and the elapsed time, and a screen reader is told when the timer starts or stops. The server
+decides: it applies the same permission and ownership rules as before, and stopping logs the same time entry.
+If you have the ticket open in two tabs, the timer refreshes when you switch back to a tab. Without
+JavaScript the same buttons still work as an ordinary form that reloads the ticket.
+
+**Workspace layout.** In **My Profile** (and the account menu: L1, L2, L3) you can choose how much of the
+ticket page and My Work starts open: *Essentials* folds secondary panels (follow-up, reminders, Cc, close-out
+checklist, site, Time & Charges) behind a **More** button, *Standard* is the default layout, and *Advanced*
+also opens the optional sections. The layout only changes what is shown first; it never changes what you are
+allowed to do, and everything folded away is one click on **More**.
+
 **Time & Charges** is shown to MSP staff only. **Start timer** runs a timer on the ticket (it also appears
 under Running timers in My Queue); **Stop & log** saves it as a time entry. Or enter minutes by hand with a
 classification (billable, covered, non-billable, warranty, goodwill, awaiting classification), work type,

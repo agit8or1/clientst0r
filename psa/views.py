@@ -2652,6 +2652,37 @@ def _choose_time_agreement(request, entry, agreement):
         messages.warning(request, str(exc))
 
 
+def _wants_json(request):
+    """Inline timer (113.9): fetch() asks for JSON; the plain form POST keeps
+    its redirect."""
+    return 'application/json' in (request.headers.get('Accept') or '')
+
+
+def _timer_payload(ticket, entry, message=''):
+    """Server truth for the inline timer control."""
+    data = {'ok': True, 'ticket': ticket.ticket_number, 'running': bool(entry), 'message': message}
+    if entry is not None:
+        data.update(
+            started_at=entry.started_at.isoformat(),
+            elapsed_seconds=max(0, int((timezone.now() - entry.started_at).total_seconds())),
+            is_billable=entry.is_billable)
+    return data
+
+
+@login_required
+@require_psa_enabled
+@require_http_methods(['GET'])
+def timer_state(request, ticket_number):
+    """Current user's running timer on this ticket, as JSON (refresh on focus)."""
+    _staff_or_403(request)
+    ticket = get_object_or_404(_scoped_ticket_qs(request), ticket_number=ticket_number)
+    entry = TicketTimeEntry.objects.filter(
+        ticket=ticket, user=request.user, ended_at__isnull=True).first()
+    resp = JsonResponse(_timer_payload(ticket, entry))
+    resp['Cache-Control'] = 'no-store'
+    return resp
+
+
 @login_required
 @require_write
 @require_psa_enabled
@@ -2668,6 +2699,8 @@ def timer_start(request, ticket_number):
         ticket=ticket, user=request.user, ended_at__isnull=True,
     ).first()
     if existing:
+        if _wants_json(request):
+            return JsonResponse(_timer_payload(ticket, existing, 'Timer already running.'))
         messages.info(request, 'Timer already running.')
         return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
     is_billable = (request.POST.get('is_billable') or '').lower() in ('1', 'true', 'on', 'yes')
@@ -2686,6 +2719,8 @@ def timer_start(request, ticket_number):
         description=f'Started timer on {ticket.ticket_number} (billable={is_billable})',
         ip_address=_client_ip(request), path=request.path,
     )
+    if _wants_json(request):
+        return JsonResponse(_timer_payload(ticket, entry, 'Timer started.'))
     messages.success(request, 'Timer started.')
     return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
 
@@ -2702,6 +2737,8 @@ def timer_stop(request, ticket_number):
         ticket=ticket, user=request.user, ended_at__isnull=True,
     ).first()
     if entry is None:
+        if _wants_json(request):
+            return JsonResponse(_timer_payload(ticket, None, 'No running timer to stop.'))
         messages.info(request, 'No running timer to stop.')
         return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
     entry.ended_at = timezone.now()
@@ -2715,6 +2752,10 @@ def timer_stop(request, ticket_number):
         ip_address=_client_ip(request), path=request.path,
         extra_data={'minutes': entry.duration_minutes, 'billable': entry.is_billable},
     )
+    if _wants_json(request):
+        out = _timer_payload(ticket, None, f'Timer stopped, {entry.duration_minutes} minutes logged.')
+        out['minutes'] = entry.duration_minutes
+        return JsonResponse(out)
     messages.success(request, f'Timer stopped — {entry.duration_minutes}m logged.')
     # My Work posts here too and wants to land back on itself.
     from django.utils.http import url_has_allowed_host_and_scheme

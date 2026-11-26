@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Create draft — {{ client.name }}{% endblock %}
+{% block content %}
+{# 113.9: the confirmation step of Billing Review → Create draft → Confirm. Every line, its coverage and every total come from psa.billing.queue (the lines "Invoice this ticket" writes and the account charges the draft code reads); nothing is priced here. #}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'psa:invoice_list' %}">Invoices</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:billing_review' %}{% if period %}?period={{ period }}{% endif %}#ready-{{ client.pk }}">Billing review</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Create draft</li>
+    </ol>
+</nav>
+
+<h2 class="h4 mb-1"><i class="fas fa-file-invoice-dollar me-2" aria-hidden="true"></i>Create draft for {{ client.name }}</h2>
+<p class="text-muted small mb-3">
+    Check the lines, then confirm. Nothing is sent: the draft opens for review, and it cannot be sent
+    until it passes the usual approval rules. Amounts are before tax; tax is applied on the draft as on any invoice.
+</p>
+
+{% if preview.is_empty %}
+<div class="alert alert-info">Nothing is ready to draft for {{ client.name }}.
+    <a href="{% url 'psa:billing_review' %}{% if period %}?period={{ period }}{% endif %}#ready-for-billing">Back to Billing review</a></div>
+{% else %}
+
+{% for t in preview.tickets %}
+<div class="card mb-3">
+    <div class="card-header d-flex flex-wrap justify-content-between gap-2">
+        <span><a href="{% url 'psa:ticket_charges_review' t.ticket.ticket_number %}">{{ t.ticket.ticket_number }}</a> {{ t.ticket.subject|truncatechars:80 }}</span>
+        <span class="small">Draft subtotal <strong data-preview-ticket-total="{{ t.ticket.pk }}">{{ t.total }}</strong></span>
+    </div>
+    <div class="table-responsive">
+    <table class="table table-sm small mb-0 align-middle">
+        <caption class="visually-hidden">Lines of the draft for {{ t.ticket.ticket_number }}</caption>
+        <thead><tr>
+            <th scope="col">Source</th><th scope="col">Description</th><th scope="col">Coverage</th>
+            <th scope="col" class="text-end">Qty</th><th scope="col" class="text-end">Rate</th><th scope="col" class="text-end">Amount</th>
+        </tr></thead>
+        <tbody>
+        {% for ln in t.lines %}
+            <tr>
+                <td>{{ ln.source_label }}</td>
+                <td class="text-break">{{ ln.description }}</td>
+                <td><span class="badge text-bg-light border" data-coverage="{{ ln.coverage }}">{{ ln.coverage_label }}</span>{% if ln.kind == 'approved' %} <span class="badge text-bg-success">Approved</span>{% endif %}</td>
+                <td class="text-end">{{ ln.quantity }}</td>
+                <td class="text-end">{{ ln.unit_price }}</td>
+                <td class="text-end">{{ ln.total }}</td>
+            </tr>
+        {% endfor %}
+        {% for ln in t.withheld %}
+            <tr class="text-muted">
+                <td>{{ ln.source_label }}</td>
+                <td class="text-break">{{ ln.description }}{% if ln.decision.reason %} <span class="small">({{ ln.decision.reason|truncatechars:80 }})</span>{% endif %}</td>
+                <td><span class="badge text-bg-secondary" data-coverage="{{ ln.coverage }}">{{ ln.coverage_label }}</span></td>
+                <td class="text-end">{{ ln.quantity }}</td>
+                <td class="text-end">{{ ln.unit_price }}</td>
+                <td class="text-end"><s>{{ ln.total }}</s></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    <div class="card-body border-top small py-2">
+        Time: covered {{ t.info.covered_minutes|default:0 }} min · beyond prepaid hours {{ t.info.overage_minutes|default:0 }} min ·
+        chargeable {{ t.info.chargeable_minutes|default:0 }} min (billed as {{ t.info.billed_minutes|default:0 }} min)
+        {% if t.info.awaiting_approval %}· {{ t.info.awaiting_approval|length }} prepaid entr{{ t.info.awaiting_approval|length|pluralize:"y,ies" }} waiting for timesheet approval (not on this draft){% endif %}
+        {% for b in t.blockers %}<div class="text-danger">{{ b }}</div>{% endfor %}
+    </div>
+</div>
+{% endfor %}
+
+{% if preview.charges %}
+<div class="card mb-3">
+    <div class="card-header d-flex flex-wrap justify-content-between gap-2">
+        <span>Account charges and adjustments</span>
+        <span class="small">Draft subtotal <strong data-preview-charges-total>{{ preview.charges_total }}</strong></span>
+    </div>
+    <div class="table-responsive">
+    <table class="table table-sm small mb-0 align-middle">
+        <caption class="visually-hidden">Account charges on the draft for {{ client.name }}</caption>
+        <thead><tr>
+            <th scope="col">Source</th><th scope="col">Description</th><th scope="col">Coverage</th>
+            <th scope="col" class="text-end">Qty</th><th scope="col" class="text-end">Rate</th><th scope="col" class="text-end">Amount</th>
+        </tr></thead>
+        <tbody>
+        {% for ln in preview.charges %}
+            <tr>
+                <td>{{ ln.source_label }}{% if ln.ticket %} · {{ ln.ticket.ticket_number }}{% endif %}</td>
+                <td class="text-break">{{ ln.description }}</td>
+                <td><span class="badge text-bg-light border" data-coverage="{{ ln.coverage }}">{{ ln.coverage_label }}</span>{% if ln.kind == 'approved' %} <span class="badge text-bg-success">Approved</span>{% endif %}</td>
+                <td class="text-end">{{ ln.quantity }}</td>
+                <td class="text-end">{{ ln.unit_price }}</td>
+                <td class="text-end">{{ ln.total }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endif %}
+
+{% if preview.other_charges %}
+<p class="small text-muted">{{ preview.other_charges|length }} account charge{{ preview.other_charges|length|pluralize }} recorded under another organization {{ preview.other_charges|length|pluralize:"is,are" }} not on this draft.</p>
+{% endif %}
+{% for t in preview.skipped %}
+<p class="small text-muted">{{ t.ticket.ticket_number }}: nothing left to draft.</p>
+{% endfor %}
+
+<div class="card mb-3">
+    <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <div>Total before tax <strong data-preview-total>{{ preview.total }}</strong></div>
+            <div class="small text-muted">{{ preview.invoice_count }} draft invoice{{ preview.invoice_count|pluralize }}: one per ticket{% if preview.charges %} and one for the account charges{% endif %}.</div>
+        </div>
+        <form method="post" action="{% url 'psa:billing_queue_draft_confirm' client.pk %}" class="d-flex flex-wrap gap-2 align-items-end">
+            {% csrf_token %}
+            <input type="hidden" name="fingerprint" value="{{ preview.fingerprint }}">
+            <input type="hidden" name="period" value="{{ period }}">
+            {% for t in preview.tickets %}<input type="hidden" name="ticket" value="{{ t.ticket.pk }}">{% endfor %}
+            {% if preview.include_charges %}<input type="hidden" name="include_charges" value="1">{% endif %}
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'psa:billing_review' %}{% if period %}?period={{ period }}{% endif %}#ready-{{ client.pk }}">Cancel</a>
+            <button type="submit" name="mode" value="separate" class="btn btn-sm btn-primary" id="confirm-draft">Confirm: create {{ preview.invoice_count }} draft{{ preview.invoice_count|pluralize }}</button>
+            {% if preview.invoice_count > 1 or g.fees %}
+            <details class="small">
+                <summary>One consolidated draft instead</summary>
+                <div class="d-flex flex-wrap gap-2 align-items-end mt-1">
+                {% if g.fees %}
+                <div><label class="form-label small mb-0" for="fee-{{ client.pk }}">Agreement fee</label>
+                    <select id="fee-{{ client.pk }}" name="contract" class="form-select form-select-sm">
+                        <option value="">No agreement fee</option>
+                        {% for f in g.fees %}<option value="{{ f.contract.pk }}"{% if not f.ok %} disabled{% endif %}>{{ f.contract.name }}{% if f.ok %} — period {{ f.period|date:'Y-m-d' }}, adds {{ f.total }}{% else %} — not now: {{ f.reason|truncatechars:90 }}{% endif %}</option>{% endfor %}
+                    </select></div>
+                {% endif %}
+                <button type="submit" name="mode" value="consolidated" class="btn btn-sm btn-outline-primary">Confirm: one consolidated draft</button>
+                </div>
+            </details>
+            {% endif %}
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

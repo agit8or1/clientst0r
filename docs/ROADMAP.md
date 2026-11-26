@@ -4039,7 +4039,7 @@ increment is tested with no peer application and no RMM configured. Hiding a lin
   query budgets; synthetic 10/100, 60/1,200 and 200/5,000 datasets.
 - **113.8 Shell and page headers** *(in progress)* — one page-header component, section tabs only when the sidebar is collapsed
   or on phones, "Service Desk" and "Customer" used consistently, less space above content.
-- **113.9 Technician speed** *(planned)* — timer in the first screen without a page reload, invoice draft in three clicks
+- **113.9 Technician speed** *(shipped v3.17.785 — "Ready to invoice" is a dashboard figure users add under Customize; the built-in layouts are full)* — timer in the first screen without a page reload, invoice draft in three clicks
   with its confirmation kept, workspace presets (presentation only, never extra permissions).
 - **113.10 Optional application switcher** *(partial — switcher with stored status, verified home links and per-customer greying shipped v3.17.784; customer deep links wait on contract proposals CX-1–CX-3, sent to the Rem0te session 2026-11-25)* — shown only when a peer is paired and the user may open it;
   depends on the contract proposals agreed with the peer.

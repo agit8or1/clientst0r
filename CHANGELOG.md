@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.785] - 2026-11-26
+
+### Added
+- **Timer at the top of the ticket.** Start and stop the timer from the ticket header, without scrolling and without a
+  page reload (about 0.3 s instead of 1.7 s). The same permission checks apply and stopping creates the same time
+  entry as before; without JavaScript the button still works as a normal form. The Time & Charges card follows it, a
+  timer started in another tab shows when you come back, and screen readers announce start and stop.
+- **Workspace layout: Essentials, Standard or Advanced** (My Profile, or the account menu). Essentials folds the
+  less-used panels on the ticket page and My Work behind "More" buttons; Advanced opens every optional section;
+  Standard, the default, is today's layout. It changes only what is shown expanded — never what anyone may do.
+- **Invoice draft in three clicks.** "Ready to invoice" (a dashboard figure you can add under Customize, and a link in
+  the Billing summary) → **Create draft** on the customer's row in Billing Review → **Confirm** on a preview page.
+  - The preview lists every line with quantity, rate, amount and whether it is covered, prepaid or billable, and the
+    totals, all from the existing billing code; no pricing, tax, rounding or ledger code changed. A test drafts the
+    same data both ways and gets identical invoices.
+  - If anything changed since the preview, nothing is drafted and the preview reopens; a double click creates one set
+    of drafts; permissions are unchanged and each confirmation is recorded in the audit log.
+  - Billing Review shows, per customer, how many lines are not invoiced and how many are approved.
+
+### Changed
+- Roadmap: 113.9 shipped.
+
 ## [3.17.784] - 2026-11-25
 
 ### Added

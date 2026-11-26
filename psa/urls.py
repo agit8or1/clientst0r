@@ -43,6 +43,7 @@ urlpatterns = [
     path('secure-reply/<str:token>/', views.secure_reply_submit, name='secure_reply_submit'),
     path('t/<str:ticket_number>/timer/start/', views.timer_start, name='timer_start'),
     path('t/<str:ticket_number>/timer/stop/', views.timer_stop, name='timer_stop'),
+    path('t/<str:ticket_number>/timer/state/', views.timer_state, name='timer_state'),
     path('t/<str:ticket_number>/time/manual/', views.time_entry_manual, name='time_entry_manual'),
     # Phase 101.5-101.7: Time & Charges, Add Item and the ticket billing summary.
     path('t/<str:ticket_number>/time/<int:entry_id>/update/', ticket_charges_views.time_entry_update,
@@ -184,6 +185,11 @@ urlpatterns = [
          name='billing_queue_adjust'),
     path('billing-review/queue/<int:org_id>/draft/', billing_queue_views.queue_draft,
          name='billing_queue_draft'),
+    # 113.9: Create draft (preview with every line and total) -> Confirm.
+    path('billing-review/queue/<int:org_id>/draft/preview/', billing_queue_views.queue_draft_preview,
+         name='billing_queue_draft_preview'),
+    path('billing-review/queue/<int:org_id>/draft/confirm/', billing_queue_views.queue_draft_confirm,
+         name='billing_queue_draft_confirm'),
     path('invoices/', views.invoice_list, name='invoice_list'),
     path('invoices/new/', views.invoice_form, name='invoice_create'),
     path('invoices/<int:pk>/', views.invoice_detail, name='invoice_detail'),

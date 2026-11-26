@@ -7,15 +7,14 @@
     </div>
     {% if not is_closed %}
     <div class="card-body small">
-        {% if running_timer %}
-        <form method="post" action="{% url 'psa:timer_stop' ticket.ticket_number %}" class="d-flex flex-wrap gap-2 align-items-center mb-2">
+        {# Always rendered: ticket_timer_inline.js shows/hides it so it follows the inline timer. #}
+        <form method="post" action="{% url 'psa:timer_stop' ticket.ticket_number %}" class="d-flex flex-wrap gap-2 align-items-center mb-2" data-card-timer-stop{% if not running_timer %} hidden style="display:none !important"{% endif %}>
             {% csrf_token %}
             <span class="badge text-bg-success"><i class="fas fa-circle me-1" aria-hidden="true"></i>Running</span>
-            <small class="text-muted">started {{ running_timer.started_at|timesince }} ago{% if running_timer.classification %} · {{ running_timer.get_classification_display }}{% endif %}</small>
+            <small class="text-muted">{% if running_timer %}started {{ running_timer.started_at|timesince }} ago{% if running_timer.classification %} · {{ running_timer.get_classification_display }}{% endif %}{% else %}started just now{% endif %}</small>
             <input type="text" name="notes" class="form-control form-control-sm" style="max-width:260px;" placeholder="Notes (optional)" aria-label="Timer notes" maxlength="200">
             <button type="submit" class="btn btn-sm btn-outline-success ms-auto"><i class="fas fa-stop me-1" aria-hidden="true"></i>Stop &amp; log</button>
         </form>
-        {% endif %}
         <form method="post" action="{% url 'psa:time_entry_manual' ticket.ticket_number %}" class="row g-1 align-items-end" id="timeEntryForm">
             {% csrf_token %}
             <div class="col-6 col-md-2">
@@ -54,9 +53,7 @@
             </div>
             <input type="hidden" name="is_billable" value="1">
             <div class="col-12 d-flex gap-2 justify-content-end">
-                {% if not running_timer %}
-                <button type="submit" class="btn btn-sm btn-outline-primary" formaction="{% url 'psa:timer_start' ticket.ticket_number %}" formnovalidate><i class="fas fa-play me-1" aria-hidden="true"></i>Start timer</button>
-                {% endif %}
+                <button type="submit" class="btn btn-sm btn-outline-primary" formaction="{% url 'psa:timer_start' ticket.ticket_number %}" formnovalidate data-card-timer-start{% if running_timer %} hidden{% endif %}><i class="fas fa-play me-1" aria-hidden="true"></i>Start timer</button>
                 <button type="submit" class="btn btn-sm btn-outline-secondary" title="Log the minutes without a timer"><i class="fas fa-plus me-1" aria-hidden="true"></i>Log time</button>
             </div>
         </form>

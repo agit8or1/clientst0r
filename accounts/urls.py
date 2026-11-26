@@ -40,6 +40,7 @@ urlpatterns = [
     path('quick/user/', quick_views.quick_user_add, name='quick_user_add'),
     path('profile/', views.profile, name='profile'),
     path('profile/edit/', views.profile_edit, name='profile_edit'),
+    path('profile/workspace-layout/', views.workspace_layout_set, name='workspace_layout'),
     # v3.17.230 — editable dashboard Quick Actions.
     path('profile/quick-actions/', views.quick_actions_edit, name='quick_actions_edit'),
     # Navbar shortcut strip (up to three pinned pages, MSP staff only).

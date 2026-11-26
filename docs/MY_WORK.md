@@ -31,7 +31,12 @@ your role allows ([Roles and access](ROLES_AND_ACCESS.md)).
   - *Waiting on customer*: the status pauses the SLA and is not a vendor wait (for example Waiting on Client).
   - *Waiting on us*: the status is active and the customer spoke last, or nobody on staff has replied yet.
     A ticket where staff replied last sits in neither waiting queue.
-- **Running timers** shows any timer you left running on a ticket, with **Stop**.
+- **Running timers** shows any timer you left running on a ticket, with **Stop**. You can start and stop the
+  same timer from the top of the ticket without a page reload (see [Tickets](TICKETS.md)).
+- **Workspace layout.** Under *Essentials* (My Profile or the account menu) the lower panels (Waiting on us /
+  customer, Recent devices, Scheduled maintenance, remote sessions, AI suggestions) are folded behind
+  **More**; *Standard* is today's layout and *Advanced* opens every optional section. Layout only; it never
+  changes what you can do.
 - **Panels for MSP staff.** Near SLA breach, Unacknowledged alerts, Devices needing attention (needs an RMM
   connection), Needs your review, Scheduled maintenance, Recent devices, active remote sessions, Reminders,
   Appointments (scheduled tasks assigned to you: overdue, today and the next 7 days) and Pending approvals

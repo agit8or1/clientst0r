@@ -1,6 +1,6 @@
 {% load static %}{% load i18n %}{% load navigation %}
 <!DOCTYPE html>
-<html lang="{{ user_locale_code }}" data-theme="{{ user_theme }}" data-bs-theme="{% if user_theme_is_dark %}dark{% else %}light{% endif %}" data-density="{{ user_density|default:'compact' }}">
+<html lang="{{ user_locale_code }}" data-theme="{{ user_theme }}" data-bs-theme="{% if user_theme_is_dark %}dark{% else %}light{% endif %}" data-density="{{ user_density|default:'compact' }}" data-workspace="{{ workspace_level|default:'standard' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -175,6 +175,19 @@
                             {% else %}<li><a class="dropdown-item{% if a.active %} active{% endif %}" href="{{ a.href }}"{% if a.active %} aria-current="page"{% endif %} data-bs-toggle="tooltip" data-bs-placement="left" title="{{ a.title }}"{% if a.aria %} aria-label="{{ a.aria }}"{% endif %}><i class="{{ a.icon }} fa-fw" aria-hidden="true"></i> {{ a.label }}</a></li>
                             {% endif %}
                             {% endfor %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li class="px-3 py-1">
+                                <form method="post" action="{% url 'accounts:workspace_layout' %}" class="m-0">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.path }}">
+                                    <div class="small text-muted" id="wsLayoutLabel">{% trans "Workspace layout" %}</div>
+                                    <div class="btn-group btn-group-sm" role="group" aria-labelledby="wsLayoutLabel">
+                                        <button type="submit" name="workspace_level" value="essentials" class="btn btn-outline-secondary{% if workspace_level == 'essentials' %} active{% endif %}" aria-pressed="{% if workspace_level == 'essentials' %}true{% else %}false{% endif %}" title="{% trans 'Essentials: the fewest panels open' %}">L1</button>
+                                        <button type="submit" name="workspace_level" value="standard" class="btn btn-outline-secondary{% if workspace_level == 'standard' or not workspace_level %} active{% endif %}" aria-pressed="{% if workspace_level == 'standard' or not workspace_level %}true{% else %}false{% endif %}" title="{% trans 'Standard: the default layout' %}">L2</button>
+                                        <button type="submit" name="workspace_level" value="advanced" class="btn btn-outline-secondary{% if workspace_level == 'advanced' %} active{% endif %}" aria-pressed="{% if workspace_level == 'advanced' %}true{% else %}false{% endif %}" title="{% trans 'Advanced: everything open' %}">L3</button>
+                                    </div>
+                                </form>
+                            </li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 <form method="post" action="{% url 'logout' %}" style="margin: 0;">

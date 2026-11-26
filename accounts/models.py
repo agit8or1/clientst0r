@@ -703,6 +703,19 @@ class UserProfile(BaseModel):
         max_length=12, default='compact', choices=UI_DENSITY_CHOICES,
         help_text='Compact fits more on screen; Comfortable adds spacing.',
     )
+    # 113.9: presentation only. Which panels and advanced controls start
+    # expanded on the ticket page and My Work. Never changes what the user may
+    # do (the server's permission checks do not read it).
+    WORKSPACE_LEVEL_CHOICES = [
+        ('essentials', 'Essentials (L1)'),
+        ('standard', 'Standard (L2)'),
+        ('advanced', 'Advanced (L3)'),
+    ]
+    workspace_level = models.CharField(
+        max_length=12, default='standard', choices=WORKSPACE_LEVEL_CHOICES,
+        help_text='Workspace layout: how much of the ticket page and My Work starts expanded. '
+                  'Layout only; it never changes what you are allowed to do.',
+    )
     DASHBOARD_VARIANT_CHOICES = [('modern', 'Dashboard'), ('classic', 'Classic dashboard')]
     dashboard_variant = models.CharField(
         max_length=12, default='modern', choices=DASHBOARD_VARIANT_CHOICES,

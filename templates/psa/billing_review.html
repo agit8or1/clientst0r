@@ -130,14 +130,19 @@
     (before tax, {{ ready_summary.customers }} customer{{ ready_summary.customers|pluralize }}).
     <strong>Approve</strong> marks lines reviewed; <strong>Hold</strong> keeps them off invoices until the date or until released;
     <strong>Exclude</strong> keeps them off until included again. Holding or excluding needs a reason. Everything is audited.
+    <strong>Create draft</strong> shows every line and total the customer's drafts will have; nothing is created until you confirm.
     {% if customer_filter %}<a href="?period={{ period }}#ready-for-billing">Show all customers</a>{% endif %}
 </p>
 {% for g in ready_queue %}
 <div class="card mb-3" id="ready-{{ g.client.pk }}">
     <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
         <strong><a href="{% url 'psa:client_account' g.client.pk %}">{{ g.client.name }}</a></strong>
-        <span class="small">Ready <strong>{{ g.ready_total }}</strong>{% if g.held_total %} · on hold {{ g.held_total }}{% endif %}{% if g.excluded_total %} · excluded {{ g.excluded_total }}{% endif %}
+        <span class="small d-flex flex-wrap align-items-center gap-2">
+            <span>Ready <strong>{{ g.ready_total }}</strong>{% if g.held_total %} · on hold {{ g.held_total }}{% endif %}{% if g.excluded_total %} · excluded {{ g.excluded_total }}{% endif %}
+            · <span data-ready-counts="{{ g.client.pk }}">{{ g.ready_count }} line{{ g.ready_count|pluralize }} not invoiced, {{ g.approved_count }} approved</span>
             {% if not customer_filter %}· <a href="?period={{ period }}&customer={{ g.client.pk }}#ready-for-billing">only this customer</a>{% endif %}</span>
+            {% if g.can_create_draft %}<a class="btn btn-sm btn-primary" href="{% url 'psa:billing_queue_draft_preview' g.client.pk %}{% if period %}?period={{ period }}{% endif %}" data-create-draft="{{ g.client.pk }}">Create draft</a>{% endif %}
+        </span>
     </div>
     <form method="post" action="{% url 'psa:billing_queue_decide' g.client.pk %}">
     {% csrf_token %}

@@ -1,0 +1,22 @@
+{# 113.9: compact ticket timer in the first viewport. Server renders the true state; static/js/ticket_timer_inline.js makes start/stop a fetch(). Without JS this is an ordinary form POST to the same endpoints (redirect back to the ticket). #}
+{% load static %}
+<div class="d-flex align-items-center flex-wrap gap-2 mb-3 p-2 border rounded" id="ticketTimerInline" data-ticket-timer
+     data-state-url="{% url 'psa:timer_state' ticket.ticket_number %}"
+     data-start-url="{% url 'psa:timer_start' ticket.ticket_number %}"
+     data-stop-url="{% url 'psa:timer_stop' ticket.ticket_number %}"
+     data-running="{% if running_timer %}1{% else %}0{% endif %}"
+     data-started="{% if running_timer %}{{ running_timer.started_at|date:'c' }}{% endif %}">
+    <form method="post" action="{% if running_timer %}{% url 'psa:timer_stop' ticket.ticket_number %}{% else %}{% url 'psa:timer_start' ticket.ticket_number %}{% endif %}" class="m-0 d-flex align-items-center gap-2" data-timer-form>
+        {% csrf_token %}
+        <input type="hidden" name="is_billable" value="1">
+        <button type="submit" class="btn btn-sm {% if running_timer %}btn-success{% else %}btn-outline-primary{% endif %}" data-timer-button
+                aria-pressed="{% if running_timer %}true{% else %}false{% endif %}" aria-describedby="ticketTimerStatus">
+            <i class="fas {% if running_timer %}fa-stop{% else %}fa-play{% endif %} me-1" aria-hidden="true" data-timer-icon></i><span data-timer-label>{% if running_timer %}Stop &amp; log{% else %}Start timer{% endif %}</span>
+        </button>
+    </form>
+    <span class="font-monospace fw-semibold" data-timer-elapsed aria-hidden="true">{% if running_timer %}{{ running_timer.started_at|timesince }}{% else %}0:00:00{% endif %}</span>
+    <small class="text-muted" id="ticketTimerStatus" data-timer-status>{% if running_timer %}Timer running{% else %}No timer running{% endif %}</small>
+    <span class="visually-hidden" role="status" aria-live="polite" data-timer-live></span>
+</div>
+<script src="{% static 'js/ticket_timer_inline.js' %}" defer></script>
+<script src="{% static 'js/workspace_layout.js' %}" defer></script>

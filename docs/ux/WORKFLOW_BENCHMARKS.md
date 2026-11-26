@@ -261,3 +261,46 @@ python scripts/ux/workflow_benchmarks.py --base http://127.0.0.1:8123 --cookie s
 
 Run the creating workflows (W04, W05, W09, W10, W12) only against the copy. W10 is listed last because creating a
 customer changes the session's context (see observations).
+
+## 113.9 invoice draft (W12, part B)
+
+Counted from the code paths and the test client (`psa/tests/test_billing_113_9_draft.py`), not re-timed in a browser.
+
+| | Path | Clicks |
+|---|---|---|
+| Before | Open the Business group, Billing (lands on Aging Report), Billing Review, tick a ticket, Create draft invoices for selected, confirm dialog | 5 + confirm (6) |
+| After | **Ready to invoice** (dashboard figure, or the Billing summary panel's link) opens Billing Review at Ready for Billing; **Create draft** on the customer opens the preview with every line, coverage and total; **Confirm** | 3, including the kept confirmation |
+
+- The confirmation is kept as a full preview page instead of a browser dialog: it shows more than the dialog did
+  (every line, rate, coverage, per-draft subtotal and the total before tax), and the confirm POST is refused when
+  anything changed since the preview (a digest of the previewed lines) or when nothing is left (double submit).
+- The old buttons and their confirm dialogs are unchanged for drafting a selection of tickets.
+- **Ready to invoice** is in the widget catalog (Customize) and not in any built-in preset, because every preset
+  already shows the maximum of seven figures. Out of the box the one-click entry is the Billing summary panel's
+  **Ready to invoice** link (in the Service Manager preset, which Billing / Finance users get). For the
+  Owner / Administrator preset it is one click after adding the figure; through the sidebar it is still 3 clicks
+  to reach Billing Review.
+- Not timed: re-run W12 with `scripts/ux/workflow_benchmarks.py` against a copy to record the time.
+
+### 113.9 results
+
+**W05 timer (part A of 113.9).** Before: the Start timer button sat 4,129 px down the ticket page and each click
+was a full POST, redirect and reload, 1.74 s to start and 1.64 s to stop (measured above).
+
+After, on a runserver of `dev/ux-113-9` against a backup-API copy of the demo database (Chromium 1440x900,
+`scripts/ux/workflow_benchmarks.py --only W05 --runs 5 --allow-writes`, machine under load):
+
+| Measure | Before | After |
+|---|---|---|
+| Timer control position | 4,129 px down the page | 287 px down the page, first element of the main column, inside the first viewport |
+| Start (click to running state visible) | 1.74 s, full page reload | median 281 ms (275 to 295), no reload |
+| Stop (click to stopped state visible) | 1.64 s, full page reload | median 505 ms, no reload (includes the harness click overhead) |
+| Server time, start / stop | not measured | 103 ms / 91 ms (test client) |
+| Server checks | permission, ownership | unchanged: same views, same checks, same time entry |
+
+Also checked in the browser: the document is not reloaded (a window marker survives start and stop, no navigation
+events); `aria-pressed` flips and the live region says "Timer started." / "Timer stopped, N minutes logged."; the Time &
+Charges card's own Start / Stop controls follow the inline control; a timer started in a second tab shows in the first
+on focus. Workspace layout: Essentials folds the secondary ticket cards (5 More buttons on the demo ticket) and 6 My
+Work panels, More/Less toggles with `aria-expanded`; Advanced opens the optional `<details>` sections; no page errors.
+The W05 script now uses the inline control when the page has it and falls back to the old card otherwise.

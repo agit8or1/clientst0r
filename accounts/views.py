@@ -369,6 +369,23 @@ def profile_edit(request):
     })
 
 
+@login_required
+@require_POST
+def workspace_layout_set(request):
+    """Account menu: set the Workspace layout (113.9). Layout only."""
+    from django.utils.http import url_has_allowed_host_and_scheme
+    level = request.POST.get('workspace_level')
+    if level in dict(UserProfile.WORKSPACE_LEVEL_CHOICES):
+        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        profile.workspace_level = level
+        profile.save(update_fields=['workspace_level'])
+    nxt = request.POST.get('next') or ''
+    if not (nxt and url_has_allowed_host_and_scheme(
+            nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure())):
+        return redirect('accounts:profile')
+    return redirect(nxt)
+
+
 def _has_otp_device(user):
     # Same devices tech_access.protected.verify_credentials checks.
     from django_otp.plugins.otp_totp.models import TOTPDevice

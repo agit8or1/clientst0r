@@ -163,6 +163,19 @@
                         </div>
                     </div>
 
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.workspace_level.id_for_label }}" class="form-label">
+                                <i class="fas fa-table-columns" aria-hidden="true"></i> {% trans "Workspace layout" %}
+                            </label>
+                            {{ form.workspace_level }}
+                            {% if form.workspace_level.errors %}
+                            <div class="invalid-feedback d-block">{{ form.workspace_level.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">{% trans "How much of the ticket page and My Work starts open. Essentials tucks secondary panels behind More; Advanced opens everything. It never changes what you are allowed to do." %}</small>
+                        </div>
+                    </div>
+
                     {% if background_locked %}
                     {% comment %}
                         v3.17.527 — an administrator has set a system-wide background

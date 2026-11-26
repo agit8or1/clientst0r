@@ -190,6 +190,7 @@
 
 <div class="row g-3">
     <div class="col-lg-8">
+        {% if is_msp_staff and not is_closed %}{% include "psa/_ticket_timer_inline.html" %}{% endif %}
         {% include "psa/_service_request_answers.html" %}
 
         <div class="card" id="conversation">

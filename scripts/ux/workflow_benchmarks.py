@@ -205,6 +205,25 @@ def w04b(r, a):
 def w05(r, a):
     p = r.page
     p.goto(f'{a.base}/psa/t/{a.ticket}/', wait_until='load')
+    inline = p.locator('#ticketTimerInline')     # 113.9: compact control, no reload
+    if inline.count():
+        # a timer left running by an earlier run is stopped outside the measurement
+        if inline.get_attribute('data-running') == '1':
+            inline.locator('button').click()
+            p.wait_for_selector('#ticketTimerInline[data-running="0"]')
+        btn = inline.locator('button')
+        box = btn.bounding_box()
+        r.steps.append(f"Start timer button sits {round(box['y'])}px down the page (viewport {a.height}px); inline, no reload")
+        r.start()
+        r.click(btn, 'Start timer')
+        p.wait_for_selector('#ticketTimerInline[data-running="1"]')
+        r.mark('timer_running_visible')
+        r.marks['start_ms'] = r.elapsed_ms()
+        t1 = time.perf_counter()
+        r.click(btn, 'Stop & log')
+        p.wait_for_selector('#ticketTimerInline[data-running="0"]')
+        r.marks['stop_ms'] = round((time.perf_counter() - t1) * 1000)
+        return True
     # a timer left running by an earlier run is stopped outside the measurement
     if p.locator('button:has-text("Stop & log")').count():
         p.locator('button:has-text("Stop & log")').first.click()

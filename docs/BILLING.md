@@ -38,8 +38,11 @@ Screenshots: [Ready for Billing](images/github/billing-ready-dark.png) ·
    fees, the unbilled total before tax and anything that blocks clean billing. **Review charges** shows the
    exact invoice lines. **Send to billing** marks the ticket for invoicing; it never creates an invoice.
    Closing a ticket that still has unbilled work flags it **Needs billing review**.
-4. **Review in Billing Review → Ready for Billing** (Business → Billing → Billing Review), described below.
-5. **Create drafts.** Nothing is sent automatically. A sent invoice is changed only by a credit note.
+4. **Review in Billing Review → Ready for Billing** (Business → Billing → Billing Review, or one click from
+   the dashboard: the **Ready to invoice** figure, which you can add under Customize, or **Ready to invoice** in
+   the Billing summary panel), described below.
+5. **Create drafts.** **Create draft** on the customer opens a preview of every line and total; **Confirm**
+   creates the drafts. Nothing is sent automatically. A sent invoice is changed only by a credit note.
 
 What bills nothing: non-billable, warranty and goodwill time. Left off the invoice with a warning: time
 awaiting classification, stock that is reserved but not yet used, and time with no rate anywhere (never billed
@@ -57,11 +60,31 @@ invoice, plus unbilled account charges, adjustments and completed project milest
 | Hold | Keeps lines off every invoice, with a reason and an optional until-date; the hold lapses on its own | Manage charges |
 | Exclude | Keeps lines off every invoice until included again, with a reason | Manage charges |
 | Add adjustment | A charge or credit with a reason; source records are never edited | Manage charges |
+| Create draft (customer header) | Opens the draft preview for that customer (below); creates nothing | Send invoices |
 | Create draft invoices for selected | One draft per ticket; nothing is sent | Send invoices |
 | Create one consolidated draft for selected | See below | Send invoices |
 
-Viewing the queue needs **View invoices**. All permissions are checked for that customer, and every action is
+Each customer's header shows the amount ready, what is on hold or excluded, and how many lines are not invoiced
+yet and how many of them are approved. Viewing the queue needs **View invoices**. All permissions are checked for that customer, and every action is
 written to the audit log with its reason. Held and excluded work is never billed by any invoicing path.
+
+### Create draft: preview and confirm
+
+**Create draft** on a customer's header opens a preview with everything the drafts will contain: every ticket
+with lines ready to bill and the customer's account charges, each line with its quantity, rate, amount and how it
+is covered (covered by an agreement, prepaid hours, billable beyond prepaid hours, billable, credit), lines held
+or excluded (shown struck through, not on the draft), the time covered and charged per ticket, anything that
+keeps work off the draft (time awaiting approval or classification, a running timer), each draft's subtotal and
+the total before tax. The lines and amounts are the ones the Ready for Billing list shows and the draft code
+writes; the preview computes nothing of its own.
+
+**Confirm** creates one draft per ticket plus one for the account charges (or, under **One consolidated draft
+instead**, a single consolidated draft, optionally with an agreement fee). If any line or amount changed after
+the preview opened, nothing is drafted and the preview opens again with the current lines. A second click or a
+retry finds nothing left and creates nothing more. With one draft, it opens; with several, you return to the
+Billing Review with their numbers. The confirmation is written to the audit log with the previewed total.
+
+To draft only some tickets, tick them and use **Create draft invoices for selected** as before.
 
 ### Consolidated invoices
 

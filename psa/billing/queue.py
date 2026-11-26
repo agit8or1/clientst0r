@@ -101,6 +101,14 @@ class QueueLine:
     def source_label(self):
         return SOURCE_LABELS.get(self.source, self.source)
 
+    @property
+    def coverage(self):
+        return coverage_of(self)
+
+    @property
+    def coverage_label(self):
+        return COVERAGE_LABELS.get(self.coverage, '')
+
 
 @dataclass
 class TicketGroup:
@@ -109,6 +117,14 @@ class TicketGroup:
     withheld: list = field(default_factory=list)
     blockers: list = field(default_factory=list)
     total: Decimal = ZERO
+    # The info dict ticket_billing_lines returned (covered / overage /
+    # chargeable minutes, entries waiting for approval...). Shown as is.
+    info: dict = field(default_factory=dict)
+
+    @property
+    def draftable(self):
+        """Lines "Invoice this ticket" would write now (ready or approved)."""
+        return bool(self.lines)
 
 
 @dataclass
@@ -146,6 +162,53 @@ class CustomerQueue:
     def charges_ready(self):
         return [c for c in self.charges if c.kind in ('ready', 'approved')]
 
+    # 113.9: counts for the Billing Review header (no amounts are computed
+    # here beyond the existing ready_total).
+    @property
+    def draftable_tickets(self):
+        return [g for g in self.tickets if g.draftable]
+
+    @property
+    def approved_count(self):
+        return sum(1 for ln in self._lines() if ln.kind == 'approved' and ln.source != 'milestone')
+
+    @property
+    def ready_count(self):
+        return sum(1 for ln in self._lines() if ln.kind in ('ready', 'approved') and ln.source != 'milestone')
+
+    @property
+    def can_create_draft(self):
+        return self.can_draft and bool(self.draftable_tickets or self.charges_ready)
+
+
+# 113.9: how a line is covered, read from the line psa.billing.invoicing
+# wrote (its source, its price and the description prefix it gives each
+# kind of time line). A label only: amounts are never derived from it.
+COVERAGE_LABELS = {
+    'covered': 'Covered by agreement',
+    'prepaid': 'Prepaid hours',
+    'overage': 'Billable beyond prepaid hours',
+    'billable': 'Billable',
+    'credit': 'Credit',
+    'held': 'Held (not on this draft)',
+    'excluded': 'Excluded (not on this draft)',
+}
+
+
+def coverage_of(line):
+    if line.kind in ('held', 'excluded'):
+        return line.kind
+    d = line.description or ''
+    if line.source == 'time':
+        if d.startswith('Time (covered by '):
+            head = d.split('): ', 1)[0]
+            return 'prepaid' if head.endswith(' prepaid hours') else 'covered'
+        if d.startswith('Time (beyond prepaid hours)'):
+            return 'overage'
+    if line.unit_price < 0:
+        return 'credit'
+    return 'billable'
+
 
 def _line(ln, *, kind, decision=None, ticket=None):
     q, p = Decimal(str(ln['quantity'])), Decimal(str(ln['unit_price']))
@@ -164,7 +227,7 @@ def _kind(decision):
 def _ticket_group(ticket):
     from .ticket_charges import blockers
     lines, info = invoicing.ticket_billing_lines(ticket)
-    g = TicketGroup(ticket=ticket, blockers=blockers(ticket, info))
+    g = TicketGroup(ticket=ticket, blockers=blockers(ticket, info), info=info)
     decided = billed.decisions_for((ln['source'], ln['source_id']) for ln in lines)
     for ln in lines:
         d = decided.get((ln['source'], str(ln['source_id'])))
@@ -466,6 +529,86 @@ def draft_consolidated_from_queue(client, *, actor, msp_org=None, ticket_ids=(),
         return None, ['Some of this work was being invoiced at the same time; nothing was created. '
                       'Check the customer\'s invoices, then try again.']
     return res.invoice, res.notes
+
+
+# --- 113.9: draft preview -------------------------------------------------------------
+
+@dataclass
+class DraftPreview:
+    """What "Create draft" will write for one customer: the selected
+    tickets' lines (TicketGroup.lines, the lines "Invoice this ticket"
+    writes, with their existing totals) and the account charges the draft
+    code reads (billed._read_charges). Nothing here prices a line."""
+    group: CustomerQueue
+    tickets: list = field(default_factory=list)
+    charges: list = field(default_factory=list)
+    include_charges: bool = False
+    # Ticket groups that were asked for but have nothing to draft now.
+    skipped: list = field(default_factory=list)
+    # Ready charge lines the draft will not take (another organization's
+    # record: billed._read_charges filters by the MSP organization).
+    other_charges: list = field(default_factory=list)
+
+    @property
+    def charges_total(self):
+        return sum((c.total for c in self.charges), ZERO)
+
+    @property
+    def total(self):
+        return sum((t.total for t in self.tickets), ZERO) + self.charges_total
+
+    @property
+    def invoice_count(self):
+        return len(self.tickets) + (1 if self.charges else 0)
+
+    @property
+    def is_empty(self):
+        return not self.tickets and not self.charges
+
+    @property
+    def ticket_ids(self):
+        return [t.ticket.pk for t in self.tickets]
+
+    @property
+    def fingerprint(self):
+        """A digest of every line and amount shown, so the confirmation
+        drafts exactly what was previewed (or nothing)."""
+        import hashlib
+        import json
+        rows = []
+        for t in self.tickets:
+            rows.append(['ticket', t.ticket.pk, str(t.total)])
+            rows.extend([ln.source, ln.source_id, str(ln.quantity), str(ln.unit_price), str(ln.total)]
+                        for ln in t.lines)
+        for c in self.charges:
+            rows.append([c.source, c.source_id, str(c.quantity), str(c.unit_price), str(c.total)])
+        raw = json.dumps([self.group.client.pk, bool(self.include_charges), rows], separators=(',', ':'))
+        return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def draft_preview(user, client, *, ticket_ids=None, include_charges=None, msp_org=None):
+    """DraftPreview for `client`, or None when the user may not view it.
+    With no `ticket_ids` every ticket with lines to draft is selected, and
+    the account charges are included unless `include_charges` is False."""
+    groups = build_queue(user, customer=client.pk)
+    group = next((g for g in groups if g.client.pk == client.pk), None)
+    if group is None:
+        group = CustomerQueue(client=client, can_manage=can(user, client, MANAGE),
+                              can_draft=can(user, client, DRAFT))
+    p = DraftPreview(group=group)
+    if ticket_ids is None:
+        p.tickets = list(group.draftable_tickets)
+    else:
+        wanted = {int(i) for i in ticket_ids if str(i).isdigit()}
+        for g in group.tickets:
+            if g.ticket.pk in wanted:
+                (p.tickets if g.draftable else p.skipped).append(g)
+    p.include_charges = bool(group.charges_ready) if include_charges is None else bool(include_charges)
+    if p.include_charges:
+        readable = {str(c.pk) for c in billed._read_charges(client, msp_org)}
+        for c in group.charges_ready:
+            (p.charges if c.source_id in readable else p.other_charges).append(c)
+    return p
 
 
 def _audit(actor, client, source, source_id, description, extra, action='update'):

@@ -293,7 +293,7 @@ class UserProfileForm(forms.ModelForm):
 
     class Meta:
         model = UserProfile
-        fields = ['phone', 'title', 'department', 'timezone', 'time_format', 'locale', 'theme', 'ui_density', 'background_mode', 'background_color', 'preset_background', 'background_image', 'email_notifications', 'notification_frequency', 'notify_assigned_email', 'notify_assigned_sms', 'notify_scheduled_email', 'notify_scheduled_sms', 'tooltips_enabled', 'preferred_organization']
+        fields = ['phone', 'title', 'department', 'timezone', 'time_format', 'locale', 'theme', 'ui_density', 'workspace_level', 'background_mode', 'background_color', 'preset_background', 'background_image', 'email_notifications', 'notification_frequency', 'notify_assigned_email', 'notify_assigned_sms', 'notify_scheduled_email', 'notify_scheduled_sms', 'tooltips_enabled', 'preferred_organization']
         widgets = {
             'phone': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -327,6 +327,10 @@ class UserProfileForm(forms.ModelForm):
                 'autocomplete': 'off'
             }),
             'ui_density': forms.Select(attrs={
+                'class': 'form-select',
+                'autocomplete': 'off'
+            }),
+            'workspace_level': forms.Select(attrs={
                 'class': 'form-select',
                 'autocomplete': 'off'
             }),
@@ -447,10 +451,21 @@ class UserProfileForm(forms.ModelForm):
                 'Compact fits more on screen; Comfortable adds spacing to '
                 'controls, cards and table rows.')
 
+        # 113.9: optional, so older cached forms keep the stored layout.
+        if 'workspace_level' in self.fields:
+            self.fields['workspace_level'].required = False
+            self.fields['workspace_level'].label = 'Workspace layout'
+
         # Debug logging (can be removed later)
         if self.instance and self.instance.pk:
             logger.debug(f"UserProfileForm: timezone={self.instance.timezone}, theme={self.instance.theme}")
     
+    def clean_workspace_level(self):
+        value = self.cleaned_data.get('workspace_level')
+        if not value:
+            return getattr(self.instance, 'workspace_level', None) or 'standard'
+        return value
+
     def clean_ui_density(self):
         value = self.cleaned_data.get('ui_density')
         if not value:

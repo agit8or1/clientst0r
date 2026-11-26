@@ -25,14 +25,14 @@ Targets, not claims. Baselines from the 2026-11-25 run; "security steps" are cou
 |---|---|---|
 | Find a customer, device or ticket within 5 s | Ctrl+K 1.6–2.6 s machine time; ticket by text about 5.3 s (estimate) | met / borderline |
 | Create a basic ticket within 15 s | 3–4 clicks | met |
-| Start or stop a timer in one click | 1 click, but below the fold and a 1.7 s full reload | partly met (113.9) |
+| Start or stop a timer in one click | 1 click, but below the fold and a 1.7 s full reload | met: at the top, 0.28 s start / 0.5 s stop, no reload (v3.17.785) |
 | Open an authorised credential in 2–3 clicks | see benchmark W04 | see benchmarks |
 | Open a linked RMM device in one click | 1 click | met (demo host is invented) |
 | Review linked endpoint health in one click | see benchmark | see benchmarks |
 | Request supported remediation in 3 clicks (excluding approvals) | 3 clicks | met |
 | Create a customer within 2 minutes | about 9 s name only, about 48 s with 12 fields (estimate) | met |
 | Customer health report in 3 clicks | 3 clicks | met |
-| Invoice draft from approved charges in 3 clicks | 5 clicks plus confirmation | not met (113.9) |
+| Invoice draft from approved charges in 3 clicks | 5 clicks plus confirmation | met: 3 including the confirmation, from the "Ready to invoice" figure (v3.17.785) |
 | Switch configured applications in one click | no switcher | met for the home page (v3.17.784); with customer context once CX-1 is agreed |
 | Pair compatible applications within 5 minutes | Connect off on the demo | not measurable |
 | Return from a linked application without losing context | 2 clicks back to the ticket panel | met |

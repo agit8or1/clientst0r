@@ -53,6 +53,7 @@ def user_theme(request):
     background_locked_label = ''
     tooltips_enabled = True  # Default to enabled for non-authenticated users
     time_format = '24'
+    workspace_level = 'standard'
 
     policy, policy_settings = _background_policy()
 
@@ -64,6 +65,9 @@ def user_theme(request):
             density = DEFAULT_DENSITY
         tooltips_enabled = getattr(profile, 'tooltips_enabled', True)
         time_format = getattr(profile, 'time_format', '24')
+        workspace_level = getattr(profile, 'workspace_level', 'standard')
+        if workspace_level not in ('essentials', 'standard', 'advanced'):
+            workspace_level = 'standard'
 
         if policy == 'user':
             background_mode = profile.background_mode
@@ -103,6 +107,8 @@ def user_theme(request):
         'background_locked_label': background_locked_label,
         'tooltips_enabled': tooltips_enabled,
         'user_time_format': time_format,
+        # 113.9: base.html data-workspace; static/js/workspace_layout.js.
+        'workspace_level': workspace_level,
         'user_locale_code': user_locale_code,
         'user_locale_label': user_locale_label,
     }
