@@ -1,0 +1,17 @@
+{% load i18n %}
+{% if ctx.customer_count %}
+<div class="alert alert-light border py-2"><strong>{% blocktrans count n=ctx.customer_count %}{{ n }} customer already exists{% plural %}{{ n }} customers already exist{% endblocktrans %}:</strong> {{ ctx.customers|join:", " }}{% if ctx.customer_count > 5 %}, …{% endif %}. {% trans "Leave the name empty to continue." %}</div>
+{% endif %}
+<div class="row g-3">
+    <div class="col-md-6">{% with f=form.name %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+    <div class="col-md-6">{% with f=form.organization_type %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+    <div class="col-md-4">{% with f=form.email %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+    <div class="col-md-4">{% with f=form.phone %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+    <div class="col-md-4">{% with f=form.website %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+</div>
+<h2 class="h6 mt-2">{% trans "Other ways in" %}</h2>
+<ul class="small mb-0">
+    {% if ctx.import_url %}<li><a href="{{ ctx.import_url }}">{% trans "Data Import" %}</a> — {% trans "bring in customers, contacts, assets and passwords from a file or another documentation system." %}</li>{% endif %}
+    {% if ctx.onboarding_url %}<li><a href="{{ ctx.onboarding_url }}">{% trans "Customer onboarding" %}</a> — {% trans "the full onboarding checklist for a new customer (contacts, locations, agreement)." %}</li>{% endif %}
+    {% if ctx.lead_url %}<li><a href="{{ ctx.lead_url }}">{% trans "New lead" %}</a> — {% trans "a prospect you are still selling to." %}</li>{% endif %}
+</ul>

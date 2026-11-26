@@ -22,6 +22,7 @@ from . import portal_settings_views
 from . import workspace
 from . import palette_views
 from . import settings_home_views
+from . import setup_assistant_views
 from . import offhost_backup_views
 
 app_name = 'core'
@@ -172,6 +173,10 @@ urlpatterns = [
     path('webhooks/deliveries/<int:delivery_id>/', webhook_views.webhook_delivery_detail, name='webhook_delivery_detail'),
 
     # Admin Settings (superuser only)
+    # First-install Setup Assistant (core/setup_assistant.py); superusers only.
+    path('settings/setup/', setup_assistant_views.setup_assistant, name='setup_assistant'),
+    path('settings/setup/action/', setup_assistant_views.setup_assistant_action, name='setup_assistant_action'),
+    path('settings/setup/<slug:key>/', setup_assistant_views.setup_assistant_step, name='setup_assistant_step'),
     path('settings/general/', settings_views.settings_general, name='settings_general'),
     path('settings/portal/', portal_settings_views.settings_portal, name='settings_portal'),
     path('settings/security/', settings_views.settings_security, name='settings_security'),

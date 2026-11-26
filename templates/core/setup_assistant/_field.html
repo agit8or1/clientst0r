@@ -1,0 +1,15 @@
+{% comment %}One form field with its label, help and errors (Setup Assistant). `f` is a bound field.{% endcomment %}
+<div class="mb-3">
+    {% if f.field.widget.input_type == 'checkbox' %}
+    <div class="form-check{% if f.field.widget.attrs.role == 'switch' %} form-switch{% endif %}">
+        {{ f }}
+        <label class="form-check-label" for="{{ f.id_for_label }}">{{ f.label }}</label>
+        {% if f.help_text %}<div class="form-text" id="{{ f.id_for_label }}_help">{{ f.help_text }}</div>{% endif %}
+    </div>
+    {% else %}
+    <label class="form-label" for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %} <span class="text-danger" aria-hidden="true">*</span><span class="visually-hidden">(required)</span>{% endif %}</label>
+    {{ f }}
+    {% if f.help_text %}<div class="form-text" id="{{ f.id_for_label }}_help">{{ f.help_text }}</div>{% endif %}
+    {% endif %}
+    {% for e in f.errors %}<div class="invalid-feedback d-block" role="alert">{{ e }}</div>{% endfor %}
+</div>

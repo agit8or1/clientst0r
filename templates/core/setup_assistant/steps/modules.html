@@ -1,0 +1,13 @@
+{% load i18n %}
+{% for group, names in form.groups %}
+<fieldset class="mb-3">
+    <legend class="h6">{{ group }}</legend>
+    <div class="row g-2">
+    {% for name in names %}{% for f in form %}{% if f.name == name %}
+        <div class="col-md-6">{% include "core/setup_assistant/_field.html" %}</div>
+    {% endif %}{% endfor %}{% endfor %}
+    </div>
+</fieldset>
+{% endfor %}
+<p class="small text-body-secondary mb-0">{% trans "Switching a module off hides it; its data stays. OPTIONAL AI features are not here: they stay off until switched on under Administration → AI." %}
+    <a href="{{ ctx.settings_url }}">{% trans "Administration → Modules" %}</a></p>

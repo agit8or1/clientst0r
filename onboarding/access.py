@@ -31,16 +31,26 @@ def can_use_anywhere(user) -> bool:
     return is_staff(user) and user_has_perm_any_org(user, PERM)
 
 
+def can_run_install(user) -> bool:
+    """The Setup Assistant (install kind): active superusers only."""
+    return bool(user is not None and user.is_authenticated and user.is_active and user.is_superuser)
+
+
 def can_open(user, session) -> bool:
+    if session.kind == 'install':
+        return can_run_install(user)
     return can_use(user, session.organization_id) or (
         session.client_id is not None and can_use(user, session.client_id))
 
 
 def sessions_for(user):
-    """The sessions `user` may see."""
+    """The customer onboarding sessions `user` may see. The Setup Assistant's
+    install sessions are never among them (core.setup_assistant has its own
+    pages), so they never show in customer lists and 404 here by id."""
     from accounts.permission_utils import orgs_with_perm
     from .models import OnboardingSession
-    qs = OnboardingSession.objects.select_related('organization', 'client', 'created_by')
+    qs = (OnboardingSession.objects.exclude(kind=OnboardingSession.INSTALL)
+          .select_related('organization', 'client', 'created_by'))
     if not is_staff(user):
         return qs.none()
     allowed = orgs_with_perm(user, PERM)

@@ -1,0 +1,25 @@
+{% load i18n %}
+<h2 class="h6">{% trans "Outgoing mail (SMTP)" %}</h2>
+{% with f=form.smtp_enabled %}{% include "core/setup_assistant/_field.html" %}{% endwith %}
+<div class="row g-3">
+    <div class="col-md-8">{% with f=form.smtp_host %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+    <div class="col-md-4">{% with f=form.smtp_port %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+    <div class="col-md-6">{% with f=form.smtp_username %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+    <div class="col-md-6">
+        {% with f=form.smtp_password %}{% include "core/setup_assistant/_field.html" %}{% endwith %}
+        <div class="small {% if ctx.password_saved %}text-success{% else %}text-body-secondary{% endif %} mb-2">{% if ctx.password_saved %}{% trans "A password is saved (not shown)." %}{% else %}{% trans "No password saved." %}{% endif %}</div>
+    </div>
+    <div class="col-md-6">{% with f=form.smtp_use_tls %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+    <div class="col-md-6">{% with f=form.smtp_use_ssl %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+    <div class="col-md-6">{% with f=form.smtp_from_email %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+    <div class="col-md-6">{% with f=form.smtp_from_name %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+</div>
+{% if ctx.psa_on %}
+<h2 class="h6 mt-2">{% trans "Incoming mail (e-mail to ticket)" %}</h2>
+<p class="small mb-0">
+    {% blocktrans count n=ctx.inbound_count %}{{ n }} mailbox turns e-mail into tickets.{% plural %}{{ n }} mailboxes turn e-mail into tickets.{% endblocktrans %}
+    {% trans "Mailboxes are set up per customer, each with its own connection check." %}
+    {% if ctx.inbound_new_url %}<a href="{{ ctx.inbound_new_url }}">{% trans "Add a mailbox" %}</a>{% endif %}
+    {% if ctx.inbound_url %} · <a href="{{ ctx.inbound_url }}">{% trans "All mailboxes" %}</a>{% endif %}
+</p>
+{% endif %}

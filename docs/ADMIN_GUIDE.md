@@ -35,10 +35,69 @@ is in its default state until an administrator changes it. Feature guides:
 | Portal for a customer | Settings → General → PSA → per-customer settings (`/psa/settings/client/`) | As before | su |
 | Requesters' default sites | `/psa/requester-sites/` | None | Staff with `tickets_edit` for that customer |
 | Release channel | Settings → System → System Updates | New installs: Stable. Existing installs: Preview (keep following `main`) | su |
+| Setup Assistant | Administration → General → Setup assistant (`/core/settings/setup/`) | New installs: opens by itself after the first administrator's sign-in. Upgraded installs: never opens by itself. See [Setup assistant](#setup-assistant) | su |
 | Module switches | Settings → Modules → Feature Toggles (`/core/settings/features/`); overview on Optional Modules (`/core/settings/modules/`) | Every module on for a new install; upgrades keep each module as it was. See [Modules](#modules-turning-features-on-and-off) | su |
 | File upload and delete | Settings → Users & Access → Roles → `files_upload`, `files_delete` | Custom roles with `files_view` get both on upgrade; built-in Editor has no delete, Read-Only neither | Administrators who manage roles |
 | Invoice editing and payments | Settings → Users & Access → Roles → `billing_send_invoices`, `billing_record_payments` | Owner and Admin roles | Administrators who manage roles |
 | Knowledge base in customer portals | Global KB (`/docs/kb/`): the Portal column and the bulk actions Show in all portals / Make staff only | New global articles default to shown in every customer portal; existing live global articles were switched on once by migration. Customer-scoped documents default to staff only and show only in their own customer's portal when ticked (the document form's "Show in this customer's portal"). | Staff with `kb_edit_articles` and publish rights |
+
+## Setup assistant
+
+**Administration → General → Setup assistant** (`/core/settings/setup/`, superusers only) is a guided path
+through the settings a new install needs. It is not a second settings system: each step saves through the
+same code as the Administration page it stands for, and those pages stay the place for everything it does not
+cover.
+
+**When it opens by itself.** Only on a new install, only for superusers, once per sign-in, as a start screen
+with **Start setup** and **Later**. It opens after two-factor enrolment: while 2FA is required (the default)
+an administrator without an authenticator is sent to enrolment first, and no assistant page answers before
+that. An install counts as new while all of these hold:
+
+- the install's settings were created after this feature arrived (an upgrade marks the existing settings
+  "not offered" during its migration, so an upgraded install is never redirected);
+- there is at most one user account, at most one organization apart from internal ones (the one `install.sh`
+  creates for your company), and no tickets. As soon as that stops being true before the assistant is started
+  (for example after `seed_demo_data` or a restore), it stops offering itself for good.
+
+**Later** stops it opening by itself. Nothing is ever blocked: every page stays reachable while setup is
+unfinished. Opening the assistant by hand on an upgraded or finished install never makes it offer itself again.
+
+**Paths.** *Basic* covers the essentials; *Advanced* adds the rest. Steps outside the basic path are marked
+skipped ("Not in the basic path"); switching to advanced reopens them.
+
+| Step | Path | Required | Saves through |
+|---|---|---|---|
+| MSP details and branding: site name, company name, public address, time zone, logo | Basic | Yes | Administration → General |
+| Administrator security: default password, your 2FA and recovery codes, session and password policy | Basic | Yes (the installer's default password must be changed first) | Administration → Security |
+| Modules: one switch per module with what it covers | Advanced | No | Administration → Modules (same dependency checks and audit rows) |
+| Technicians, access groups and roles: counts and links to Add a user, Users, Roles, Access groups | Advanced | No | Those pages (their approvals and rules apply) |
+| First customer, or links to Data Import, customer onboarding and a new lead | Basic | No | Organizations → New (you become the owner) |
+| Service desk mail: SMTP server with Send test; incoming mailboxes (e-mail to ticket) | Basic | No | Administration → SMTP / Email; Service Desk → Email Ingestion |
+| Routing and notifications: the MSP default routing mode, expiry warnings, new-user e-mails | Advanced | No | Ticket Routing; Administration → SMTP / Email |
+| Optional integrations: RMM (Rem0te and others), external PSA, connected applications, AI assistance **OPTIONAL AI** | Advanced | No | Each integration's own page and Test button |
+| Backups and health: the install readiness check | Basic | No | Administration (readiness card) |
+| Review and finish | — | — | Marks the assistant finished |
+
+Rules the assistant keeps:
+
+- **Shows before it changes.** Every form starts from the current values. Saving an unchanged form changes
+  nothing, so running it again on a configured install is safe.
+- **Never loosens security.** The security step accepts only values at least as strict as the defaults (2FA
+  required, idle sign-out 60 minutes, sessions up to 8 hours, passwords of 12 characters with a special
+  character, lockout after 5 failed sign-ins for 30 minutes). Loosening a setting stays on Administration →
+  Security, which explains what it changes. Settings fixed by environment variables are shown read-only.
+- **Skip changes nothing.** A skipped step leaves every setting as it was and can be filled in later.
+- **No secrets in summaries or logs.** The SMTP password field is write-only: it is never shown back, and the
+  step records only that it changed. The audit log and the review list field names and "configured / not
+  configured", never values.
+- **Standalone.** Mail, integrations and AI are optional. Setup completes with no integration configured and
+  makes no outbound call itself; connection tests are the existing buttons on the pages that own them.
+  AI assistance is **OPTIONAL AI**, off by default and switched on only under Administration → AI
+  (`psa_ai_enabled`).
+
+Progress is saved after every step; each saved or skipped step writes one audit entry ("Setup Assistant").
+Finishing records who finished and when. Running the assistant again starts a new run with every step
+showing its current state.
 
 ## Modules: turning features on and off
 

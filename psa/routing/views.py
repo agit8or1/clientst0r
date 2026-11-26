@@ -174,14 +174,11 @@ def _time(raw, default):
         return default
 
 
-@login_required
-@require_psa_enabled
-@require_routing_perm(PERM_MANAGE)
-@require_http_methods(['POST'])
-def quick_mode(request):
-    """The Ticket Routing card on Settings → PSA posts here."""
+def set_msp_mode(request, mode):
+    """Save the MSP-wide default routing mode and audit it. Shared by the
+    Ticket Routing card on Settings → PSA and the Setup Assistant's routing
+    step; the caller checks permissions. An unknown mode is 'off'."""
     msp = RoutingSettings.load()
-    mode = request.POST.get('mode') or 'off'
     if mode not in dict(MODE_CHOICES):
         mode = 'off'
     previous = msp.mode
@@ -189,6 +186,16 @@ def quick_mode(request):
     msp.save()
     _audit(request, 'update', 'ticket_routing.RoutingSettings', msp.pk, 'Ticket routing settings',
            f'Ticket routing MSP default mode: {previous} → {mode}')
+    return msp
+
+
+@login_required
+@require_psa_enabled
+@require_routing_perm(PERM_MANAGE)
+@require_http_methods(['POST'])
+def quick_mode(request):
+    """The Ticket Routing card on Settings → PSA posts here."""
+    msp = set_msp_mode(request, request.POST.get('mode') or 'off')
     messages.success(request, f'Ticket routing default set to {msp.get_mode_display()}.')
     return redirect(safe_post_next(request, 'ticket_routing:overview'))
 

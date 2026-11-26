@@ -31,16 +31,7 @@ def settings_modules(request):
             return redirect('core:settings_modules')
 
         if before != want:
-            from audit.models import AuditLog
-            from .client_ip import get_client_ip
-            AuditLog.log(
-                user=request.user, action='update',
-                object_type='core.SystemSetting', object_id=settings.pk,
-                object_repr=f'Optional module: {module.label}',
-                description=f'{"Turned on" if want else "Turned off"} {module.label}',
-                ip_address=get_client_ip(request), path=request.path,
-                extra_data={'changed_fields': {module.field: {'from': before, 'to': want}}},
-            )
+            audit_module_switch(request, settings, module, before, want)
         messages.success(request, f'{module.label} is now {"on" if want else "off"}.')
         if stopped:
             messages.warning(
@@ -58,3 +49,18 @@ def settings_modules(request):
         'groups': modules.describe(settings),
         'current_tab': 'modules',
     })
+
+
+def audit_module_switch(request, settings, module, before, want):
+    """The audit row for one module switch. Shared with the Setup Assistant's
+    modules step (core.setup_assistant_steps)."""
+    from audit.models import AuditLog
+    from .client_ip import get_client_ip
+    AuditLog.log(
+        user=request.user, action='update',
+        object_type='core.SystemSetting', object_id=settings.pk,
+        object_repr=f'Optional module: {module.label}',
+        description=f'{"Turned on" if want else "Turned off"} {module.label}',
+        ip_address=get_client_ip(request), path=request.path,
+        extra_data={'changed_fields': {module.field: {'from': before, 'to': want}}},
+    )

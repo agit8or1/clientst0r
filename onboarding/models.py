@@ -25,6 +25,10 @@ class OnboardingSession(models.Model):
     RENEWAL = 'renewal'
     PRICE_INCREASE = 'price_increase'
     OFFBOARDING = 'offboarding'
+    #: The first-install Setup Assistant (core/setup_assistant.py, Phase
+    #: 96.2): an install-wide session with no tenant and no customer. Never
+    #: listed with customer onboarding (onboarding.access.sessions_for).
+    INSTALL = 'install'
     KINDS = [
         (NEW_CUSTOMER, 'New customer onboarding'),
         (PLAN_CHANGE, 'Plan change'),
@@ -36,7 +40,12 @@ class OnboardingSession(models.Model):
         (RENEWAL, 'Renewal'),
         (PRICE_INCREASE, 'Price increase'),
         (OFFBOARDING, 'Offboarding'),
+        (INSTALL, 'Setup Assistant'),
     ]
+    #: Changes to an existing customer (everything but new customers and the
+    #: Setup Assistant).
+    LIFECYCLE_KINDS = [PLAN_CHANGE, ADD_USERS, REMOVE_USERS, ADD_DEVICES, REMOVE_DEVICES, ADD_LOCATION,
+                       RENEWAL, PRICE_INCREASE, OFFBOARDING]
 
     DRAFT = 'draft'
     IN_PROGRESS = 'in_progress'
@@ -50,9 +59,11 @@ class OnboardingSession(models.Model):
     ]
     OPEN_STATUSES = (DRAFT, IN_PROGRESS, AWAITING_APPROVAL, AWAITING_SIGNATURE)
 
+    # Empty only for the install kind (check constraint below).
     organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE,
+                                     null=True, blank=True,
                                      related_name='onboarding_sessions',
-                                     help_text='The tenant the session belongs to.')
+                                     help_text='The tenant the session belongs to (empty for the Setup Assistant).')
     client = models.ForeignKey('core.Organization', on_delete=models.SET_NULL, null=True, blank=True,
                                related_name='onboarding_sessions_as_client',
                                help_text='The customer. Empty until the first step creates it.')
@@ -76,6 +87,11 @@ class OnboardingSession(models.Model):
         db_table = 'onboarding_sessions'
         ordering = ['-updated_at']
         indexes = [models.Index(fields=['organization', 'status'])]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(organization__isnull=False) | models.Q(kind='install'),
+                name='onboarding_tenant_unless_install'),
+        ]
 
     def __str__(self):
         return self.display_title
@@ -84,6 +100,8 @@ class OnboardingSession(models.Model):
     def display_title(self):
         if self.title:
             return self.title
+        if self.kind == self.INSTALL:
+            return 'Setup Assistant'
         who = self.client.name if self.client_id else (self.data.get('customer', {}).get('name') or 'new customer')
         return f'{self.get_kind_display()}: {who}'
 

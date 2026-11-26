@@ -1,0 +1,9 @@
+{% load i18n %}
+<p>{% blocktrans with s=ctx.staff_count r=ctx.role_count g=ctx.group_count %}Now: {{ s }} staff account(s), {{ r }} role(s), {{ g }} access group(s).{% endblocktrans %}</p>
+<p class="small text-body-secondary">{% trans "Users are added on their own pages so every rule of those pages applies (second-administrator approval for new superusers, role tiers, two-factor enrolment). Each link opens the page; come back here with the Setup Assistant link in Administration → General." %}</p>
+<ul class="list-group mb-3">
+    {% for label, url, text in ctx.links %}
+    <li class="list-group-item"><a href="{{ url }}">{{ label }}</a><div class="small text-body-secondary">{{ text }}</div></li>
+    {% endfor %}
+</ul>
+<p class="small mb-0">{% trans "Tip: give technicians a Level 1, Level 2 or Level 3 Technician role; give your service manager Service Manager. Owner and Organization Administrator are for people who run the business." %}</p>

@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.786] - 2026-11-26
+
+### Added
+- **Setup Assistant for new installs** (Administration → General → Setup Assistant).
+  - **When it appears:** offered automatically only to a superuser on a genuinely new install, after two-factor sign-in
+    is set up. Existing installations are marked as already set up when they update, so they are never redirected.
+    "Later" stops the offer; it can always be opened from Administration → General.
+  - **Basic path:** company details, administrator security, first customer, mail, then a backup and health check and a
+    review. **Advanced** adds modules, team, routing and notifications, and integrations. Back, Next and Skip
+    throughout; progress is saved.
+  - Only company details and administrator security are required, and you can't finish while your own account still
+    uses the installer's default password.
+  - It writes the existing settings, and only the fields you change; Skip changes nothing. The security step can only
+    tighten settings. The mail password is never shown back, logged or recorded in the audit log.
+  - It needs no integration and no network. Integrations are optional steps with links to each one's own Test button;
+    AI appears only as an **optional** link.
+
+### Changed
+- The mail and module settings pages share the assistant's save code; a bad mail port now shows a message instead of an
+  error page.
+- `install.sh` and the Docker entrypoint point to the Setup Assistant at the end.
+- Roadmap: 96.2–96.4 shipped.
+
 ## [3.17.785] - 2026-11-26
 
 ### Added

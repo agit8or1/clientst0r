@@ -44,6 +44,8 @@ def jsonable(value):
 def create_session(user, kind, organization, client=None, title=''):
     if kind not in dict(S.KINDS):
         raise StepError('Unknown kind of session.')
+    if kind == S.INSTALL:
+        return create_install_session(user, title=title)
     if not access.can_use(user, organization):
         raise StepError('You do not have permission to run onboarding wizards here.')
     if kind != S.NEW_CUSTOMER:
@@ -63,6 +65,21 @@ def create_session(user, kind, organization, client=None, title=''):
         session.current_step = next_step_key(session) or ''
         session.save(update_fields=['current_step'])
     _audit(session, user, 'create', f'Started {session.get_kind_display()}', None)
+    return session
+
+
+def create_install_session(user, title=''):
+    """The Setup Assistant's install-wide session: no tenant, no customer
+    (core.setup_assistant). Superusers only."""
+    if not access.can_run_install(user):
+        raise StepError('Only administrators can run the Setup Assistant.')
+    with transaction.atomic():
+        session = S.objects.create(organization=None, client=None, kind=S.INSTALL, title=title[:255],
+                                   created_by=user, status=S.DRAFT)
+        ensure_states(session)
+        session.current_step = next_step_key(session) or ''
+        session.save(update_fields=['current_step'])
+    _audit(session, user, 'create', 'Started the Setup Assistant', None)
     return session
 
 

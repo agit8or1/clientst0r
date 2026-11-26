@@ -1,0 +1,17 @@
+{% load i18n %}
+{% if form.routing_mode %}
+<h2 class="h6">{% trans "Ticket routing" %}</h2>
+{% with f=form.routing_mode %}{% include "core/setup_assistant/_field.html" %}{% endwith %}
+{% if ctx.routing_url %}<p class="small"><a href="{{ ctx.routing_url }}">{% trans "Ticket Routing: rules, on-call and business hours" %}</a></p>{% endif %}
+{% endif %}
+<h2 class="h6">{% trans "E-mail notifications" %}</h2>
+<p class="small text-body-secondary">{% trans "Sent only when outgoing mail is set up." %}</p>
+<div class="row g-2">
+    <div class="col-12">{% with f=form.notify_on_user_created %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+    <div class="col-md-6">{% with f=form.notify_on_ssl_expiry %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+    <div class="col-md-6">{% with f=form.ssl_expiry_warning_days %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+    <div class="col-md-6">{% with f=form.notify_on_domain_expiry %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+    <div class="col-md-6">{% with f=form.domain_expiry_warning_days %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+    <div class="col-md-6">{% with f=form.notify_on_password_expiry %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+    <div class="col-md-6">{% with f=form.password_expiry_warning_days %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+</div>

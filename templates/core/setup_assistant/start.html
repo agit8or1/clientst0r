@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+Setup Assistant start screen and overview (core/setup_assistant_views.py).
+`offer` is set when it was opened automatically after sign-in on a new
+install; "Later" then stops the automatic offer for good.
+{% endcomment %}
+{% block title %}{% trans "Setup Assistant" %} - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Clientst0r" }}{% endblock %}
+
+{% block content %}
+<div class="setup-assistant mx-auto">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb mb-2">
+        <li class="breadcrumb-item"><a href="{% url 'core:settings_home' %}">{% trans "Administration" %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans "Setup Assistant" %}</li>
+    </ol></nav>
+
+    <h1 class="h3"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> {% if offer %}{% trans "Welcome — let's set up this install" %}{% else %}{% trans "Setup Assistant" %}{% endif %}</h1>
+    <p class="text-body-secondary">
+        {% trans "A guided path through the settings a new install needs: your company details, administrator security, modules, your team, the first customer, mail, routing, integrations and a readiness check. It writes the same settings as the Administration pages and can be left and resumed at any time." %}
+    </p>
+    <p class="text-body-secondary small">
+        {% trans "Nothing is required to use the app. Only two steps are marked Required for finishing the assistant: your company details and administrator security. Mail, integrations and everything else are optional, and setup never needs Rem0te or any other application." %}
+    </p>
+
+    {% if ss.setup_assistant_state == 'completed' and not session %}
+    <div class="alert alert-success" role="status">
+        {% if ss.setup_assistant_completed_at %}{% blocktrans with when=ss.setup_assistant_completed_at|date:"j M Y H:i" %}Setup was finished on {{ when }}.{% endblocktrans %}{% else %}{% trans "Setup was finished." %}{% endif %}
+        {% trans "Running it again shows every step with its current values; nothing changes until you edit a step and save it." %}
+    </div>
+    {% endif %}
+
+    {% if session %}
+    <section class="card mb-3" aria-labelledby="continueTitle">
+        <div class="card-body">
+            <h2 class="h5" id="continueTitle">{% trans "Continue where you left off" %}</h2>
+            <p class="mb-2 small">{% blocktrans with d=progress.done t=progress.total %}{{ d }} of {{ t }} steps done or skipped.{% endblocktrans %}
+                {% if path == 'advanced' %}{% trans "Advanced path." %}{% else %}{% trans "Basic path." %}{% endif %}</p>
+            <div class="progress mb-3" role="progressbar" aria-label="{% trans 'Setup progress' %}" aria-valuenow="{{ progress.percent }}" aria-valuemin="0" aria-valuemax="100">
+                <div class="progress-bar" style="width: {{ progress.percent }}%"></div>
+            </div>
+            {% include "core/setup_assistant/_steps.html" %}
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <a class="btn btn-primary" href="{% url 'core:setup_assistant_step' key=next_key %}">{% trans "Continue setup" %} <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+                <form method="post" action="{% url 'core:setup_assistant_action' %}">{% csrf_token %}
+                    <input type="hidden" name="action" value="path">
+                    {% if path == 'advanced' %}
+                    <button class="btn btn-outline-secondary" name="path" value="basic">{% trans "Switch to the basic path" %}</button>
+                    {% else %}
+                    <button class="btn btn-outline-secondary" name="path" value="advanced">{% trans "Switch to the advanced path" %}</button>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </section>
+    {% else %}
+    <section class="card mb-3" aria-labelledby="startTitle">
+        <div class="card-body">
+            <h2 class="h5" id="startTitle">{% trans "Choose a path" %}</h2>
+            <form method="post" action="{% url 'core:setup_assistant_action' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="start">
+                <fieldset>
+                    <legend class="visually-hidden">{% trans "Setup path" %}</legend>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="path" id="pathBasic" value="basic" checked aria-describedby="pathBasicHelp">
+                        <label class="form-check-label fw-semibold" for="pathBasic">{% trans "Basic — essentials only (about 5 minutes)" %}</label>
+                        <div class="form-text" id="pathBasicHelp">{% trans "Company details, administrator security, first customer, mail and the readiness check. Every module stays on with its defaults." %}</div>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="radio" name="path" id="pathAdvanced" value="advanced" aria-describedby="pathAdvancedHelp">
+                        <label class="form-check-label fw-semibold" for="pathAdvanced">{% trans "Advanced — everything" %}</label>
+                        <div class="form-text" id="pathAdvancedHelp">{% trans "Also modules, technicians and roles, routing and notifications, and optional integrations." %}</div>
+                    </div>
+                </fieldset>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-primary">{% trans "Start setup" %} <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <section class="mb-3" aria-labelledby="stepsTitle">
+        <h2 class="h6" id="stepsTitle">{% trans "The steps" %}</h2>
+        <ol class="small">
+            {% for s in all_steps %}
+            <li>{{ s.title }} — {% if s.required %}<strong>{% trans "required" %}</strong>{% else %}{% trans "optional" %}{% endif %}{% if not s.basic %}, {% trans "advanced path" %}{% endif %}</li>
+            {% endfor %}
+        </ol>
+    </section>
+    {% endif %}
+
+    {% if ss.setup_assistant_state == 'offered' or ss.setup_assistant_state == 'in_progress' %}
+    <form method="post" action="{% url 'core:setup_assistant_action' %}" class="mb-3">{% csrf_token %}
+        <button type="submit" name="action" value="later" class="btn btn-link px-0">{% trans "Later — don't open this by itself again" %}</button>
+        <div class="form-text">{% trans "You can run it any time from Administration → General → Setup assistant." %}</div>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

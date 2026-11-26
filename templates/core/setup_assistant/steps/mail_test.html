@@ -1,0 +1,19 @@
+{% load i18n %}
+{% comment %}"Send test" posts to the SMTP page's own test (core:test_smtp_email) and comes back here.{% endcomment %}
+<section class="mt-3 pt-3 border-top" aria-labelledby="mailTestTitle">
+    <h2 class="h6" id="mailTestTitle">{% trans "Send a test message" %}</h2>
+    {% if ctx.smtp_ready %}
+    <form method="post" action="{{ ctx.test_url }}" class="d-flex flex-wrap gap-2 align-items-end">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <div>
+            <label class="form-label small mb-1" for="testEmail">{% trans "Send to" %}</label>
+            <input type="email" class="form-control form-control-sm" id="testEmail" name="test_email" value="{{ ctx.test_to }}" required>
+        </div>
+        <button type="submit" class="btn btn-sm btn-outline-primary">{% trans "Send test" %}</button>
+    </form>
+    <div class="form-text">{% trans "Uses the saved settings: save the step first if you changed anything." %}</div>
+    {% else %}
+    <p class="small text-body-secondary mb-0">{% trans "Save an SMTP server with sending switched on first; then a test message can be sent from here." %}</p>
+    {% endif %}
+</section>

@@ -28,3 +28,8 @@ class CoreConfig(AppConfig):
         # a connection, customer mapping or RMM connection changes here.
         from core import app_switcher
         app_switcher.connect_signals()
+        # First-install Setup Assistant (Phase 96): its steps on the
+        # onboarding engine, and the sign-in hook that arms the offer.
+        from core import setup_assistant, setup_assistant_steps
+        setup_assistant_steps.register()
+        user_logged_in.connect(setup_assistant.note_sign_in, dispatch_uid='core.setup_assistant_due')

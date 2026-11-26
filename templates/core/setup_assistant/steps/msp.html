@@ -1,0 +1,16 @@
+{% load i18n %}
+<div class="row g-3">
+    <div class="col-md-6">{% with f=form.site_name %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+    <div class="col-md-6">{% with f=form.custom_company_name %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+    <div class="col-md-6">{% with f=form.site_url %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+    <div class="col-md-6">{% with f=form.default_timezone %}{% include "core/setup_assistant/_field.html" %}{% endwith %}</div>
+    <div class="col-md-6">
+        <div class="mb-3">
+            <label for="id_custom_logo" class="form-label">{% trans "Logo" %}</label>
+            <input type="file" class="form-control" id="id_custom_logo" name="custom_logo" accept="image/png,image/jpeg,image/webp,image/gif" aria-describedby="id_custom_logo_help">
+            <div class="form-text" id="id_custom_logo_help">{% if ctx.has_logo %}{% trans "A logo is uploaded. Choose a file only to replace it." %}{% else %}{% trans "Optional. A wide PNG with a transparent background works best (up to 2 MB)." %}{% endif %}</div>
+        </div>
+        {% if ctx.has_logo %}{% with f=form.clear_logo %}{% include "core/setup_assistant/_field.html" %}{% endwith %}{% endif %}
+    </div>
+</div>
+<p class="small text-body-secondary mb-0">{% trans "Colours, background and the customer portal's branding are on" %} <a href="{{ ctx.settings_url }}">{% trans "Administration → General" %}</a>.</p>

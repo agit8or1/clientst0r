@@ -1,0 +1,36 @@
+{% load i18n %}
+<p class="small text-body-secondary">{% trans "This step only shows what is connected; it makes no outbound call. Each connection's Test button is on its own page." %}</p>
+<div class="row g-3">
+{% for c in ctx.cards %}
+    <div class="col-md-6">
+        <section class="card h-100" aria-labelledby="int-{{ c.key }}">
+            <div class="card-body">
+                <h2 class="h6" id="int-{{ c.key }}"><i class="fas {{ c.icon }}" aria-hidden="true"></i> {{ c.title }}
+                    {% if c.count %}<span class="badge text-bg-success">{% blocktrans count n=c.count %}{{ n }} connected{% plural %}{{ n }} connected{% endblocktrans %}</span>{% elif c.count == 0 %}<span class="badge text-bg-light border">{% trans "Not configured" %}</span>{% endif %}
+                    <span class="badge text-bg-light border">{% trans "Optional" %}</span>
+                </h2>
+                <p class="small mb-2">{{ c.text }}</p>
+                {% if c.items %}
+                <ul class="small mb-2">
+                    {% for i in c.items %}<li><a href="{{ i.url }}">{{ i.name }}</a> — {% trans "last sync" %}: {{ i.status }}{% if i.at %} ({{ i.at|date:"j M Y H:i" }}){% endif %}</li>{% endfor %}
+                </ul>
+                {% endif %}
+                {% if c.setup_url %}<a class="btn btn-sm btn-outline-primary" href="{{ c.setup_url }}">{% if c.key == 'all' %}{% trans "Open Integrations" %}{% else %}{% trans "Set up" %}{% endif %}</a>{% endif %}
+                {% for label, url in c.extra %}{% if url %}<a class="btn btn-sm btn-outline-secondary" href="{{ url }}">{{ label }}</a>{% endif %}{% endfor %}
+            </div>
+        </section>
+    </div>
+{% endfor %}
+    <div class="col-md-6">
+        <section class="card h-100" aria-labelledby="int-ai">
+            <div class="card-body">
+                <h2 class="h6" id="int-ai"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> {% trans "AI assistance" %}
+                    <span class="badge text-bg-info">OPTIONAL AI</span>
+                    {% if ctx.ai_on %}<span class="badge text-bg-success">{% trans "On" %}</span>{% else %}<span class="badge text-bg-light border">{% trans "Off" %}</span>{% endif %}
+                </h2>
+                <p class="small mb-2">{% trans "Off by default. When switched on, AI drafts and explains (suggested replies, summaries); it never sends, approves or acts on its own. Provider, budgets and policies are set on the AI page." %}</p>
+                {% if ctx.ai_url %}<a class="btn btn-sm btn-outline-primary" href="{{ ctx.ai_url }}">{% trans "AI settings" %}</a>{% endif %}
+            </div>
+        </section>
+    </div>
+</div>

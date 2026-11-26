@@ -1218,6 +1218,31 @@ class SystemSetting(models.Model):
         help_text='Also remove verified pre-upgrade backups older than this many days (the newest '
                   'is always kept). Blank: no age limit.')
 
+    # First-install Setup Assistant (Phase 96.2, core/setup_assistant.py).
+    # A settings row created on a fresh install starts 'offered'; migration
+    # core 0126 gives every row that already existed 'not_offered', so an
+    # upgraded install is never sent to the assistant. The automatic offer
+    # also re-checks that the install still looks new (setup_assistant.looks_fresh).
+    SETUP_NOT_OFFERED = 'not_offered'
+    SETUP_OFFERED = 'offered'
+    SETUP_IN_PROGRESS = 'in_progress'
+    SETUP_COMPLETED = 'completed'
+    SETUP_DISMISSED = 'dismissed'
+    SETUP_ASSISTANT_STATES = [
+        (SETUP_NOT_OFFERED, 'Not offered automatically'),
+        (SETUP_OFFERED, 'Offered (new install)'),
+        (SETUP_IN_PROGRESS, 'In progress'),
+        (SETUP_COMPLETED, 'Completed'),
+        (SETUP_DISMISSED, 'Dismissed ("Later")'),
+    ]
+    setup_assistant_state = models.CharField(
+        max_length=12, choices=SETUP_ASSISTANT_STATES, default=SETUP_OFFERED,
+        help_text='First-install Setup Assistant. Only "offered" and "in progress" are offered '
+                  'automatically after sign-in.')
+    setup_assistant_completed_at = models.DateTimeField(null=True, blank=True)
+    setup_assistant_completed_by = models.ForeignKey(
+        'auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+
     # Metadata
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='system_settings_updates')

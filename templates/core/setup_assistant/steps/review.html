@@ -1,0 +1,21 @@
+{% load i18n %}
+{% if ctx.missing %}
+<div class="alert alert-warning" role="alert">{% trans "Still required before finishing:" %}
+    {% for s in ctx.missing %}<a href="{% url 'core:setup_assistant_step' key=s.key %}">{{ s.title }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+{% endif %}
+<div class="table-responsive">
+<table class="table table-sm align-middle">
+    <caption class="visually-hidden">{% trans "Setup summary" %}</caption>
+    <thead><tr><th scope="col">{% trans "Step" %}</th><th scope="col">{% trans "This run" %}</th><th scope="col">{% trans "Now" %}</th></tr></thead>
+    <tbody>
+    {% for r in ctx.rows %}
+    <tr>
+        <th scope="row" class="fw-normal"><a href="{% url 'core:setup_assistant_step' key=r.step.key %}">{{ r.step.title }}</a>{% if r.step.required %} <span class="badge text-bg-warning">{% trans "Required" %}</span>{% endif %}</th>
+        <td>{% if r.status == 'done' %}{% trans "Done" %}{% elif r.status == 'skipped' %}{% trans "Skipped" %}{% if r.note %} ({{ r.note }}){% endif %}{% else %}{% trans "Not done" %}{% endif %}</td>
+        <td>{% if r.configured is True %}{% trans "Configured" %}{% elif r.configured is False %}{% trans "Not configured" %}{% else %}—{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+<p class="small text-body-secondary mb-0">{% trans "Finishing only marks the assistant complete; everything stays editable under Administration, and the assistant can be run again." %}</p>

@@ -48,7 +48,9 @@ fi
 # never race each other through migrate/collectstatic.
 if [ "${CLIENTST0R_SKIP_SETUP:-0}" = "1" ]; then
     echo "Skipping migrations/static/superuser setup (CLIENTST0R_SKIP_SETUP=1)"
-    echo "Starting: $*"
+    echo "New install? Sign in as the superuser: after 2FA enrolment the Setup Assistant opens"
+echo "  (also under Administration -> General -> Setup assistant)."
+echo "Starting: $*"
     exec "$@"
 fi
 

@@ -1,0 +1,37 @@
+{% load i18n %}
+<h2 class="h6">{% trans "Your account" %}</h2>
+<ul class="list-unstyled mb-3">
+    <li class="mb-2">
+        {% if ctx.default_password %}
+        <i class="fas fa-triangle-exclamation text-danger" aria-hidden="true"></i>
+        <strong>{% trans "You still use the installer's default password." %}</strong>
+        {% trans "Anyone who has read the install guide can sign in as you. This step cannot be saved until it is changed." %}
+        <a class="btn btn-sm btn-danger ms-1" href="{{ ctx.password_url }}">{% trans "Change password" %}</a>
+        {% else %}
+        <i class="fas fa-check text-success" aria-hidden="true"></i> {% trans "Your password is not the installer's default." %}
+        {% endif %}
+    </li>
+    <li class="mb-2">
+        {% if ctx.has_device %}
+        <i class="fas fa-check text-success" aria-hidden="true"></i> {% trans "Two-factor sign-in is set up for your account." %}
+        {% else %}
+        <i class="fas fa-triangle-exclamation text-warning" aria-hidden="true"></i> {% trans "Two-factor sign-in is not set up for your account." %}
+        <a href="{{ ctx.two_factor_url }}">{% trans "Set it up" %}</a>
+        {% endif %}
+    </li>
+    {% if ctx.has_device %}
+    <li class="mb-2">
+        <i class="fas fa-key" aria-hidden="true"></i>
+        {% trans "Recovery codes let you sign in if you lose your phone. Generate them and keep them somewhere safe, away from this computer." %}
+        <a href="{{ ctx.backup_tokens_url }}">{% trans "Recovery codes" %}</a>
+    </li>
+    {% endif %}
+</ul>
+
+<h2 class="h6">{% trans "Sign-in and session policy (everyone)" %}</h2>
+<p class="small text-body-secondary">{% trans "The defaults are a sound starting point. Here you can make them stricter; to loosen anything use" %} <a href="{{ ctx.settings_url }}">{% trans "Administration → Security" %}</a>.</p>
+<div class="row g-3">
+    {% for f in form %}
+    <div class="col-md-6">{% include "core/setup_assistant/_field.html" %}</div>
+    {% endfor %}
+</div>

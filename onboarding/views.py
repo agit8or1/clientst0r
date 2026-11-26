@@ -26,6 +26,8 @@ def start(request):
     clients = access.reachable_clients(request.user).filter(is_active=True).order_by('name')
     if request.method == 'POST':
         kind = request.POST.get('kind', '')
+        if kind == S.INSTALL:
+            raise PermissionDenied('The Setup Assistant is started from Administration → General.')
         client = None
         if kind != S.NEW_CUSTOMER:
             client = get_object_or_404(clients, pk=request.POST.get('client') or 0)
@@ -40,7 +42,8 @@ def start(request):
             return redirect('onboarding:step', pk=session.pk, key=session.current_step)
     sessions = access.sessions_for(request.user).filter(status__in=S.OPEN_STATUSES)
     recent = access.sessions_for(request.user).filter(status__in=(S.COMPLETED, S.CANCELLED))[:10]
-    lifecycle = [(k, label) for k, label in S.KINDS if k != S.NEW_CUSTOMER]
+    # The install kind is the Setup Assistant's (core/setup_assistant.py), never started here.
+    lifecycle = [(k, label) for k, label in S.KINDS if k in S.LIFECYCLE_KINDS]
     return render(request, 'onboarding/start.html', {
         'sessions': sessions, 'recent': recent, 'clients': clients, 'lifecycle_kinds': lifecycle,
         'preselect_client': request.GET.get('client', ''),

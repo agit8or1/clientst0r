@@ -1,0 +1,17 @@
+{% load i18n %}
+{% if ctx.checked_at %}
+<p class="small">{% blocktrans with when=ctx.checked_at|date:"j M Y H:i" o=ctx.summary.open t=ctx.summary.total %}Last checked {{ when }}: {{ o }} of {{ t }} item(s) need attention.{% endblocktrans %}</p>
+<ul class="list-group mb-3">
+    {% for c in ctx.checks %}
+    <li class="list-group-item d-flex flex-wrap gap-2 align-items-start">
+        <span aria-hidden="true">{% if c.ok %}<i class="fas fa-check text-success"></i>{% elif c.severity == 'high' or c.severity == 'critical' %}<i class="fas fa-circle-exclamation text-danger"></i>{% else %}<i class="fas fa-triangle-exclamation text-warning"></i>{% endif %}</span>
+        <span class="me-auto"><strong>{{ c.title }}</strong><span class="visually-hidden"> — {% if c.ok %}{% trans "ready" %}{% else %}{% trans "needs attention" %}{% endif %}</span><span class="d-block small text-body-secondary">{{ c.detail }}</span></span>
+        {% if c.action_url %}<a class="btn btn-sm btn-outline-secondary" href="{{ c.action_url }}">{{ c.action_label }}</a>{% endif %}
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>{% trans "The check has not run yet. Continue to run it now; it only reads, it changes nothing." %}</p>
+{% endif %}
+<p class="small text-body-secondary mb-0">{% trans "Warnings do not block anything. Backups off this server are strongly recommended before you store customer data." %}
+    {% if ctx.backup_url %}<a href="{{ ctx.backup_url }}">{% trans "Off-host backups" %}</a>{% endif %}</p>

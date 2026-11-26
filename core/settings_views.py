@@ -161,23 +161,11 @@ def settings_general(request):
     settings = SystemSetting.get_settings()
 
     if request.method == 'POST':
-        # Update general settings
-        settings.site_name = request.POST.get('site_name', settings.site_name)
-        settings.site_url = request.POST.get('site_url', settings.site_url)
-
+        # Site identity and logo (shared with the Setup Assistant).
         # The customer portal host name moved to Settings → Customer portal
         # (core.portal_settings_views); this form no longer reads it.
-        settings.default_timezone = request.POST.get('default_timezone', settings.default_timezone)
-
-        # Update whitelabeling settings
-        settings.custom_company_name = request.POST.get('custom_company_name', '').strip()
+        apply_identity_post(settings, request.POST, request.FILES)
         settings.custom_logo_height = int(request.POST.get('custom_logo_height', 30))
-
-        # Handle logo upload
-        if 'custom_logo' in request.FILES:
-            settings.custom_logo = request.FILES['custom_logo']
-        elif request.POST.get('clear_logo') == 'on':
-            settings.custom_logo = None
 
         # App background policy (v3.17.527). Only the fields belonging to the
         # chosen policy are read: switching to 'colour' and back should not
@@ -231,6 +219,100 @@ def settings_general(request):
     })
 
 
+def apply_identity_post(settings, post, files):
+    """Site name, address, time zone, company name and logo from `post` /
+    `files` onto `settings` (not saved). Shared by Settings → General and the
+    Setup Assistant (core.setup_assistant_steps), so both write the same
+    fields the same way."""
+    settings.site_name = post.get('site_name', settings.site_name)
+    settings.site_url = post.get('site_url', settings.site_url)
+    settings.default_timezone = post.get('default_timezone', settings.default_timezone)
+    settings.custom_company_name = post.get('custom_company_name', '').strip()
+    if files and 'custom_logo' in files:
+        settings.custom_logo = files['custom_logo']
+    elif post.get('clear_logo') == 'on':
+        settings.custom_logo = None
+
+
+def apply_security_post(settings, post, keys=None):
+    """Copy the Security form's fields from `post` onto `settings` (not
+    saved). Fields set by environment variables are never changed. Returns
+    the key of the first invalid number (nothing is copied after it), else
+    None. Shared with the Setup Assistant; `keys` limits it to some of
+    security_policy.ITEMS."""
+    from core import security_policy
+    for key, item in security_policy.ITEMS.items():
+        if keys is not None and key not in keys:
+            continue
+        if security_policy.is_env_locked(key):
+            continue  # env wins; keep the saved value untouched
+        if isinstance(item.default, bool):
+            setattr(settings, key, post.get(key) == 'on')
+            continue
+        raw = post.get(key)
+        if raw in (None, ''):
+            continue
+        try:
+            value = int(raw)
+        except (TypeError, ValueError):
+            return key
+        setattr(settings, key, max(item.minimum, min(item.maximum, value)))
+    return None
+
+
+SMTP_FIELDS = ('smtp_enabled', 'smtp_host', 'smtp_port', 'smtp_username', 'smtp_password',
+               'smtp_use_tls', 'smtp_use_ssl', 'smtp_from_email', 'smtp_from_name')
+SMTP_SECRET_FIELDS = frozenset({'smtp_password'})
+
+NOTIFICATION_FLAGS = ('notify_on_user_created', 'notify_on_ssl_expiry', 'notify_on_domain_expiry',
+                      'notify_on_password_expiry')
+NOTIFICATION_DAYS = ('ssl_expiry_warning_days', 'domain_expiry_warning_days', 'password_expiry_warning_days')
+
+
+def apply_smtp_post(settings, post):
+    """Copy the SMTP server fields from `post` onto `settings` (not saved).
+    A blank password keeps the saved one; the field encrypts on save.
+    Returns an error message, or None. Shared with the Setup Assistant."""
+    settings.smtp_enabled = post.get('smtp_enabled') == 'on'
+    settings.smtp_host = (post.get('smtp_host', settings.smtp_host) or '').strip()
+    try:
+        port = int(post.get('smtp_port', settings.smtp_port))
+    except (TypeError, ValueError):
+        return 'Enter the SMTP port as a number, for example 587.'
+    if not 1 <= port <= 65535:
+        return 'The SMTP port must be between 1 and 65535.'
+    settings.smtp_port = port
+    settings.smtp_username = post.get('smtp_username', settings.smtp_username)
+
+    smtp_password = (post.get('smtp_password', '') or '').strip()
+    if smtp_password:
+        from vault.encryption import get_master_key, EncryptionError
+        try:
+            # The field encrypts on save; check the key now so a bad key
+            # gives this message rather than a 500 from save().
+            get_master_key()
+            settings.smtp_password = smtp_password
+        except EncryptionError:
+            return ('Could not save SMTP password: your APP_MASTER_KEY is invalid or missing. '
+                    'Run the fix script: ./scripts/fix_gunicorn_env.sh — or regenerate the key: '
+                    'python3 -c "import base64, os; print(base64.b64encode(os.urandom(32)).decode())"')
+
+    settings.smtp_use_tls = post.get('smtp_use_tls') == 'on'
+    settings.smtp_use_ssl = post.get('smtp_use_ssl') == 'on'
+    settings.smtp_from_email = post.get('smtp_from_email', settings.smtp_from_email)
+    settings.smtp_from_name = post.get('smtp_from_name', settings.smtp_from_name)
+    return None
+
+
+def apply_notification_post(settings, post):
+    """The e-mail notification switches and warning periods (not saved).
+    Shared by Settings → SMTP / Email and the Setup Assistant."""
+    for flag in NOTIFICATION_FLAGS:
+        setattr(settings, flag, post.get(flag) == 'on')
+    for field in NOTIFICATION_DAYS:
+        setattr(settings, field, int(post.get(field, getattr(settings, field))))
+
+
 @login_required
 @user_passes_test(is_superuser)
 def settings_security(request):
@@ -245,21 +327,10 @@ def settings_security(request):
     settings = SystemSetting.get_settings()
 
     if request.method == 'POST':
-        for key, item in security_policy.ITEMS.items():
-            if security_policy.is_env_locked(key):
-                continue  # env wins; keep the saved value untouched
-            if isinstance(item.default, bool):
-                setattr(settings, key, request.POST.get(key) == 'on')
-                continue
-            raw = request.POST.get(key)
-            if raw in (None, ''):
-                continue
-            try:
-                value = int(raw)
-            except (TypeError, ValueError):
-                messages.error(request, f'Invalid value for {key.replace("_", " ")}.')
-                return redirect('core:settings_security')
-            setattr(settings, key, max(item.minimum, min(item.maximum, value)))
+        bad = apply_security_post(settings, request.POST)
+        if bad:
+            messages.error(request, f'Invalid value for {bad.replace("_", " ")}.')
+            return redirect('core:settings_security')
 
         settings.updated_by = request.user
         settings.save()
@@ -359,43 +430,14 @@ def settings_smtp(request):
     settings = SystemSetting.get_settings()
 
     if request.method == 'POST':
-        # Update SMTP settings
-        settings.smtp_enabled = request.POST.get('smtp_enabled') == 'on'
-        settings.smtp_host = request.POST.get('smtp_host', settings.smtp_host)
-        settings.smtp_port = int(request.POST.get('smtp_port', settings.smtp_port))
-        settings.smtp_username = request.POST.get('smtp_username', settings.smtp_username)
-
-        # Only update password if provided
-        smtp_password = request.POST.get('smtp_password', '').strip()
-        if smtp_password:
-            from vault.encryption import get_master_key, EncryptionError
-            try:
-                # The field encrypts on save; check the key now so a bad key
-                # gives this message rather than a 500 from save().
-                get_master_key()
-                settings.smtp_password = smtp_password
-            except EncryptionError:
-                messages.error(
-                    request,
-                    'Could not save SMTP password: your APP_MASTER_KEY is invalid or missing. '
-                    'Run the fix script: ./scripts/fix_gunicorn_env.sh — or regenerate the key: '
-                    'python3 -c "import base64, os; print(base64.b64encode(os.urandom(32)).decode())"'
-                )
-                return redirect('core:settings_smtp')
-
-        settings.smtp_use_tls = request.POST.get('smtp_use_tls') == 'on'
-        settings.smtp_use_ssl = request.POST.get('smtp_use_ssl') == 'on'
-        settings.smtp_from_email = request.POST.get('smtp_from_email', settings.smtp_from_email)
-        settings.smtp_from_name = request.POST.get('smtp_from_name', settings.smtp_from_name)
+        # Update SMTP settings (shared with the Setup Assistant)
+        error = apply_smtp_post(settings, request.POST)
+        if error:
+            messages.error(request, error)
+            return redirect('core:settings_smtp')
 
         # Notification settings
-        settings.notify_on_user_created = request.POST.get('notify_on_user_created') == 'on'
-        settings.notify_on_ssl_expiry = request.POST.get('notify_on_ssl_expiry') == 'on'
-        settings.notify_on_domain_expiry = request.POST.get('notify_on_domain_expiry') == 'on'
-        settings.notify_on_password_expiry = request.POST.get('notify_on_password_expiry') == 'on'
-        settings.ssl_expiry_warning_days = int(request.POST.get('ssl_expiry_warning_days', settings.ssl_expiry_warning_days))
-        settings.domain_expiry_warning_days = int(request.POST.get('domain_expiry_warning_days', settings.domain_expiry_warning_days))
-        settings.password_expiry_warning_days = int(request.POST.get('password_expiry_warning_days', settings.password_expiry_warning_days))
+        apply_notification_post(settings, request.POST)
 
         settings.updated_by = request.user
         settings.save()
@@ -422,16 +464,26 @@ def test_smtp_email(request):
 
     test_email = request.POST.get('test_email', '').strip()
 
+    # The Setup Assistant's mail step posts here too and comes back to
+    # itself; only that page is accepted as a return address.
+    def back():
+        from django.urls import reverse
+        from .safe_redirect import safe_post_next
+        target = safe_post_next(request, '')
+        if target and target.startswith(reverse('core:setup_assistant')):
+            return redirect(target)
+        return redirect('core:settings_smtp')
+
     if not test_email:
         messages.error(request, 'Please provide an email address for the test.')
-        return redirect('core:settings_smtp')
+        return back()
 
     # Get SMTP settings
     settings = SystemSetting.get_settings()
 
     if not settings.smtp_enabled:
         messages.error(request, 'SMTP is not enabled. Please enable and configure SMTP settings first.')
-        return redirect('core:settings_smtp')
+        return back()
 
     # EncryptedTextField: the attribute is already the plaintext.
     smtp_password = settings.smtp_password or ''
@@ -487,7 +539,7 @@ Clientst0r - IT Documentation Platform
         logger.error(f"Failed to send test email: {e}")
         messages.error(request, f'Failed to send test email: {str(e)}')
 
-    return redirect('core:settings_smtp')
+    return back()
 
 
 @login_required

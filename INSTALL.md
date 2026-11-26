@@ -7,6 +7,7 @@ Complete guide for installing, upgrading, and managing Clientst0r.
 - [Quick Start](#quick-start)
 - [System Requirements](#system-requirements)
 - [Fresh Installation](#fresh-installation)
+- [First sign-in: the Setup Assistant](#first-sign-in-the-setup-assistant)
 - [Existing Installation Detection](#existing-installation-detection)
 - [Upgrade/Update](#upgradeupdate)
 - [System Check](#system-check)
@@ -76,6 +77,7 @@ The installer handles all dependencies:
    - When complete, you'll see the access URL
    - Open `http://YOUR_IP:8000` in your browser
    - Log in as `admin` / `ChangeMe123!`, change the password, and enrol 2FA (required by default)
+   - After 2FA enrolment the **Setup Assistant** opens by itself (see [First sign-in: the Setup Assistant](#first-sign-in-the-setup-assistant))
    - The installer does not install Nginx or TLS. Gunicorn listens on port 8000; put your own reverse proxy with TLS in front of it (a sample config is in `deploy/nginx-clientst0r.conf`)
 
 ### Installation Steps (Automated)
@@ -107,6 +109,31 @@ This creates:
 - Proper database structure for multi-tenancy
 
 **Total time:** 5-10 minutes depending on server speed
+
+---
+
+## First sign-in: the Setup Assistant
+
+On a new install the first administrator who signs in (after enrolling 2FA, when 2FA is required, which is
+the default) is shown the **Setup Assistant**: a guided path through the settings a new install needs.
+
+- **Basic path** (essentials only, about five minutes): your company name, the public address of this server,
+  time zone and logo; administrator security (the installer's default password must be changed, recovery codes,
+  session policy); the first customer, or a pointer to Data Import; outgoing mail with a Send test button and
+  the mailboxes that turn e-mail into tickets; the install readiness check (backups, scheduler, disk,
+  migrations); review.
+- **Advanced path**: also modules, technicians, roles and access groups, routing and notification defaults,
+  and optional integrations (RMM, external PSA, connected applications, OPTIONAL AI — off by default).
+- Only two steps are required to finish it: company details and administrator security. Every other step can
+  be skipped, and skipping changes nothing. Setup never needs Rem0te, an RMM or any other integration.
+- It writes the same settings as the Administration pages, can be left and resumed at any time, and
+  **Later** stops it opening by itself. Run it again any time from **Administration → General → Setup
+  assistant**; every step shows the current values and nothing changes until you edit a step and save it.
+- Upgrading an existing install never opens it. It is offered automatically only while the install still looks
+  new (one user account, no customers apart from your own organization, no tickets); loading demo data with
+  `seed_demo_data` or restoring a backup turns the automatic offer off.
+
+Details: [docs/ADMIN_GUIDE.md — Setup assistant](docs/ADMIN_GUIDE.md#setup-assistant).
 
 ---
 
@@ -488,6 +515,8 @@ tail -f /var/log/itdocs/django.log
 1. **Access the application:**
    - Open `http://YOUR_IP:8000` in browser
    - Log in as `admin` / `ChangeMe123!` and change the password immediately
+   - Follow the Setup Assistant that opens after the first sign-in (also under Administration → General →
+     Setup assistant)
 
 2. **Load demo data (Optional, Recommended for Testing):**
    - Loads comprehensive demo data under "Acme Corporation" organization

@@ -49,6 +49,12 @@ def dashboard(request):
     """
     # v3.17.681: straight after sign-in, the role's landing page (only when
     # this user may open it; see landing_for).
+    # Phase 96.2: on a fresh install, the Setup Assistant's start screen
+    # comes first, once per sign-in (superusers only; core.setup_assistant).
+    from core.setup_assistant import offer_redirect
+    offer = offer_redirect(request)
+    if offer:
+        return redirect(offer)
     target = take_landing_redirect(request)
     if target:
         return redirect(target)

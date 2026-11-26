@@ -362,7 +362,7 @@ unchanged. Click a feature for its details.
 |---|---|---|---|---|---|
 | 59 | [Verified installs and upgrades](#phase-59) | — | 🔵 In progress | updater, root helper | 59.7 LTS channel |
 | 67 | [Interface, navigation and dashboard redesign](#phase-67) | — | 🔵 In progress | 64 | 67.8 validation and 67.16 follow-ups |
-| 96 | [First-install setup wizard and interactive onboarding](#phase-96) | P0 | 🔵 In progress | 59, 64, 67 | 96.2 first-install detection; 96.3–96.4 assistant |
+| 96 | [First-install setup wizard and interactive onboarding](#phase-96) | P0 | 🔵 In progress | 59, 64, 67 | 96.5 sample data |
 | 112 | [Complete user documentation with annotated screenshots](#phase-112) | P1 | 🔵 In progress | 67 | 112.6 Security and monitoring; 112.7 Reports |
 | 113 | [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | 67 | 113.4 accessibility fixes; 113.5 tokens; 113.7 performance; 113.8 page headers |
 
@@ -3404,9 +3404,9 @@ Extends the import framework (Phase 61).
 <a id="phase-96"></a>
 
 ## Phase 96 — First-install setup wizard and interactive onboarding **(L · P0 · UX)** [in progress]
-<!-- phase: ws=I stage=1 view=later deps="59, 64, 67" next="96.2 first-install detection; 96.3–96.4 assistant" -->
+<!-- phase: ws=I stage=1 view=later deps="59, 64, 67" next="96.5 sample data" -->
 **Status:** 🔵 In progress · **Priority:** P0 · **Workstream:** I. Deployment, Updates & Reliability · **Depends on:** 59, 64, 67  
-**Next:** 96.2 first-install detection; 96.3–96.4 assistant
+**Next:** 96.5 sample data
 
 <details markdown="1">
 <summary>Details, completed work and acceptance criteria</summary>
@@ -3418,13 +3418,14 @@ existing settings; it is not a second settings system. Spec:
 - **96.1 Default password and install readiness** *(shipped v3.17.730 — banner, system warning, readiness card; last-backup age follows the scheduled backups work)* — flag the installer's default administrator
   password until it is changed; one readiness check (2FA, site URL, mail, backups, scheduler, disk, pending
   migrations) with fix links, built on the upgrade preflight and system warnings.
-- **96.2 First-install detection** *(planned)* — the wizard is offered automatically only on a fresh install,
+- **96.2 First-install detection** *(shipped v3.17.786)* — the wizard is offered automatically only on a fresh install,
   after 2FA enrolment; upgraded installs are never redirected; extends the onboarding step engine with an
-  install session that needs no customer.
-- **96.3 Setup Assistant, core steps** *(planned)* — MSP details and branding, administrator security, modules,
+  install session that needs no customer. Built: `SystemSetting.setup_assistant_state` (migration marks existing
+  installs "not offered"), a runtime guard (one user, no customers, no tickets), superusers only, "Later".
+- **96.3 Setup Assistant, core steps** *(shipped v3.17.786 — superusers only until the setup permission lands)* — MSP details and branding, administrator security, modules,
   technicians, teams and roles, review; progress, save and resume, Back / Next / Skip, required and optional
   steps marked; reopen any time under Administration → General without overwriting anything.
-- **96.4 Setup Assistant, service steps** *(planned)* — first customer or first prospect, service desk mail,
+- **96.4 Setup Assistant, service steps** *(shipped v3.17.786 — first prospect follows Phase 97)* — first customer or first prospect, service desk mail,
   routing and notifications, optional integrations with their existing connection tests, backup and health
   readiness. Secrets never appear in summaries or logs.
 - **96.5 Isolated sample data** *(planned)* — an optional, clearly marked demo customer that never appears in
@@ -4043,7 +4044,7 @@ increment is tested with no peer application and no RMM configured. Hiding a lin
   with its confirmation kept, workspace presets (presentation only, never extra permissions).
 - **113.10 Optional application switcher** *(partial — switcher with stored status, verified home links and per-customer greying shipped v3.17.784; customer deep links wait on contract proposals CX-1–CX-3, sent to the Rem0te session 2026-11-25)* — shown only when a peer is paired and the user may open it;
   depends on the contract proposals agreed with the peer.
-- **113.11 Later** *(planned)* — component showcase, role dashboards, customer onboarding and setup wizard, migration
+- **113.11 Later** *(partial — setup assistant shipped v3.17.786 as Phase 96.2–96.4; the rest planned)* — component showcase, role dashboards, customer onboarding and setup wizard, migration
   previews, search ranking and saved searches, bulk-action previews, security-center views, training paths.
 
 Acceptance: see [UX_ACCEPTANCE_CRITERIA](ux/UX_ACCEPTANCE_CRITERIA.md). Usability targets are measured, not claimed;

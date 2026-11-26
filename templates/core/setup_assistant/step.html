@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+One Setup Assistant step (core/setup_assistant_views.py). The step's body
+comes from step.body_template; the form fields default to _field.html.
+No inline scripts or on* handlers (CSP).
+{% endcomment %}
+{% block title %}{{ step.title }} - {% trans "Setup Assistant" %}{% endblock %}
+
+{% block content %}
+<div class="setup-assistant mx-auto">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb mb-2">
+        <li class="breadcrumb-item"><a href="{% url 'core:settings_home' %}">{% trans "Administration" %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'core:setup_assistant' %}">{% trans "Setup Assistant" %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ step.title }}</li>
+    </ol></nav>
+
+    <div class="mb-3">
+        <div class="d-flex flex-wrap justify-content-between small text-body-secondary">
+            <span>{% blocktrans with d=progress.done t=progress.total %}{{ d }} of {{ t }} steps done or skipped{% endblocktrans %}</span>
+            <span>{% if path == 'advanced' %}{% trans "Advanced path" %}{% else %}{% trans "Basic path (essentials only)" %}{% endif %}</span>
+        </div>
+        <div class="progress" role="progressbar" aria-label="{% trans 'Setup progress' %}" aria-valuenow="{{ progress.percent }}" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar" style="width: {{ progress.percent }}%"></div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <aside class="col-lg-4 order-lg-2">
+            <details class="d-lg-none card card-body py-2">
+                <summary>{% trans "All steps" %}</summary>
+                <div class="mt-2">{% include "core/setup_assistant/_steps.html" %}</div>
+            </details>
+            <div class="d-none d-lg-block">{% include "core/setup_assistant/_steps.html" %}</div>
+            <p class="small text-body-secondary mt-2 mb-0">{% trans "Progress is saved after every step. Leave any time and come back from Administration → General → Setup assistant." %}</p>
+        </aside>
+
+        <section class="col-lg-8 order-lg-1" aria-labelledby="stepTitle">
+            <div class="card">
+                <div class="card-body">
+                    <h1 class="h4 mb-1" id="stepTitle" tabindex="-1">
+                        <i class="fas {{ step.icon }}" aria-hidden="true"></i> {{ step.title }}
+                        {% if step.required %}<span class="badge text-bg-warning align-middle">{% trans "Required" %}</span>{% else %}<span class="badge text-bg-light border align-middle">{% trans "Optional" %}</span>{% endif %}
+                    </h1>
+                    <p class="text-body-secondary">{{ step.summary }}</p>
+
+                    {% if row.status == 'done' %}
+                    <div class="alert alert-success py-2" role="status">{% trans "This step is done. The form shows what is set now; nothing changes unless you edit it and save." %}</div>
+                    {% elif row.status == 'skipped' %}
+                    <div class="alert alert-secondary py-2" role="status">{% trans "Skipped" %}{% if row.note %} ({{ row.note }}){% endif %}. {% trans "Nothing was changed. You can still fill it in." %}</div>
+                    {% elif configured %}
+                    <div class="alert alert-info py-2" role="status">{% trans "Already configured. The form shows the current values; nothing changes unless you edit it and save." %}</div>
+                    {% endif %}
+                    {% if denial %}<div class="alert alert-warning" role="alert">{{ denial }}</div>{% endif %}
+
+                    <form method="post" novalidate{% if step.key == 'setup_msp' %} enctype="multipart/form-data"{% endif %} aria-describedby="stepTitle">
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}<div class="alert alert-danger" role="alert">{% for e in form.non_field_errors %}{{ e }} {% endfor %}</div>{% endif %}
+                        {% if step.body_template %}{% include step.body_template %}{% else %}
+                            {% for f in form %}{% include "core/setup_assistant/_field.html" %}{% endfor %}
+                        {% endif %}
+
+                        <div class="d-flex flex-wrap gap-2 mt-3 pt-3 border-top">
+                            {% if previous %}<a class="btn btn-outline-secondary" href="{% url 'core:setup_assistant_step' key=previous %}"><i class="fas fa-arrow-left" aria-hidden="true"></i> {% trans "Back" %}</a>{% endif %}
+                            <span class="me-auto"></span>
+                            {% if row.step.skippable %}
+                            <button type="submit" name="action" value="skip" formnovalidate class="btn btn-outline-secondary">{% trans "Skip" %}</button>
+                            {% endif %}
+                            {% if next %}<a class="btn btn-outline-secondary" href="{% url 'core:setup_assistant_step' key=next %}">{% trans "Next without saving" %}</a>{% endif %}
+                            <button type="submit" name="action" value="save" class="btn btn-primary" {% if denial %}disabled{% endif %}>
+                                {% if step.key == 'setup_review' %}{% trans "Finish setup" %}{% elif form %}{% trans "Save and continue" %}{% else %}{% trans "Continue" %}{% endif %}
+                                <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </form>
+                    {% block after_form %}{% if step.key == 'setup_mail' %}{% include "core/setup_assistant/steps/mail_test.html" %}{% endif %}{% endblock %}
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}
