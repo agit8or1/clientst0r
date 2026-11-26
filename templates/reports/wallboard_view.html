@@ -78,7 +78,7 @@
 <div class="card">
     <div class="card-body text-center text-muted py-5">
         <i class="fas fa-puzzle-piece fa-2x mb-2"></i><br>
-        No widgets configured. Add some via Django admin → Reports → Wallboard widgets.
+        No widgets configured. <a href="{% url 'reports:wallboard_edit' wallboard.pk %}">Edit this board</a> to add some.
     </div>
 </div>
 {% else %}
@@ -113,9 +113,11 @@
             {% elif w.widget_type == 'table' %}
                 <div class="table-responsive">
                     <table class="table table-sm small mb-0">
-                    {% if data.headers %}
-                        <thead><tr>{% for h in data.headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+                    {% with heads=data.headers|default:data.columns %}
+                    {% if heads %}
+                        <thead><tr>{% for h in heads %}<th>{{ h }}</th>{% endfor %}</tr></thead>
                     {% endif %}
+                    {% endwith %}
                         <tbody>
                         {% for row in data.rows %}
                             <tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>

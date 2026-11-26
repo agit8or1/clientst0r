@@ -681,6 +681,23 @@ class ViewProfitabilityPermissionTests(_Fixture):
         r = _client(self.profit).get(reverse('reports:exec_scorecard'))
         self.assertEqual(r.context['metrics']['recurring']['mrr'], 1000.0)
 
+    def test_scorecard_ticket_figures_follow_client_scope(self):
+        """Open tickets, active clients and the ticket chart add up only the
+        customers the viewer's client scope reaches (they once counted every
+        customer)."""
+        from psa.models import Ticket
+        scoped = self._scoped_staff('prof_scoped_tix', self.acme)
+        kpis = lambda r: {k['label']: k['value'] for k in r.context['kpis']}
+        r = _client(scoped).get(reverse('reports:exec_scorecard'))
+        open_acme = Ticket.objects.filter(status__is_terminal=False, organization=self.acme).count()
+        self.assertEqual(kpis(r)['Open Tickets'], str(open_acme))
+        self.assertEqual(kpis(r)['Active Clients'], '1' if open_acme or Ticket.objects.filter(
+            organization=self.acme).exists() else '0')
+        r = _client(self.profit).get(reverse('reports:exec_scorecard'))
+        open_all = Ticket.objects.filter(status__is_terminal=False).count()
+        self.assertEqual(kpis(r)['Open Tickets'], str(open_all))
+        self.assertGreater(open_all, open_acme)
+
     def test_staff_scoped_to_nobody_see_nothing(self):
         self.rate(50)
         self.entry(60)

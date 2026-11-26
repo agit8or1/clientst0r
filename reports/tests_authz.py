@@ -327,3 +327,58 @@ class WidgetAndWallboardScopeTests(TestCase):
         body = r.json()
         self.assertEqual(body['recent_tickets'], [])
         self.assertNotIn('Umbrella secret', r.content.decode())
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class DashboardButtonTests(TestCase):
+    """The edit and widget buttons appear exactly where the views accept them."""
+
+    @classmethod
+    def setUpTestData(cls):
+        _setup_seed()
+        from reports.models import Dashboard
+        cls.acme = Organization.objects.create(name='Acme', slug='authz-dash-acme')
+        cls.manager = _staff('authz_dash_mgr', _role('AuthzDashMgr', reports_view_dashboards=True,
+                                                      reports_manage_dashboards=True))
+        cls.viewer = _staff('authz_dash_view', _role('AuthzDashView', reports_view_dashboards=True,
+                                                      reports_manage_dashboards=False))
+        for u in (cls.manager, cls.viewer):
+            Membership.objects.create(user=u, organization=cls.acme, role=Role.OWNER)
+        cls.viewer.is_staff = True          # a Django staff flag is not a permission
+        cls.viewer.save()
+        cls.dash = Dashboard.objects.create(name='Shared', organization=cls.acme, created_by=cls.manager)
+
+    def _get(self, user, name, *args):
+        c = Client()
+        c.force_login(user)
+        return c.get(reverse(name, args=args))
+
+    def test_manager_sees_edit_and_widget_buttons(self):
+        r = self._get(self.manager, 'reports:dashboard_list')
+        self.assertTrue(r.context['dashboards'][0].can_edit)
+        self.assertContains(r, reverse('reports:dashboard_edit', args=[self.dash.pk]))
+        r = self._get(self.manager, 'reports:dashboard_detail', self.dash.pk)
+        self.assertTrue(r.context['can_manage'])
+
+    def test_viewer_without_manage_permission_sees_no_buttons(self):
+        r = self._get(self.viewer, 'reports:dashboard_list')
+        self.assertFalse(r.context['dashboards'][0].can_edit)
+        self.assertNotContains(r, reverse('reports:dashboard_edit', args=[self.dash.pk]))
+        r = self._get(self.viewer, 'reports:dashboard_detail', self.dash.pk)
+        self.assertFalse(r.context['can_manage'])
+        self.assertNotContains(r, reverse('reports:dashboard_widget_add', args=[self.dash.pk]))
+
+    def test_edit_form_links_to_delete(self):
+        r = self._get(self.manager, 'reports:dashboard_edit', self.dash.pk)
+        self.assertContains(r, reverse('reports:dashboard_delete', args=[self.dash.pk]))
+
+    def test_global_dashboard_listed_for_a_viewer_opens_for_them(self):
+        from reports.models import Dashboard
+        other = Organization.objects.create(name='Other', slug='authz-dash-other')
+        g = Dashboard.objects.create(name='Everyone', organization=other, is_global=True,
+                                     created_by=self.manager)
+        r = self._get(self.viewer, 'reports:dashboard_list')
+        self.assertIn(g, list(r.context['dashboards']))
+        self.assertEqual(self._get(self.viewer, 'reports:dashboard_detail', g.pk).status_code, 200)
+        private = Dashboard.objects.create(name='Private', organization=other, created_by=self.manager)
+        self.assertEqual(self._get(self.viewer, 'reports:dashboard_detail', private.pk).status_code, 404)

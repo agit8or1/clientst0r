@@ -1321,6 +1321,23 @@ class WallboardViewACLTests(TestCase):
         resp = c.get(f'/reports/wallboards/{self.board_b.pk}/')
         self.assertIn(resp.status_code, (403, 404))
 
+    def test_table_widget_renders_column_headings_on_first_load(self):
+        # Table sources return `columns`; the server-rendered tile used to
+        # look only for `headers`, so headings appeared only after a
+        # category change re-rendered the tile in the browser.
+        from reports.models import WallboardWidget
+        WallboardWidget.objects.create(
+            wallboard=self.board_a, title='By priority', widget_type='table',
+            data_source='tickets_by_priority')
+        resp = self.c.get(f'/reports/wallboards/{self.board_a.pk}/')
+        self.assertContains(resp, '<th>Priority</th>', html=True)
+        self.assertContains(resp, '<th>Open</th>', html=True)
+
+    def test_empty_board_points_to_the_editor_not_django_admin(self):
+        resp = self.c.get(f'/reports/wallboards/{self.board_a.pk}/')
+        self.assertNotContains(resp, 'Django admin')
+        self.assertContains(resp, f'/reports/wallboards/{self.board_a.pk}/edit/')
+
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
 class WallboardRotateViewTests(TestCase):

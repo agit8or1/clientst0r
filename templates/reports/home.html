@@ -28,7 +28,7 @@
         <div class="col-md-3 mb-3">
             <div class="card border-success">
                 <div class="card-body">
-                    <div class="d="d-flex align-items-center">
+                    <div class="d-flex align-items-center">
                         <div class="flex-shrink-0">
                             <i class="fas fa-file-lines fs-1 text-success"></i>
                         </div>
@@ -118,7 +118,7 @@
                         {% if psa_enabled %}
                         <div class="col-md-3 mb-2">
                             <a href="{% url 'reports:psa_reports_list' %}" class="btn btn-outline-danger w-100">
-                                <i class="fas fa-ticket-alt me-2"></i>PSA Reports
+                                <i class="fas fa-ticket-alt me-2"></i>Service Desk Reports
                             </a>
                         </div>
                         {# v3.17.145 — gate financial / sla cards on RoleTemplate booleans #}
@@ -126,7 +126,7 @@
                         {% if perm.view_profitability %}
                         <div class="col-md-3 mb-2">
                             <a href="{% url 'reports:psa_profitability_by_client' %}" class="btn btn-outline-success w-100">
-                                <i class="fas fa-chart-line me-2"></i>Profitability by Client (PSA)
+                                <i class="fas fa-chart-line me-2"></i>Profitability by Customer (Service Desk)
                             </a>
                         </div>
                         <div class="col-md-3 mb-2">
@@ -322,7 +322,7 @@
                                     {% for report in recent_reports %}
                                     <tr>
                                         <td>{{ report.template.name }}</td>
-                                        <td>{{ report.generated_by.username }}</td>
+                                        <td>{{ report.generated_by.username|default:"Schedule" }}</td>
                                         <td>
                                             {% if report.status == 'completed' %}
                                                 <span class="badge bg-success">Completed</span>

@@ -126,7 +126,7 @@
                         <input type="checkbox" name="is_active" class="form-check-input" id="is_active"
                                {% if wallboard.is_active|default_if_none:True %}checked{% endif %}>
                         <label class="form-check-label" for="is_active">
-                            Active <span class="text-muted small">— off hides the board from the list view + rotation</span>
+                            Active <span class="text-muted small">— off leaves the board out of rotation (it stays in the list, marked Off)</span>
                         </label>
                     </div>
                 </div>

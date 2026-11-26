@@ -11,7 +11,8 @@ model profile, budget, fixed provider hosts):
 
   * structured JSON of the facts, each labelled verified / estimate /
     unknown, the recommendations and their calculation; no tickets, no
-    notes, and the customer's and contracts' names replaced by placeholders;
+    notes, and the customer's, contracts' and technicians' names replaced by
+    placeholders (ignoring case);
   * a system prompt that forbids inventing figures or assuming missing costs.
 
 The answer is then checked: every currency amount and percentage in it must
@@ -52,19 +53,32 @@ class NarrativeRefused(Exception):
 
 
 def _names(finding):
+    """Names to replace before anything is sent: the customer, its contracts,
+    and every technician who logged time for this customer (username, full
+    name and e-mail), since detector text such as "No cost rate for <user>"
+    names them."""
     names = {finding.client_org.name: 'the customer'}
-    from psa.models import Contract
+    from psa.models import Contract, TicketTimeEntry
     for c in Contract.objects.filter(client_org=finding.client_org).only('name'):
         if c.name:
             names[c.name] = 'the contract'
+    from django.contrib.auth import get_user_model
+    user_ids = (TicketTimeEntry.objects.filter(ticket__organization=finding.client_org, user__isnull=False)
+                .values_list('user_id', flat=True).distinct())
+    for u in get_user_model().objects.filter(pk__in=user_ids):
+        for value in (u.get_username(), u.get_full_name(), u.email):
+            if value and value.strip():
+                names.setdefault(value.strip(), 'a technician')
     return names
 
 
 def _redact(value, names):
     if isinstance(value, str):
+        # Longest first, ignoring case, so "ACME Widgets Ltd" and "acme widgets" are both caught
+        # and a short name never splits a longer one.
         for name in sorted(names, key=len, reverse=True):
             if name and len(name) > 1:
-                value = value.replace(name, names[name])
+                value = re.sub(re.escape(name), names[name], value, flags=re.I)
         return value
     if isinstance(value, list):
         return [_redact(v, names) for v in value]

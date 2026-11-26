@@ -177,6 +177,16 @@ def dashboard_list(request):
         Q(organization__in=orgs) | Q(is_global=True)
     ).prefetch_related('widgets')
 
+    # The edit button is offered where the edit view would accept it: the
+    # dashboard belongs to one of the viewer's customers and the viewer may
+    # change it (it used to compare with a `user.organization` that does not
+    # exist, so the button never appeared).
+    org_ids = set(orgs.values_list('pk', flat=True))
+    dashboards = list(dashboards)
+    for d in dashboards:
+        d.can_edit = (d.organization_id in org_ids and _may_change_dashboard(request.user, d)
+                      and user_has_perm(request.user, 'reports_manage_dashboards'))
+
     context = {
         'dashboards': dashboards,
     }
@@ -198,7 +208,9 @@ def dashboard_detail(request, pk):
 
     dashboard = get_object_or_404(
         Dashboard,
-        Q(organization__in=orgs) | Q(organization__isnull=True),  # User's orgs or global
+        # The user's customers, or a global dashboard (the list shows the ones
+        # flagged is_global, so the page must open them too).
+        Q(organization__in=orgs) | Q(organization__isnull=True) | Q(is_global=True),
         pk=pk
     )
 
@@ -227,10 +239,12 @@ def dashboard_detail(request, pk):
             w.rendered_payload = jsonable(w.rendered)
             w.rendered_dom_id = f'widget-data-{w.pk}'
 
-    can_manage = (
-        dashboard.created_by_id == request.user.id
-        or request.user.is_staff
-    )
+    # The buttons shown are the ones the widget and edit views accept: the
+    # dashboard's creator or a manager at its customer, who also holds
+    # reports_manage_dashboards (any Django staff account used to see them
+    # and get a 403).
+    can_manage = (user_has_perm(request.user, 'reports_manage_dashboards')
+                  and _may_change_dashboard(request.user, dashboard))
 
     context = {
         'dashboard': dashboard,
@@ -1714,20 +1728,24 @@ def exec_scorecard(request):
     total_billable_hrs = total_billable_min / 60.0
     realized_rate = (rev_30 / total_billable_hrs) if total_billable_hrs else 0.0
 
-    open_tickets = Ticket.objects.filter(status__is_terminal=False).count()
+    def _in_scope(qs):
+        # The viewer's client scope (None = every customer), as above.
+        return qs if scope is None else qs.filter(organization_id__in=scope)
+
+    open_tickets = _in_scope(Ticket.objects.filter(status__is_terminal=False)).count()
 
     # SLA breach %
-    sla = sla_trend_by_priority(start_30, today, bucket='month')
+    sla = sla_trend_by_priority(start_30, today, scope, bucket='month')
     total_tix = sum(t['tickets'] for t in sla['totals_by_priority'].values())
     total_breach = sum(t['resolution_breaches']
                        for t in sla['totals_by_priority'].values())
     sla_breach_pct = (total_breach / total_tix * 100) if total_tix else 0.0
 
     # MTTR — avg close time over 30d
-    closed = Ticket.objects.filter(
+    closed = _in_scope(Ticket.objects.filter(
         closed_at__gte=timezone.now() - timedelta(days=30),
         status__is_terminal=True,
-    ).exclude(closed_at__isnull=True)
+    )).exclude(closed_at__isnull=True)
     mttr_secs = 0
     cnt = 0
     for t in closed:
@@ -1736,7 +1754,7 @@ def exec_scorecard(request):
     mttr_hours = (mttr_secs / cnt / 3600) if cnt else 0.0
 
     active_clients = (
-        Ticket.objects
+        _in_scope(Ticket.objects)
         .filter(created_at__date__gte=start_30)
         .values('organization').distinct().count()
     )
@@ -1828,7 +1846,7 @@ def exec_scorecard(request):
         if inv.invoice_date in rev_by_day:
             rev_by_day[inv.invoice_date] += float(invoice_revenue(inv))
     tix_by_day = {d: 0 for d in days}
-    for t in Ticket.objects.filter(
+    for t in _in_scope(Ticket.objects).filter(
         created_at__date__gte=start_30, created_at__date__lte=today,
     ):
         d = timezone.localtime(t.created_at).date()

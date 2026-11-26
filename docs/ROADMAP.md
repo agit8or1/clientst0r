@@ -115,7 +115,7 @@ Work being implemented now or approved as the next P0 task.
 |---|---|---|---|---|---|
 | 1 | 94 — [Evidence integrity and routine backups](#phase-94) | P0\* | 🔵 In progress | External append-only audit shipping (94.1); protected-change approval for audit pruning (94.2); S3 destination (94.3) | — |
 | 2 | 51 — [Reliability and customer-boundary hardening](#phase-51) | P0\* | 🔵 In progress | Per-customer integration ownership (remaining part of the platform-integrations item) | — |
-| 3 | 112 — [Complete user documentation with annotated screenshots](#phase-112) | P1 | 🔵 In progress | 112.7 Reports; 112.8 Administration | 67 |
+| 3 | 112 — [Complete user documentation with annotated screenshots](#phase-112) | P1 | 🔵 In progress | 112.8 Administration; 112.9 Your account | 67 |
 | 4 | 113 — [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | guide screenshots after 113.8 | 67 |
 
 <!-- /generated:now -->
@@ -363,7 +363,7 @@ unchanged. Click a feature for its details.
 | 59 | [Verified installs and upgrades](#phase-59) | — | 🔵 In progress | updater, root helper | 59.7 LTS channel |
 | 67 | [Interface, navigation and dashboard redesign](#phase-67) | — | 🔵 In progress | 64 | 67.8 validation and 67.16 follow-ups |
 | 96 | [First-install setup wizard and interactive onboarding](#phase-96) | P0 | 🔵 In progress | 59, 64, 67 | 96.5 sample data |
-| 112 | [Complete user documentation with annotated screenshots](#phase-112) | P1 | 🔵 In progress | 67 | 112.7 Reports; 112.8 Administration |
+| 112 | [Complete user documentation with annotated screenshots](#phase-112) | P1 | 🔵 In progress | 67 | 112.8 Administration; 112.9 Your account |
 | 113 | [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | 67 | guide screenshots after 113.8 |
 
 <details markdown="1">
@@ -3956,9 +3956,9 @@ Today: read-only tenant inventory with manual sync, not verified against a real 
 <a id="phase-112"></a>
 
 ## Phase 112 — Complete user documentation with annotated screenshots **(L · P1 · docs)** [in progress]
-<!-- phase: ws=I stage=7 view=now order=3 deps=67 next="112.7 Reports; 112.8 Administration" -->
+<!-- phase: ws=I stage=7 view=now order=3 deps=67 next="112.8 Administration; 112.9 Your account" -->
 **Status:** 🔵 In progress · **Priority:** P1 · **Workstream:** I. Deployment, Updates & Reliability · **Depends on:** 67  
-**Next:** 112.7 Reports; 112.8 Administration
+**Next:** 112.8 Administration; 112.9 Your account
 
 
 Every area of the application has a guide in Clientst0r Docs, and every guide carries at least one
@@ -3985,7 +3985,7 @@ annotated screenshot (numbered callouts matched by a numbered list) captured fro
   documentation readiness, password vault, personal vault, secure notes.
 - **112.6 Security and monitoring** *(shipped v3.17.792 — events and monitoring reliability are documented with the coverage-gap release)* — security alerts, incidents, events, monitoring reliability,
   website and WAN monitors, expirations, status pages, configuration backups.
-- **112.7 Reports** *(in progress — written, in testing)* — reports home, executive scorecard, dashboards, analytics, wallboards,
+- **112.7 Reports** *(shipped v3.17.794)* — reports home, executive scorecard, dashboards, analytics, wallboards,
   generated and scheduled reports, profitability reports, pricing advisor.
 - **112.8 Administration** *(in progress — written, in testing)* — every settings category: general, users and access, security,
   integrations, AI configuration (**OPTIONAL AI**), automation, communications, modules, system, maintenance.

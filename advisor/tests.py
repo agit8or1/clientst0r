@@ -509,6 +509,20 @@ class NarrativeTests(AdvisorBase):
         self.assertTrue(all(f['status'] in ('verified', 'estimate', 'unknown', 'not applicable')
                             for f in payload['facts']))
 
+    def test_payload_redacts_names_whatever_their_case_and_technicians(self):
+        from advisor import ai as advisor_ai
+        names = advisor_ai._names(self.finding)
+        text = advisor_ai._redact({'a': 'Loss at ACME WIDGETS; acme widgets again'}, names)['a']
+        self.assertNotIn('acme', text.lower())
+        tech = User.objects.create_user('jsmith.tech', 'jsmith@example.com', 'pw', first_name='Jo', last_name='Smith')
+        from psa.models import TicketTimeEntry
+        entry = TicketTimeEntry.objects.filter(ticket__organization=self.finding.client_org).first()
+        self.assertIsNotNone(entry)
+        TicketTimeEntry.objects.filter(pk=entry.pk).update(user=tech)
+        names = advisor_ai._names(self.finding)
+        text = advisor_ai._redact(['No cost rate for jsmith.tech (2.00 h).', 'Jo Smith', 'JSMITH@example.com'], names)
+        self.assertEqual(text, ['No cost rate for a technician (2.00 h).', 'a technician', 'a technician'])
+
     def test_validate(self):
         payload = ai.build_payload(self.finding)
         ok, bad = ai.validate('About 6.00 hours were uncharged; a $153.85 agreement at 35% margin.', payload)

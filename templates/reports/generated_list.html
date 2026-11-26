@@ -40,7 +40,7 @@
                                             <strong>{{ report.template.name }}</strong><br>
                                             <small class="text-muted">{{ report.template.get_report_type_display }}</small>
                                         </td>
-                                        <td>{{ report.generated_by.username }}</td>
+                                        <td>{{ report.generated_by.username|default:"Schedule" }}</td>
                                         <td>
                                             {% if report.status == 'completed' %}
                                                 <span class="badge bg-success">
