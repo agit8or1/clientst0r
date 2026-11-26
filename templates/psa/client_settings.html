@@ -1,21 +1,21 @@
 {% extends "base.html" %}
-{% block title %}PSA — Client Settings{% endblock %}
+{% block title %}Service Desk — Customer Settings{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
-        <li class="breadcrumb-item active">Client Settings</li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">Service Desk</a></li>
+        <li class="breadcrumb-item active">Customer Settings</li>
     </ol>
 </nav>
 
-<h2 class="mb-1"><i class="fas fa-cog me-2"></i>PSA Settings — {{ current_organization.name }}</h2>
+<h2 class="mb-1"><i class="fas fa-cog me-2"></i>Service Desk Settings — {{ current_organization.name }}</h2>
 
 {# Auto-detection status banner #}
 {% if effective_enabled %}
 <div class="alert alert-success d-flex align-items-start gap-2 mt-3">
     <i class="fas fa-check-circle mt-1"></i>
     <div>
-        <strong>Native PSA is active for this client.</strong>
+        <strong>Native PSA is active for this customer.</strong>
         {% if using_auto_detect %}
             <small class="d-block text-muted">Auto-detected — no external PSA connection found and the global flag is on.</small>
         {% else %}
@@ -27,10 +27,10 @@
 <div class="alert alert-secondary d-flex align-items-start gap-2 mt-3">
     <i class="fas fa-pause-circle mt-1"></i>
     <div>
-        <strong>Native PSA is inactive for this client.</strong>
+        <strong>Native PSA is inactive for this customer.</strong>
         {% if has_external_psa %}
             <small class="d-block text-muted">
-                Auto-opt-out: this client has an external PSA connection ({{ external_psa_summary }}).
+                Auto-opt-out: this customer has an external PSA connection ({{ external_psa_summary }}).
                 The native PSA stays out of the way.
             </small>
         {% elif using_auto_detect %}
@@ -45,7 +45,7 @@
 {% if has_external_psa %}
 <div class="alert alert-warning mt-3">
     <i class="fas fa-info-circle me-1"></i>
-    Native PSA cannot be enabled for this client while an external PSA connection is active.
+    Native PSA cannot be enabled for this customer while an external PSA connection is active.
     To use the native PSA here, first deactivate or remove the external PSA connection under
     <a href="/integrations/" class="alert-link">Integrations</a>.
 </div>
@@ -58,7 +58,7 @@
 <div class="card mt-3">
     <div class="card-header">
         <strong>Settings</strong>
-        <small class="text-muted ms-2">Untick "Native PSA enabled" only to opt this client OUT of native PSA.</small>
+        <small class="text-muted ms-2">Untick "Native PSA enabled" only to opt this customer OUT of native PSA.</small>
     </div>
     <form method="post">
         {% csrf_token %}
@@ -68,7 +68,7 @@
                        {% if cps.enabled and not has_external_psa %}checked{% endif %}
                        {% if has_external_psa %}disabled{% endif %}>
                 <label class="form-check-label fw-semibold" for="enabled">
-                    Native PSA enabled for this client
+                    Native PSA enabled for this customer
                     {% if has_external_psa %}<small class="text-muted d-block">Locked OFF — external PSA detected.</small>{% endif %}
                 </label>
             </div>
@@ -78,7 +78,7 @@
 
             <div class="form-check form-switch mb-2">
                 <input class="form-check-input" type="checkbox" id="portal_enabled" name="portal_enabled" {% if cps.portal_enabled %}checked{% endif %}>
-                <label class="form-check-label" for="portal_enabled">Client portal <small class="text-muted">— this customer's members can sign in to the portal</small></label>
+                <label class="form-check-label" for="portal_enabled">Customer portal <small class="text-muted">— this customer's members can sign in to the portal</small></label>
             </div>
 
             <hr>
@@ -94,7 +94,7 @@
                 <i class="fas fa-undo me-1"></i>Reset to auto-detect
             </button>
             {% else %}
-            <span class="text-muted small"><i class="fas fa-magic me-1"></i>Auto-detect decides whether native PSA is on for this client.</span>
+            <span class="text-muted small"><i class="fas fa-magic me-1"></i>Auto-detect decides whether native PSA is on for this customer.</span>
             {% endif %}
             <button type="submit" class="btn btn-primary">Save</button>
         </div>

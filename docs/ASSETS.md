@@ -12,7 +12,7 @@ cables and switch ports, see [Hardware inventory](HARDWARE_INVENTORY.md).
 
 ## Onboard Customer
 
-**Clients → Onboard Customer** (`/onboarding/`). A wizard that walks a new customer from the first record to
+**Customers → Onboard Customer** (`/onboarding/`). A wizard that walks a new customer from the first record to
 an active customer with a signed agreement, and a shorter wizard for changes to an existing customer.
 
 <!-- guide-figure: guide-assets-onboarding -->

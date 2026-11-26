@@ -1,14 +1,14 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Merge Organizations{% endblock %}
+{% block title %}Merge Customers{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
     <div class="row mb-4">
         <div class="col">
-            <h1><i class="fas fa-code-branch"></i> Merge Organizations</h1>
-            <p class="text-muted">Consolidate multiple organizations into one. All assets, contacts, and data will be moved to the target organization.</p>
+            <h1><i class="fas fa-code-branch"></i> Merge Customers</h1>
+            <p class="text-muted">Consolidate multiple customers into one. All assets, contacts, and data will be moved to the target customer.</p>
         </div>
     </div>
 
@@ -21,22 +21,22 @@
 
                         <div class="alert alert-warning">
                             <i class="fas fa-exclamation-triangle"></i>
-                            <strong>Warning:</strong> This action cannot be undone. All source organizations will be deleted after merging.
+                            <strong>Warning:</strong> This action cannot be undone. All source customers will be deleted after merging.
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label"><strong>Step 1: Select Target Organization (Keep This One)</strong></label>
+                            <label class="form-label"><strong>Step 1: Select Target Customer (Keep This One)</strong></label>
                             <select name="target_org" id="target_org" class="form-select" required>
-                                <option value="">-- Select organization to keep --</option>
+                                <option value="">-- Select customer to keep --</option>
                                 {% for org in organizations %}
                                 <option value="{{ org.id }}">{{ org.name }}</option>
                                 {% endfor %}
                             </select>
-                            <small class="form-text text-muted">This organization will receive all data from the source organizations.</small>
+                            <small class="form-text text-muted">This customer will receive all data from the source customers.</small>
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label"><strong>Step 2: Select Source Organizations (Will Be Merged & Deleted)</strong></label>
+                            <label class="form-label"><strong>Step 2: Select Source Customers (Will Be Merged & Deleted)</strong></label>
                             <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
                                 {% for org in organizations %}
                                 <div class="form-check">
@@ -47,7 +47,7 @@
                                 </div>
                                 {% endfor %}
                             </div>
-                            <small class="form-text text-muted">Select all organizations to merge into the target organization.</small>
+                            <small class="form-text text-muted">Select all customers to merge into the target customer.</small>
                         </div>
 
                         <div id="preview" class="alert alert-info d-none">
@@ -74,7 +74,7 @@
                                 <i class="fas fa-times"></i> Cancel
                             </a>
                             <button type="submit" class="btn btn-danger" id="submitBtn" disabled>
-                                <i class="fas fa-code-branch"></i> Merge Organizations
+                                <i class="fas fa-code-branch"></i> Merge Customers
                             </button>
                         </div>
                     </form>
@@ -87,10 +87,10 @@
                 <div class="card-body">
                     <h5><i class="fas fa-question-circle"></i> How It Works</h5>
                     <ol class="mb-0">
-                        <li class="mb-2"><strong>Select target:</strong> Choose the organization you want to keep.</li>
-                        <li class="mb-2"><strong>Select sources:</strong> Choose one or more organizations to merge into the target.</li>
+                        <li class="mb-2"><strong>Select target:</strong> Choose the customer you want to keep.</li>
+                        <li class="mb-2"><strong>Select sources:</strong> Choose one or more customers to merge into the target.</li>
                         <li class="mb-2"><strong>Review preview:</strong> Confirm your selection.</li>
-                        <li class="mb-0"><strong>Merge:</strong> All data moves to target, source organizations deleted.</li>
+                        <li class="mb-0"><strong>Merge:</strong> All data moves to target, source customers deleted.</li>
                     </ol>
                 </div>
             </div>

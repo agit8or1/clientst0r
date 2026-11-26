@@ -21,7 +21,7 @@ is in its default state until an administrator changes it. Feature guides:
 | Ticket routing | Service Desk → Dispatch Board → Configure → Ticket Routing (`/psa/routing/`; MSP default), per customer under Customers | Off; customers inherit the MSP default | PSA on + `routing_manage_rules` |
 | Alert-to-ticket policy | Security & Monitoring → Alert Policies (`/psa/routing/alerts/`) | Legacy: one ticket per Rem0te alert, no policy; synced RMM alerts not included | PSA on + `routing_manage_rules` |
 | Support workflows | Service Desk → Workflows → Support Workflows (`/psa/workflows/`) | Twelve built-in workflows, active | PSA on + `routing_manage_rules` |
-| AI features (master switch) **OPTIONAL AI** | Settings → General → PSA (`/psa/settings/`) → `psa_ai_enabled` | Off | su |
+| AI features (master switch) **OPTIONAL AI** | Settings → General → Service Desk (`/psa/settings/`) → `psa_ai_enabled` | Off | su |
 | AI Troubleshoot per customer **OPTIONAL AI** | Settings → AI Configuration → Ticket AI models (`/psa/ai/profiles/`) → the customer's policy | Off; 50 runs a day per customer, 20 per technician; network identifiers and contact names not shared | su |
 | Installation-wide AI cap and command allowlist **OPTIONAL AI** | Settings → AI Configuration → Ticket AI models (`/psa/ai/profiles/`) → Installation-wide limits | No cap; no allowlist (built-in denylist always applies) | su |
 | Geo-aware dispatch | Service Desk → Shifts & Locations → Configure → Dispatch Locations | Off | su who is MSP staff |
@@ -32,7 +32,7 @@ is in its default state until an administrator changes it. Feature guides:
 | Weekly security digest | Security & Monitoring → Security Alerts → Configure → Weekly Digest (`/security/digest/`) | No contacts subscribed | `security_alerts_view` to view; `security_alerts_manage_connections` to change |
 | "All clear" digest e-mail | Same page, per customer | Off | `security_alerts_manage_connections` for that customer |
 | Agreement reminders | Each agreement's settings | On, every 7 days | Staff who manage agreements |
-| Portal for a customer | Settings → General → PSA → per-customer settings (`/psa/settings/client/`) | As before | su |
+| Portal for a customer | Settings → General → Service Desk → per-customer settings (`/psa/settings/client/`) | As before | su |
 | Requesters' default sites | `/psa/requester-sites/` | None | Staff with `tickets_edit` for that customer |
 | Release channel | Settings → System → System Updates | New installs: Stable. Existing installs: Preview (keep following `main`) | su |
 | Setup Assistant | Administration → General → Setup assistant (`/core/settings/setup/`) | New installs: opens by itself after the first administrator's sign-in. Upgraded installs: never opens by itself. See [Setup assistant](#setup-assistant) | su |

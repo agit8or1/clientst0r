@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load page_header %}
 {% load static %}
 
 {% block title %}{{ organization.name }} - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Clientst0r" }}{% endblock %}
@@ -23,24 +24,18 @@
 {% endif %}
 
 {# ---- workspace header ---------------------------------------------------- #}
-<header class="cw-head">
-    <div class="cw-head__main">
-        {% if organization.logo %}<img class="cw-head__logo" src="{{ organization.logo.url }}" alt="">{% else %}<span class="cw-head__icon" aria-hidden="true"><i class="fas fa-building"></i></span>{% endif %}
-        <div class="cw-head__text">
-            <h1 class="cw-head__title">
-                {{ organization.name }}
-                {% if not organization.is_active %}<span class="badge bg-secondary">Inactive</span>{% endif %}
-                {% if organization.organization_type %}<span class="ui-badge ui-badge--info">{{ organization.organization_type }}</span>{% endif %}
-            </h1>
+{% page_header title=organization.name extra_class="page-header--workspace" %}
+{% ph_lead %}{% if organization.logo %}<img class="cw-head__logo" src="{{ organization.logo.url }}" alt="">{% else %}<span class="cw-head__icon" aria-hidden="true"><i class="fas fa-building"></i></span>{% endif %}{% end_ph_lead %}
+{% ph_badges %}{% if not organization.is_active %}<span class="badge bg-secondary">Inactive</span>{% endif %}
+                {% if organization.organization_type %}<span class="ui-badge ui-badge--info">{{ organization.organization_type }}</span>{% endif %}{% end_ph_badges %}
+{% ph_subtitle %}
             <div class="cw-head__sub">
                 {% if organization.parent %}<span>Branch of <a href="{% url 'accounts:organization_detail' organization.parent.id %}">{{ organization.parent.name }}</a></span>{% endif %}
                 {% if organization.city or organization.country %}<span><i class="fas fa-location-dot" aria-hidden="true"></i> {{ organization.city }}{% if organization.city and organization.country %}, {% endif %}{{ organization.country }}</span>{% endif %}
                 {% if organization.phone %}<span><i class="fas fa-phone" aria-hidden="true"></i> <a href="tel:{{ organization.phone }}">{{ organization.phone }}</a></span>{% endif %}
                 {% if organization.website %}<span><i class="fas fa-globe" aria-hidden="true"></i> <a href="{{ organization.website }}" target="_blank" rel="noopener noreferrer">{{ organization.website|truncatechars:40 }}</a></span>{% endif %}
             </div>
-        </div>
-    </div>
-    <div class="cw-head__actions ui-page-head__actions">
+{% end_ph_subtitle %}
         <a href="{% url 'core:customer_ops' organization.id %}" class="btn btn-sm btn-outline-secondary"
            title="SLA risks, uptime incidents, contract renewals, overdue invoices and aging assets for this customer">
             <i class="fas fa-binoculars" aria-hidden="true"></i> Operations
@@ -79,25 +74,24 @@
                 <li><hr class="dropdown-divider"></li>
                 <li>
                     <a class="dropdown-item text-danger" href="{% url 'accounts:organization_delete' organization.id %}">
-                        <i class="fas fa-trash fa-fw" aria-hidden="true"></i> Delete organization
+                        <i class="fas fa-trash fa-fw" aria-hidden="true"></i> Delete customer
                     </a>
                 </li>
             </ul>
         </div>
         {% endif %}
-    </div>
-</header>
+{% endpage_header %}
 
 {# ---- client context ------------------------------------------------------ #}
 <div class="cw-context" id="cw-context">
     {% if ws_in_context %}
-    <span class="cw-context__state"><i class="fas fa-crosshairs" aria-hidden="true"></i> Viewing <strong>{{ organization.name }}</strong> <span class="text-body-secondary">· current client</span></span>
+    <span class="cw-context__state"><i class="fas fa-crosshairs" aria-hidden="true"></i> Viewing <strong>{{ organization.name }}</strong> <span class="text-body-secondary">· current customer</span></span>
     {% else %}
-    <span class="cw-context__state"><i class="fas fa-circle-info" aria-hidden="true"></i> Client record only — {{ organization.name }} is not your current client, so its tickets, assets and other lists are not shown here.</span>
+    <span class="cw-context__state"><i class="fas fa-circle-info" aria-hidden="true"></i> Customer record only — {{ organization.name }} is not your current customer, so its tickets, assets and other lists are not shown here.</span>
     {% endif %}
     <span class="cw-context__links">
-        <a href="{% url 'accounts:organization_list' %}" data-cw="all-clients"><i class="fas fa-arrow-left" aria-hidden="true"></i> All clients</a>
-        {% if ws_can_global_view %}<a href="{% url 'accounts:switch_to_global_view' %}?next={% url 'core:dashboard' %}" data-cw="msp-wide"><i class="fas fa-globe" aria-hidden="true"></i> Global View <span class="text-body-secondary">(all clients)</span></a>{% endif %}
+        <a href="{% url 'accounts:organization_list' %}" data-cw="all-clients"><i class="fas fa-arrow-left" aria-hidden="true"></i> All customers</a>
+        {% if ws_can_global_view %}<a href="{% url 'accounts:switch_to_global_view' %}?next={% url 'core:dashboard' %}" data-cw="msp-wide"><i class="fas fa-globe" aria-hidden="true"></i> Global View <span class="text-body-secondary">(all customers)</span></a>{% endif %}
     </span>
 </div>
 
@@ -111,7 +105,7 @@
 {% endif %}
 
 {# ---- tabs ---------------------------------------------------------------- #}
-<nav class="cw-tabs" aria-label="Client workspace">
+<nav class="cw-tabs" aria-label="Customer workspace">
     <ul class="cw-tabs__list" data-cw-tabs>
         {% for t in ws_tabs %}
         <li class="cw-tabs__item" data-key="{{ t.key }}"{% if t.active %} data-active="1"{% endif %}>
@@ -122,7 +116,7 @@
         {% endfor %}
         <li class="cw-tabs__item cw-tabs__more dropdown" data-cw-more hidden>
             <button type="button" class="cw-tabs__link dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"
-                    aria-label="More client workspace tabs">
+                    aria-label="More customer workspace tabs">
                 More
             </button>
             <ul class="dropdown-menu dropdown-menu-end" data-cw-more-menu></ul>

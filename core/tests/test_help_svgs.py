@@ -62,6 +62,6 @@ class HelpSvgTests(TestCase):
         # 'Switch organization' list.
         self.assertNotIn('SWITCH ORGANIZATION', overview)
         self.assertNotIn('>Vehicles<', overview)
-        for text in ('Administration', 'Global View', 'View all clients', 'CURRENT CONTEXT',
+        for text in ('Administration', 'Global View', 'View all customers', 'CURRENT CONTEXT',
                      'Customer operations'):
             self.assertIn(text, overview)

@@ -1,19 +1,11 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static page_header %}
 
 {% block title %}Reports & Analytics - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Clientst0r" }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
-    <div class="row mb-4">
-        <div class="col-12">
-            <h1 class="h2">
-                <i class="fas fa-chart-column me-2"></i>
-                Reports & Analytics
-            </h1>
-            <p class="text-muted">Generate reports, view dashboards, and analyze your data</p>
-        </div>
-    </div>
+<div class="container-fluid mt-2">
+    {% page_header title="Reports & Analytics" icon="fas fa-chart-column" subtitle="Generate reports, view dashboards, and analyze your data" %}{% endpage_header %}
 
     <!-- Quick Stats -->
     <div class="row mb-4">

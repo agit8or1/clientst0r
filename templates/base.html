@@ -1,4 +1,4 @@
-{% load static %}{% load i18n %}{% load navigation %}
+{% load static %}{% load i18n %}{% load navigation %}{% load workspace_tags %}
 <!DOCTYPE html>
 <html lang="{{ user_locale_code }}" data-theme="{{ user_theme }}" data-bs-theme="{% if user_theme_is_dark %}dark{% else %}light{% endif %}" data-density="{{ user_density|default:'compact' }}" data-workspace="{{ workspace_level|default:'standard' }}">
 <head>
@@ -36,6 +36,7 @@
          a fourth opinion. See the header of ui.css before extending it. -->
     <link href="{% static 'css/ui.css' %}" rel="stylesheet">
     <link href="{% static 'css/navigation.css' %}" rel="stylesheet">
+    <link href="{% static 'css/page_header.css' %}" rel="stylesheet">
     <link href="{% static 'css/command_palette.css' %}" rel="stylesheet">
     <link href="{% static 'css/a11y.css' %}" rel="stylesheet">
     {% block extra_css %}{% endblock %}
@@ -236,7 +237,8 @@
         A page that draws its own .breadcrumb keeps it and the trail steps
         aside (navigation.css).
         {% endcomment %}
-        {% if pnav.breadcrumbs or nav.tabs or nav.configure %}
+        {% saved_view_bar as svb %}
+        {% if pnav.breadcrumbs or nav.tabs or nav.configure or svb %}
         <div class="page-frame{% if nav.tabs or nav.configure %} page-frame--tabs{% endif %}">
             {% if pnav.breadcrumbs %}
             <nav class="app-trail" aria-label="{% trans 'Breadcrumb' %}">
@@ -247,6 +249,7 @@
                 </ol>
             </nav>
             {% endif %}
+            {% if svb %}{% include "core/_saved_views.html" %}{% endif %}
             {% include "core/_section_tabs.html" with tabs=nav.tabs visible=nav.tabs_visible more=nav.tabs_more configure=nav.configure configure_active=nav.configure_active label=nav.section_label %}
         </div>
         {% endif %}

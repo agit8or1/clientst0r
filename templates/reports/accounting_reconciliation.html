@@ -64,7 +64,7 @@
     <table class="table table-hover small mb-0">
         <thead class="table-light">
             <tr>
-                <th>Invoice</th><th>Title</th><th>Client</th><th>Status</th><th>Date</th>
+                <th>Invoice</th><th>Title</th><th>Customer</th><th>Status</th><th>Date</th>
                 <th class="text-end">Total</th><th class="text-end">Paid</th><th class="text-end">Balance</th>
                 <th>External ID</th>
             </tr>
@@ -95,7 +95,7 @@
 <div class="card mb-3 border-danger">
     <table class="table table-hover small mb-0">
         <thead class="table-light">
-            <tr><th>Invoice</th><th>Title</th><th>Client</th><th>Provider</th><th>Last error</th></tr>
+            <tr><th>Invoice</th><th>Title</th><th>Customer</th><th>Provider</th><th>Last error</th></tr>
         </thead>
         <tbody>
         {% for inv in push_errors %}
@@ -122,7 +122,7 @@
         <strong>{{ g.provider }}</strong> — <code>{{ g.external_id }}</code>
         <span class="badge bg-warning text-dark ms-1">{{ g.count }} invoices</span>
         <table class="table table-sm small mt-2 mb-0">
-            <thead><tr><th>Invoice</th><th>Title</th><th>Client</th><th>Status</th><th>Date</th><th>Total</th></tr></thead>
+            <thead><tr><th>Invoice</th><th>Title</th><th>Customer</th><th>Status</th><th>Date</th><th>Total</th></tr></thead>
             <tbody>
             {% for inv in g.invoices %}
                 <tr>
@@ -150,7 +150,7 @@
     <table class="table table-hover small mb-0">
         <thead class="table-light">
             <tr>
-                <th>Invoice</th><th>Client</th><th>Provider</th>
+                <th>Invoice</th><th>Customer</th><th>Provider</th>
                 <th class="text-end">Local tax</th>
                 <th class="text-end">Provider tax</th>
                 <th class="text-end">Δ</th>

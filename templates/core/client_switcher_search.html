@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% comment %}
-Full-page results for the navbar client switcher's search (no-JS fallback,
-or Enter with no live results). Only clients the user may switch to.
+Full-page results for the navbar customer switcher's search (no-JS fallback,
+or Enter with no live results). Only customers the user may switch to.
 {% endcomment %}
-{% block title %}{% trans "Switch client" %}{% endblock %}
+{% block title %}{% trans "Switch customer" %}{% endblock %}
 
 {% block content %}
 <div class="container py-3" style="max-width: 40rem;">
-    <h1 class="h4 mb-3"><i class="fas fa-exchange-alt me-2" aria-hidden="true"></i>{% trans "Switch client" %}</h1>
+    <h1 class="h4 mb-3"><i class="fas fa-exchange-alt me-2" aria-hidden="true"></i>{% trans "Switch customer" %}</h1>
 
     <form method="get" action="{% url 'core:client_switcher_search' %}" role="search" class="mb-3">
-        <label class="form-label" for="clientSearchPage">{% trans "Search clients" %}</label>
+        <label class="form-label" for="clientSearchPage">{% trans "Search customers" %}</label>
         <div class="input-group">
             <input type="search" class="form-control" id="clientSearchPage" name="q" value="{{ query }}" maxlength="100" autocomplete="off" autofocus>
             <button class="btn btn-primary" type="submit">{% trans "Search" %}</button>
@@ -31,14 +31,14 @@ or Enter with no live results). Only clients the user may switch to.
             {% if org.id == current_id %}<span class="badge bg-warning text-dark ms-auto">{% trans "Active" %}</span>{% endif %}
         </a>
         {% empty %}
-        <div class="list-group-item text-muted">{% trans "No clients match your search." %}</div>
+        <div class="list-group-item text-muted">{% trans "No customers match your search." %}</div>
         {% endfor %}
     </div>
     {% if truncated %}
     <p class="small text-muted">{% trans "Showing the first matches. Refine the search to narrow the list." %}</p>
     {% endif %}
     {% if can_view_list %}
-    <a href="{% url 'accounts:organization_list' %}"><i class="fas fa-list me-1" aria-hidden="true"></i>{% trans "View all clients" %}</a>
+    <a href="{% url 'accounts:organization_list' %}"><i class="fas fa-list me-1" aria-hidden="true"></i>{% trans "View all customers" %}</a>
     {% endif %}
 </div>
 {% endblock %}

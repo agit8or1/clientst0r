@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}PSA Report — {{ definition.name }}{% endblock %}
+{% block title %}Service Desk Report — {{ definition.name }}{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{% url 'reports:home' %}">Reports</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'reports:psa_reports_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'reports:psa_reports_list' %}">Service Desk</a></li>
         <li class="breadcrumb-item active">{{ definition.name }}</li>
     </ol>
 </nav>
@@ -23,7 +23,7 @@
     <div class="card-body py-2">
         <div class="row g-2 align-items-end">
             <div class="col-md-4">
-                <label class="form-label small mb-1">Client</label>
+                <label class="form-label small mb-1">Customer</label>
                 <select name="client" class="form-select form-select-sm">
                     <option value="">All accessible</option>
                     {% for c in clients %}

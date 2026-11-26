@@ -91,9 +91,9 @@ class TicketWorkflowTests(_Fixture):
 
     def test_client_workspace_trail(self):
         url = reverse('accounts:organization_detail', args=[self.a.pk])
-        self.assertEqual(trail(self.client.get(url).content.decode()), ['Clients', self.a.name])
+        self.assertEqual(trail(self.client.get(url).content.decode()), ['Customers', self.a.name])
         html = self.client.get(url, {'tab': 'tickets'}).content.decode()
-        self.assertEqual(trail(html), ['Clients', self.a.name, 'Tickets'])
+        self.assertEqual(trail(html), ['Customers', self.a.name, 'Tickets'])
 
     def test_open_device_carries_valid_ticket_context_only(self):
         from assets.models import Asset

@@ -1,15 +1,15 @@
 {% load i18n static %}{% comment %}
-Navbar client switcher. Included from base.html inside the right-hand
+Navbar customer switcher. Included from base.html inside the right-hand
 <ul class="navbar-nav">, where the old inline switcher markup used to be.
 
 Context (all global, from core.context_processors.organization_context):
-  current_organization  active client, or None for Global View
+  current_organization  active customer, or None for Global View
   is_staff_user         MSP staff (profile user_type=Staff)
-  user_organizations    clients the user may switch to (authorized list)
+  user_organizations    customers the user may switch to (authorized list)
   client_switcher       core.client_switcher.switcher_context(): recents,
-                        search flag, Global View + "View all clients" flags
+                        search flag, Global View + "View all customers" flags
 
-Bounded for large client lists: above INLINE_ALL_LIMIT clients only the
+Bounded for large customer lists: above INLINE_ALL_LIMIT customers only the
 recents (max 5) are listed inline; the rest is reached through search
 (core:client_switcher_search, max 20 results). Switching goes through
 accounts:switch_organization, which re-checks access and records the recent.
@@ -18,13 +18,13 @@ accounts:switch_organization, which re-checks access and records the recent.
 {% with cs=client_switcher %}
 <li class="nav-item dropdown client-switcher">
     {% if current_organization %}
-    <a class="nav-link dropdown-toggle d-flex align-items-center gap-1 org-pill org-pill-active" href="#" id="orgDropdown" role="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-haspopup="true" title="{% blocktrans with name=current_organization.name %}Current client: {{ name }} — pages show this client only. Click to switch or go to Global View.{% endblocktrans %}" aria-label="{% blocktrans with name=current_organization.name %}Current client: {{ name }}. Switch client{% endblocktrans %}">
+    <a class="nav-link dropdown-toggle d-flex align-items-center gap-1 org-pill org-pill-active" href="#" id="orgDropdown" role="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-haspopup="true" title="{% blocktrans with name=current_organization.name %}Current customer: {{ name }} — pages show this customer only. Click to switch or go to Global View.{% endblocktrans %}" aria-label="{% blocktrans with name=current_organization.name %}Current customer: {{ name }}. Switch customer{% endblocktrans %}">
         <span class="org-pulse-dot flex-shrink-0" aria-hidden="true"></span>
         <span class="org-pill-name">{{ current_organization.name }}</span>
         <i class="fas fa-chevron-down org-pill-caret flex-shrink-0 ms-1" aria-hidden="true"></i>
     </a>
     {% else %}
-    <a class="nav-link dropdown-toggle d-flex align-items-center gap-1 org-pill org-pill-global" href="#" id="orgDropdown" role="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-haspopup="true" title="{% trans 'Global View: every client you may open. Click to pick one client.' %}" aria-label="{% trans 'Current context: Global View. Switch client' %}">
+    <a class="nav-link dropdown-toggle d-flex align-items-center gap-1 org-pill org-pill-global" href="#" id="orgDropdown" role="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-haspopup="true" title="{% trans 'Global View: every customer you may open. Click to pick one customer.' %}" aria-label="{% trans 'Current context: Global View. Switch customer' %}">
         <i class="fas fa-globe flex-shrink-0" style="font-size:.75rem;" aria-hidden="true"></i>
         <span class="org-pill-name">{% trans "Global View" %}</span>
         <i class="fas fa-chevron-down org-pill-caret flex-shrink-0 ms-1" aria-hidden="true"></i>
@@ -34,8 +34,8 @@ accounts:switch_organization, which re-checks access and records the recent.
     <div class="dropdown-menu dropdown-menu-end shadow client-switcher-menu" aria-labelledby="orgDropdown"
          data-client-switcher
          data-search-url="{% url 'core:client_switcher_search' %}"
-         data-i18n-none="{% trans 'No clients match your search.' %}"
-         data-i18n-count="{% trans '__N__ matching clients' %}"
+         data-i18n-none="{% trans 'No customers match your search.' %}"
+         data-i18n-count="{% trans '__N__ matching customers' %}"
          data-i18n-more="{% trans 'Showing the first matches. Keep typing to narrow the list.' %}"
          data-i18n-error="{% trans 'Search is unavailable. Press Enter to search on a full page.' %}"
          data-i18n-active="{% trans 'Active' %}">
@@ -61,11 +61,11 @@ accounts:switch_organization, which re-checks access and records the recent.
 
         {% if cs and cs.search_enabled %}
         <form class="client-switcher-search px-3 pb-2" action="{% url 'core:client_switcher_search' %}" method="get" role="search">
-            <label class="visually-hidden" for="clientSwitcherSearch">{% trans "Search clients" %}</label>
+            <label class="visually-hidden" for="clientSwitcherSearch">{% trans "Search customers" %}</label>
             <div class="position-relative">
                 <i class="fas fa-search client-switcher-search-icon" aria-hidden="true"></i>
                 <input type="search" class="form-control form-control-sm" id="clientSwitcherSearch" name="q"
-                       placeholder="{% blocktrans count n=cs.total %}Search {{ n }} client…{% plural %}Search {{ n }} clients…{% endblocktrans %}"
+                       placeholder="{% blocktrans count n=cs.total %}Search {{ n }} customer…{% plural %}Search {{ n }} customers…{% endblocktrans %}"
                        autocomplete="off" spellcheck="false" maxlength="100"
                        aria-controls="clientSwitcherResults" aria-describedby="clientSwitcherStatus">
             </div>
@@ -92,7 +92,7 @@ accounts:switch_organization, which re-checks access and records the recent.
                 {% if cs.show_all_inline %}
                     {% if cs.inline_orgs %}
                     <hr class="dropdown-divider my-1">
-                    <div class="client-switcher-label px-3 pt-1">{% trans "Clients" %}</div>
+                    <div class="client-switcher-label px-3 pt-1">{% trans "Customers" %}</div>
                     <ul class="list-unstyled mb-0 client-switcher-scroll">
                         {% for org in cs.inline_orgs %}
                         {% include "core/_client_switcher_item.html" %}
@@ -109,7 +109,7 @@ accounts:switch_organization, which re-checks access and records the recent.
                         {% endfor %}
                     </ul>
                     {% else %}
-                    <p class="px-3 py-1 mb-0 small text-muted">{% trans "Clients you switch to will appear here. Use the search above to find one." %}</p>
+                    <p class="px-3 py-1 mb-0 small text-muted">{% trans "Customers you switch to will appear here. Use the search above to find one." %}</p>
                     {% endif %}
                 {% endif %}
             {% else %}
@@ -121,7 +121,7 @@ accounts:switch_organization, which re-checks access and records the recent.
                     {% endfor %}
                 </ul>
                 {% if user_organizations|length > 10 %}
-                <a class="dropdown-item" href="{% url 'core:client_switcher_search' %}">{% trans "Find a client…" %}</a>
+                <a class="dropdown-item" href="{% url 'core:client_switcher_search' %}">{% trans "Find a customer…" %}</a>
                 {% endif %}
             {% endif %}
         </div>
@@ -130,7 +130,7 @@ accounts:switch_organization, which re-checks access and records the recent.
         <hr class="dropdown-divider my-1">
         <a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'accounts:organization_list' %}" data-nav="all-clients">
             <i class="fas fa-list text-muted flex-shrink-0" aria-hidden="true"></i>
-            <span>{% trans "View all clients" %}</span>
+            <span>{% trans "View all customers" %}</span>
         </a>
         {% endif %}
     </div>

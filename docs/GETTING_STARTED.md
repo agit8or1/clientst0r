@@ -30,7 +30,7 @@ the application against a demo database; the customers and people in it are inve
 ## Choosing the customer you work for
 
 Most pages show the records of one customer at a time: the one in the client switcher. Pick another
-customer there, or open **Clients → All Clients**. A new sign-in opens where you left off: the last
+customer there, or open **Customers → All Customers**. A new sign-in opens where you left off: the last
 customer you worked in. Superusers and staff who can reach every customer can choose **Global View**
 instead, which shows all customers together. A customer set as *Default organization* in My Profile always
 opens first.

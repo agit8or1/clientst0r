@@ -1,19 +1,19 @@
 {% extends "base.html" %}
-{% block title %}PSA — Problems{% endblock %}
+{% load page_header %}
+{% block title %}Service Desk — Problems{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">Service Desk</a></li>
         <li class="breadcrumb-item active">Problems</li>
     </ol>
 </nav>
 
-<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-    <h2 class="mb-0"><i class="fas fa-bug me-2"></i>Problem Records</h2>
+{% page_header title="Problem Records" icon="fas fa-bug" %}
     {% if can_create %}
     <a href="{% url 'psa:problem_create' %}" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i>New Problem</a>
     {% endif %}
-</div>
+{% endpage_header %}
 
 <form method="get" class="d-flex gap-2 mb-3 align-items-center flex-wrap">
     <select name="status" class="form-select form-select-sm" style="width:auto;" data-autosubmit>

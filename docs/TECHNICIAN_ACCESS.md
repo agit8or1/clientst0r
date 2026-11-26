@@ -1,7 +1,7 @@
 # Technician access and Ticket AI Assist — operator guide
 
 *Since v3.17.646. Ticket AI Assist is **OPTIONAL AI**: it requires PSA to be on and the master AI switch
-(`psa_ai_enabled`, Settings → General → PSA). The RMM tools on a ticket (v3.17.658, [below](#rmm-tools-on-a-ticket))
+(`psa_ai_enabled`, Settings → General → Service Desk). The RMM tools on a ticket (v3.17.658, [below](#rmm-tools-on-a-ticket))
 are not AI features: they work with AI off, but need PSA, a preset and a paired RMM.*
 
 ## What it governs

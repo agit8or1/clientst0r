@@ -3,8 +3,8 @@
 {% block content %}
 <div class="card card-body d-flex flex-row flex-wrap gap-2 align-items-center mb-3">
     <h2 class="h4 mb-0 me-auto"><i class="fas fa-heart-circle-check me-1"></i> {{ client.name }} &mdash; customer health</h2>
-    <a class="btn btn-sm btn-outline-secondary" href="{% url 'health_score:list' %}">All clients</a>
-    <a class="btn btn-sm btn-outline-secondary" href="{% url 'accounts:organization_detail' client.pk %}">Client page</a>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'health_score:list' %}">All customers</a>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'accounts:organization_detail' client.pk %}">Customer page</a>
     {% if can_manage %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'health_score:settings' %}?client={{ client.pk }}">Weights</a>{% endif %}
     <form method="post" action="{% url 'health_score:recompute' client.pk %}" class="d-inline">{% csrf_token %}
         <button class="btn btn-sm btn-primary"><i class="fas fa-rotate"></i> Recompute now</button></form>

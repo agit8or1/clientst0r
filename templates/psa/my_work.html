@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load psa_ui %}
+{% load psa_ui page_header %}
 {% block title %}My Work{% endblock %}
 {% block content %}
 {% comment %}
@@ -8,18 +8,13 @@ us / waiting on customer) live in psa/my_work.py and are shared with the ticket
 list's ?queue= filter, so every count below equals the list its link opens.
 {% endcomment %}
 
-<div class="ui-page-head">
-    <div class="ui-page-head__main">
-        <h1 class="ui-page-title"><i class="fas fa-user-check"></i> My Work</h1>
-        <p class="ui-page-sub">
+{% page_header title="My Work" icon="fas fa-user-check" %}
+{% ph_subtitle %}
             {{ open_sec.count }} open · {{ replied_sec.count }} customer repl{{ replied_sec.count|pluralize:"y,ies" }} · {{ timers|length }} running timer{{ timers|length|pluralize }}{% if is_staff_view %} · {{ approvals_total }} pending approval{{ approvals_total|pluralize }}{% endif %}
-        </p>
-    </div>
-    <div class="ui-page-head__actions">
+{% end_ph_subtitle %}
         <a href="{% url 'psa:ticket_list' %}" class="btn btn-outline-secondary"><i class="fas fa-list"></i> All tickets</a>
         <a href="{% url 'psa:ticket_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> New ticket</a>
-    </div>
-</div>
+{% endpage_header %}
 {% if panels %}
 <div class="d-flex flex-wrap align-items-center gap-2 mb-3 small" id="mw-scope">
     <span class="text-muted">

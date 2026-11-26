@@ -1,8 +1,8 @@
 {% load contracts_tags %}{% load pulse_tags %}{% load health_score_tags %}{% load advisor_tags %}
 {% comment %}
-Client workspace Overview. Every data panel appears only when its tab is
+Customer workspace Overview. Every data panel appears only when its tab is
 visible (accounts/client_workspace.py decides; counts and a few rows each).
-The client record itself (information, address, primary contact, sites,
+The customer record itself (information, address, primary contact, sites,
 support difficulty, contract documents, pulse trend) is shown as before.
 {% endcomment %}
 
@@ -23,8 +23,8 @@ support difficulty, contract documents, pulse trend) is shown as before.
         <div class="card-header"><h2 class="h6 mb-0"><i class="fas fa-info-circle" aria-hidden="true"></i> Company information</h2></div>
         <div class="card-body">
             <dl class="cw-dl">
-                <dt>Organization name</dt><dd>{{ organization.name }}</dd>
-                {% if organization.organization_type %}<dt>Organization type</dt><dd><span class="badge bg-info">{{ organization.organization_type }}</span></dd>{% endif %}
+                <dt>Customer name</dt><dd>{{ organization.name }}</dd>
+                {% if organization.organization_type %}<dt>Customer type</dt><dd><span class="badge bg-info">{{ organization.organization_type }}</span></dd>{% endif %}
                 {% if organization.legal_name %}<dt>Legal name</dt><dd>{{ organization.legal_name }}</dd>{% endif %}
                 {% if organization.tax_id %}<dt>Tax ID / EIN</dt><dd>{{ organization.tax_id }}</dd>{% endif %}
                 <dt>Slug</dt><dd><code>{{ organization.slug }}</code></dd>

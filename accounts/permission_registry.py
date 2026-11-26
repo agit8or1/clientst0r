@@ -75,7 +75,7 @@ ENFORCED, PENDING, UNIMPLEMENTED = 'enforced', 'pending', 'unimplemented'
 # module key -> (label, description). Order is the role editor's order.
 MODULES = {
     'org': ('Organization & users', 'Members, invitations, roles, ownership and organization settings.'),
-    'tickets': ('Tickets & queues', 'PSA tickets, internal notes, assignment, routing and sharing.'),
+    'tickets': ('Tickets & queues', 'Service Desk tickets, internal notes, assignment, routing and sharing.'),
     'service': ('Service management', 'Change, problem, release and service catalog governance.'),
     'assets': ('Assets & inventory', 'Assets, hardware and network discovery.'),
     'docs': ('Documentation', 'Documents, diagrams and their publication.'),

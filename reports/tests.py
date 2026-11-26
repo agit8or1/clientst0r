@@ -1072,7 +1072,7 @@ class ClientHealthViewTests(TestCase):
         self.client.force_login(self.owner)
         r = self.client.get('/reports/psa/client-health/')
         self.assertEqual(r.status_code, 200)
-        self.assertIn(b'Client Health', r.content)
+        self.assertIn(b'Customer Health', r.content)
 
     def test_blocks_tech_user(self):
         self.client.force_login(self.tech)

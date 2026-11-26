@@ -1,22 +1,22 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Client Health Score{% endblock %}
+{% block title %}Customer Health Score{% endblock %}
 
 {% block content %}
 <div class="container-fluid mt-4">
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{% url 'reports:home' %}">Reports</a></li>
-            <li class="breadcrumb-item active">Client Health</li>
+            <li class="breadcrumb-item active">Customer Health</li>
         </ol>
     </nav>
 
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
-            <h2 class="mb-0"><i class="fas fa-heart-pulse me-2"></i>Client Health Score</h2>
+            <h2 class="mb-0"><i class="fas fa-heart-pulse me-2"></i>Customer Health Score</h2>
             <small class="text-muted">
-                Composite 0-100 score per client. Surface trouble before it escalates.
+                Composite 0-100 score per customer. Surface trouble before it escalates.
             </small>
         </div>
         <a href="?format=csv" class="btn btn-outline-secondary">
@@ -60,7 +60,7 @@
             <div class="card h-100">
                 <div class="card-body text-center">
                     <i class="fas fa-building fa-2x text-secondary mb-2"></i>
-                    <h6 class="text-muted mb-1">Total Clients</h6>
+                    <h6 class="text-muted mb-1">Total Customers</h6>
                     <h2 class="mb-0">{{ summary.total }}</h2>
                 </div>
             </div>
@@ -75,7 +75,7 @@
         Billing aging over 60d (25%) +
         Engagement (15%) +
         NPS proxy (10%).
-        Sorted worst-first so the most-actionable clients are at the top.
+        Sorted worst-first so the most-actionable customers are at the top.
     </div>
 
     {# ---------- Per-client table ---------- #}
@@ -86,7 +86,7 @@
                 <table class="table table-sm table-hover" id="health-table">
                     <thead>
                         <tr>
-                            <th>Client</th>
+                            <th>Customer</th>
                             <th class="text-center">Score</th>
                             <th>SLA</th>
                             <th>Velocity</th>
@@ -159,7 +159,7 @@
                 </table>
             </div>
             {% else %}
-            <p class="text-muted mb-0">No active clients to score.</p>
+            <p class="text-muted mb-0">No active customers to score.</p>
             {% endif %}
         </div>
     </div>

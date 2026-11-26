@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}PSA — {% if reply %}Edit{% else %}New{% endif %} Canned Reply{% endblock %}
+{% block title %}Service Desk — {% if reply %}Edit{% else %}New{% endif %} Canned Reply{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">Service Desk</a></li>
         <li class="breadcrumb-item"><a href="{% url 'psa:canned_reply_list' %}">Canned Replies</a></li>
         <li class="breadcrumb-item active">{% if reply %}{{ reply.name }}{% else %}New{% endif %}</li>
     </ol>

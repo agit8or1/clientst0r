@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Client health{% endblock %}
+{% block title %}Customer health{% endblock %}
 {% block content %}
 <div class="card card-body d-flex flex-row flex-wrap gap-2 align-items-center mb-3">
-    <h2 class="h4 mb-0 me-auto"><i class="fas fa-heart-circle-check me-1"></i> Client health</h2>
+    <h2 class="h4 mb-0 me-auto"><i class="fas fa-heart-circle-check me-1"></i> Customer health</h2>
     {% if can_manage %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'health_score:settings' %}"><i class="fas fa-sliders"></i> Weights</a>{% endif %}
 </div>
 <p class="text-body-secondary small">Each score covers only the dimensions that have trustworthy data. Unknown or stale data is shown as such and is never counted as healthy.</p>
 <form method="get" class="d-flex flex-wrap gap-2 mb-3">
     <select name="filter" class="form-select form-select-sm w-auto" data-autosubmit aria-label="Filter">
-        <option value="">All clients</option>
+        <option value="">All customers</option>
         <option value="unknown" {% if filter == 'unknown' %}selected{% endif %}>Incomplete or unknown data</option>
         <option value="stale" {% if filter == 'stale' %}selected{% endif %}>Has stale data</option>
         <option value="at_risk" {% if filter == 'at_risk' %}selected{% endif %}>Needs attention or at risk</option>
@@ -21,7 +21,7 @@
 </form>
 {% if rows %}
 <div class="table-responsive"><table class="table table-sm align-middle">
-    <thead><tr><th>Client</th><th>Overall</th><th>Coverage</th>
+    <thead><tr><th>Customer</th><th>Overall</th><th>Coverage</th>
         {% for key, label in dimensions %}<th><a href="?sort={{ key }}{% if filter %}&filter={{ filter }}{% endif %}">{{ label }}</a></th>{% endfor %}
         <th>Computed</th></tr></thead>
     <tbody>{% for r in rows %}

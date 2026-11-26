@@ -3,7 +3,7 @@
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">Service Desk</a></li>
         <li class="breadcrumb-item"><a href="{% url 'psa:problem_list' %}">Problems</a></li>
         {% if is_edit %}
         <li class="breadcrumb-item"><a href="{% url 'psa:problem_detail' problem.pk %}">{{ problem.problem_number }}</a></li>

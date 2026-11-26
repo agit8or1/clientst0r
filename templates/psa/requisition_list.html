@@ -1,17 +1,17 @@
 {% extends "base.html" %}
-{% block title %}PSA — Purchase Requisitions{% endblock %}
+{% load page_header %}
+{% block title %}Service Desk — Purchase Requisitions{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">Service Desk</a></li>
         <li class="breadcrumb-item active">Purchase Requisitions</li>
     </ol>
 </nav>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h2 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>Purchase Requisitions</h2>
+{% page_header title="Purchase Requisitions" icon="fas fa-clipboard-list" %}
     <a href="{% url 'psa:requisition_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> New Requisition</a>
-</div>
+{% endpage_header %}
 
 <ul class="nav nav-pills mb-2 small">
     {% if can_approve %}
@@ -39,7 +39,7 @@
 <div class="card">
     <div class="card-body p-0">
         <table class="table table-hover mb-0">
-            <thead class="table-light"><tr><th>Number</th><th>Title</th><th>Client</th><th>Status</th><th>Total</th><th>Requested</th><th>Actions</th></tr></thead>
+            <thead class="table-light"><tr><th>Number</th><th>Title</th><th>Customer</th><th>Status</th><th>Total</th><th>Requested</th><th>Actions</th></tr></thead>
             <tbody>
                 {% for pr in requisitions %}
                 <tr>

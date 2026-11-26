@@ -7,7 +7,7 @@ assignment and workflow rules behave exactly as they did before.
 
 ## Turning it on
 
-1. **Settings → General → PSA** (`/psa/settings/`, superusers) shows a *Ticket Routing* card: pick the MSP-wide default
+1. **Settings → General → Service Desk** (`/psa/settings/`, superusers) shows a *Ticket Routing* card: pick the MSP-wide default
    (**Off**, **Suggest only** or **Automatic**) and save. The card links to the full page.
 2. **Service Desk → Dispatch Board → Configure → Ticket Routing** (`/psa/routing/`) holds everything else: reroute options, business hours, customer
    overrides, rules, on-call shifts, Test routing and Triage.
@@ -148,7 +148,7 @@ superusers hold all three:
 
 | Flag | Allows |
 |---|---|
-| Manage routing settings, rules and on-call | `/psa/routing/` settings, customers, rules, on-call shifts, the Settings → General → PSA card |
+| Manage routing settings, rules and on-call | `/psa/routing/` settings, customers, rules, on-call shifts, the Settings → General → Service Desk card |
 | Test routing | the Test routing page |
 | Accept / reject routing suggestions | Accept and Dismiss on tickets |
 

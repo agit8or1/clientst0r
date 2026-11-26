@@ -63,7 +63,7 @@
             </form>
         </div>
         <table class="table table-sm small mb-0">
-            <thead><tr><th>Date</th><th>Invoice</th><th>Client</th><th>Method</th><th>Reference</th><th class="text-end">Amount</th></tr></thead>
+            <thead><tr><th>Date</th><th>Invoice</th><th>Customer</th><th>Method</th><th>Reference</th><th class="text-end">Amount</th></tr></thead>
             <tbody>
             {% for p in g.payments %}
                 <tr>
@@ -89,7 +89,7 @@
 <p class="text-muted small">Set <code>bank_deposit_batch</code> on each payment row (admin or PSA detail). Once tagged, the batch shows up above.</p>
 <div class="card mb-3">
     <table class="table table-sm small mb-0">
-        <thead class="table-light"><tr><th>Date</th><th>Invoice</th><th>Client</th><th>Method</th><th>Reference</th><th class="text-end">Amount</th></tr></thead>
+        <thead class="table-light"><tr><th>Date</th><th>Invoice</th><th>Customer</th><th>Method</th><th>Reference</th><th class="text-end">Amount</th></tr></thead>
         <tbody>
         {% for p in untagged %}
             <tr>

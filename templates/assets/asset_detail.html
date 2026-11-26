@@ -1,13 +1,13 @@
 {% extends "base.html" %}
-{% load asset_tags %}
+{% load asset_tags page_header %}
 {% load office_tags m365docs_tags %}
 
 {% block title %}{{ asset.name }}{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div class="d-flex align-items-center gap-3">
-        {% with kind=asset.image_kind %}
+{% page_header title=asset.name %}
+{% ph_lead %}
+{% with kind=asset.image_kind %}
         {% if kind == 'stock' %}
         <span id="asset-header-image" data-image-kind="stock" class="asset-stock-img text-body-secondary" role="img"
               aria-label="{{ asset.get_asset_type_display|default:'Device' }} (stock image)" title="Stock image — add a photo or hardware artwork from Edit"
@@ -19,9 +19,7 @@
         </a>
         {% endif %}
         {% endwith %}
-        <h1 class="mb-0">{{ asset.name }}</h1>
-    </div>
-    <div>
+{% end_ph_lead %}
         {% include "includes/favorite_button.html" with object=asset %}
         {% if can_workspace %}
         <a href="{% url 'assets:device_workspace' asset.pk %}" class="btn btn-primary" data-device-workspace-link>
@@ -55,8 +53,7 @@
             <i class="fas fa-trash"></i> Delete
         </a>
         <a href="{% url 'assets:asset_list' %}" class="btn btn-outline-secondary">Back to List</a>
-    </div>
-</div>
+{% endpage_header %}
 
 <div class="row">
     <!-- Featured Image Column (if images exist) -->

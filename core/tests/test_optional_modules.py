@@ -135,7 +135,7 @@ class ModulesPageTests(TestCase):
         self._psa_off()
         r = self._post('ticket_ai', 'on')
         self.assertFalse(SystemSetting.get_settings().psa_ai_enabled)
-        self.assertContains(r, 'needs PSA / Service desk turned on first')
+        self.assertContains(r, 'needs Service Desk turned on first')
 
     def test_turn_on_psa_then_ai(self):
         self._psa_off()
@@ -156,7 +156,7 @@ class ModulesPageTests(TestCase):
         s = SystemSetting.get_settings()
         self.assertFalse(s.psa_enabled)
         self.assertTrue(s.psa_ai_enabled)
-        self.assertContains(r, 'stop working until PSA / Service desk is on again: Ticket AI')
+        self.assertContains(r, 'stop working until Service Desk is on again: Ticket AI')
         self.assertContains(r, 'data-module="ticket_ai" data-state="inactive"')
 
     def test_soft_dependency_warns(self):

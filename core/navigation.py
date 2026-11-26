@@ -578,10 +578,10 @@ SECTIONS = (
     # ---- Clients -------------------------------------------------------------
     # The organization list is every technician's "All clients" page (client
     # switcher) and a customer user's list of their organizations.
-    Section('clients_all', 'clients', _('Clients'), tabs=(
+    Section('clients_all', 'clients', _('Customers'), tabs=(
         # The client workspace (owned by the client-workspace pages) and its
         # forms light Clients; the workspace draws its own ?tab= strip.
-        Tab(_('All Clients'), 'accounts:organization_list', 'fa-building', also=(
+        Tab(_('All Customers'), 'accounts:organization_list', 'fa-building', also=(
             'accounts:organization_detail', 'accounts:organization_edit',
             'accounts:organization_create', 'accounts:organization_delete',
             'accounts:organization_service_info', 'accounts:ownership_transfer',
@@ -674,7 +674,7 @@ SECTIONS = (
     # agreements (billing) and the contract-document system (drafting,
     # clauses, signing). Each tab keeps its own gate.
     Section('mod_contracts', 'modules', _('Contracts'), tabs=(
-        Tab(_('PSA Contracts'), 'psa:contract_list', 'fa-file-contract', gate=_psa,
+        Tab(_('Service Desk Contracts'), 'psa:contract_list', 'fa-file-contract', gate=_psa,
             keywords='service agreements billing'),
         Tab(_('Contract Documents'), 'contracts:dashboard', 'fa-file-signature', gate=_contract_docs,
             keywords='agreements signing e-signature msa sow proposals'),
@@ -722,9 +722,9 @@ SECTIONS = (
         Tab(_('Opt-outs'), 'pulse:opt_out_list', 'fa-user-slash'),
     )),
 
-    Section('mod_health', 'modules', _('Client Health'), gate=_all(_msp_staff, _flag('client_health_enabled')),
+    Section('mod_health', 'modules', _('Customer Health'), gate=_all(_msp_staff, _flag('client_health_enabled')),
             also=('health_score:detail', 'health_score:recompute'), tabs=(
-        Tab(_('Client Health'), 'health_score:list', 'fa-heart-circle-check'),
+        Tab(_('Customer Health'), 'health_score:list', 'fa-heart-circle-check'),
         Tab(_('Weights'), 'health_score:settings', 'fa-sliders', gate=_perm('manage_health_score_settings')),
     )),
 
@@ -875,7 +875,7 @@ SECTIONS = (
         Tab(_('Customer Portal'), 'core:settings_portal', 'fa-door-open', gate=_superuser,
             keywords='portal customer client branding logo login sign-in background url host '
                      'hostname layout navigation theme colour color welcome support contact'),
-        Tab(_('PSA'), 'core:settings_psa', 'fa-ticket-alt', gate=_all(_superuser, _psa),
+        Tab(_('Service Desk'), 'core:settings_psa', 'fa-ticket-alt', gate=_all(_superuser, _psa),
             keywords='tickets portal surfaces ai optional', also=('psa:settings', 'psa:client_settings')),
         # Phase 102.8: the page's own check (psa.billing.config.can_view).
         Tab(_('Billing'), 'core:settings_billing', 'fa-file-invoice-dollar', gate=_billing_settings,
@@ -1400,12 +1400,12 @@ PRIMARY = (
         Entry(_('Workflows'), section='ops_workflows', icon='fa-diagram-next',
               keywords='runbooks processes support workflows templates suggestions'),
     )),
-    Group('clients', _('Clients'), 'fa-building', shortcut='c', entries=(
-        Entry(_('All Clients'), section='clients_all', icon='fa-building',
-              keywords='customers organizations clients'),
+    Group('clients', _('Customers'), 'fa-building', shortcut='c', entries=(
+        Entry(_('All Customers'), section='clients_all', icon='fa-building',
+              keywords='customers organizations clients client list'),
         # The selected client's workspace (accounts:organization_detail).
-        Entry(_('Client Workspace'), url_name='accounts:organization_detail', icon='fa-id-card',
-              current_org=True, gate=_has_org, keywords='current client overview workspace'),
+        Entry(_('Customer Workspace'), url_name='accounts:organization_detail', icon='fa-id-card',
+              current_org=True, gate=_has_org, keywords='current client customer overview workspace'),
         Entry(_('Onboard Customer'), section='clients_onboarding', icon='fa-user-plus',
               keywords='onboarding new customer wizard lifecycle change renewal offboarding'),
         Entry(_('Customer Operations'), url_name='core:customer_ops_current', icon='fa-binoculars',
@@ -1446,8 +1446,8 @@ PRIMARY = (
               keywords='software licenses subscriptions seats microsoft 365 pax8 renewals'),
         Entry(_('Pulse Checks'), section='mod_pulse', icon='fa-heart-pulse',
               keywords='feedback survey nps satisfaction client health'),
-        Entry(_('Client Health'), section='mod_health', icon='fa-heart-circle-check',
-              keywords='customer health score churn risk unknown stale weights'),
+        Entry(_('Customer Health'), section='mod_health', icon='fa-heart-circle-check',
+              keywords='client health customer health score churn risk unknown stale weights'),
     )),
     Group('knowledge', _('Knowledge & Vault'), 'fa-book-open', shortcut='k', entries=(
         Entry(_('Documentation'), section='docs_documents', icon='fa-file-alt',
@@ -1522,7 +1522,7 @@ TOPBAR = (
     ('core:dashboard', _('Dashboard'), 'fa-tachometer-alt'),
     ('psa:my_work', _('My Work'), 'fa-clipboard-check'),
     ('psa_tickets', _('Tickets'), 'fa-ticket'),
-    ('clients_all', _('Clients'), 'fa-building'),
+    ('clients_all', _('Customers'), 'fa-building'),
     ('assets_all', _('Assets'), 'fa-server'),
     ('psa_projects', _('Projects'), 'fa-diagram-project'),
     ('mod_reports', _('Reports'), 'fa-chart-bar'),

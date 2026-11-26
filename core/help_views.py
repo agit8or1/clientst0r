@@ -154,7 +154,7 @@ HELP_INDEX = [
      'anchor': 'scheduled-reports', 'heading': 'Scheduled Reports',
      'text': 'scheduled report recurring daily weekly monthly quarterly email delivery download only'},
     {'section': 'Reports & Dashboards', 'url_name': 'core:help_reports',
-     'anchor': 'psa-reports', 'heading': 'PSA and Finance Reports',
+     'anchor': 'psa-reports', 'heading': 'Service Desk and Finance Reports',
      'text': 'profitability SLA ticket aging AR aging reconciliation MRR forecast scorecard'},
     {'section': 'Reports & Dashboards', 'url_name': 'core:help_reports',
      'anchor': 'dashboards', 'heading': 'Dashboards & Wallboards',
@@ -303,7 +303,7 @@ def help_getting_started(request):
     <h5 class="mt-4" id="organizations"><i class="fas fa-building"></i> Organizations</h5>
     <p>Organizations are the top-level containers for all data. Clientst0r is multi-tenant — each client, department, or team has its own organization with full data isolation.</p>
     <ul>
-        <li><strong>Create:</strong> <em>Clients → All Clients → Create Organization</em></li>
+        <li><strong>Create:</strong> <em>Customers → All Customers → Create Customer</em></li>
         <li><strong>Switch:</strong> Use the client switcher in the top bar, or <em>Go to</em> (Ctrl+K / Cmd+K) and type the client's name</li>
         <li><strong>Scoping:</strong> Assets, passwords, vehicles, and monitors all belong to one organization</li>
         <li><strong>Global items:</strong> Some templates and reference data are shared across all organizations</li>
@@ -354,11 +354,11 @@ def help_getting_started(request):
         <text x="26" y="74" fill="#e5e9f0" font-size="9" font-weight="bold" font-family="sans-serif">Service Desk</text>
         <text x="152" y="74" fill="#8d99ab" font-size="8" font-family="sans-serif" text-anchor="end">▾</text>
         <rect x="10" y="81" width="9" height="9" rx="2" fill="#2563eb"/>
-        <text x="26" y="89" fill="#e5e9f0" font-size="9" font-weight="bold" font-family="sans-serif">Clients</text>
+        <text x="26" y="89" fill="#e5e9f0" font-size="9" font-weight="bold" font-family="sans-serif">Customers</text>
         <text x="152" y="89" fill="#8d99ab" font-size="8" font-family="sans-serif" text-anchor="end">▴</text>
         <rect x="6" y="95" width="146" height="12" rx="3" fill="#12303c"/>
-        <text x="30" y="104" fill="#e5e9f0" font-size="8.5" font-family="sans-serif">All Clients</text>
-        <text x="30" y="117" fill="#aab4c3" font-size="8.5" font-family="sans-serif">Client Workspace</text>
+        <text x="30" y="104" fill="#e5e9f0" font-size="8.5" font-family="sans-serif">All Customers</text>
+        <text x="30" y="117" fill="#aab4c3" font-size="8.5" font-family="sans-serif">Customer Workspace</text>
         <text x="30" y="130" fill="#aab4c3" font-size="8.5" font-family="sans-serif">Customer Operations</text>
         <rect x="10" y="137" width="9" height="9" rx="2" fill="#1f2f48"/>
         <text x="26" y="145" fill="#e5e9f0" font-size="9" font-weight="bold" font-family="sans-serif">Assets &amp; Network</text>
@@ -378,10 +378,10 @@ def help_getting_started(request):
         <line x1="0" y1="224" x2="158" y2="224" stroke="#1f2f48"/>
         <circle cx="15" cy="237" r="4.5" fill="#1f2f48"/>
         <text x="26" y="240" fill="#e5e9f0" font-size="9" font-weight="bold" font-family="sans-serif">Administration</text>
-        <text x="166" y="40" font-size="10" xml:space="preserve" font-family="sans-serif"><tspan fill="#84b4ff">Clients</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#aab4c3">All Clients</tspan></text>
+        <text x="166" y="40" font-size="10" xml:space="preserve" font-family="sans-serif"><tspan fill="#84b4ff">Customers</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#aab4c3">All Customers</tspan></text>
         <rect x="166" y="48" width="62" height="16" rx="4" fill="#2563eb"/>
-        <text x="173" y="59" fill="#ffffff" font-size="9" font-family="sans-serif">All Clients</text>
-        <text x="168" y="86" fill="#e5e9f0" font-size="14" font-weight="bold" font-family="sans-serif">Clients</text>
+        <text x="173" y="59" fill="#ffffff" font-size="9" font-family="sans-serif">All Customers</text>
+        <text x="168" y="86" fill="#e5e9f0" font-size="14" font-weight="bold" font-family="sans-serif">Customers</text>
         <rect x="168" y="98" width="286" height="32" rx="4" fill="#151b24" stroke="#2a3443"/>
         <text x="180" y="118" fill="#84b4ff" font-size="11" font-family="sans-serif">Acme Corp</text>
         <text x="444" y="118" fill="#8d99ab" font-size="10" font-family="sans-serif" text-anchor="end">42 assets</text>
@@ -413,13 +413,13 @@ def help_getting_started(request):
         <rect x="483" y="173" width="8" height="10" rx="1" fill="none" stroke="#aab4c3"/>
         <text x="498" y="182" fill="#e5e9f0" font-size="10" font-family="sans-serif">Gamma Solutions</text>
         <line x1="470" y1="196" x2="690" y2="196" stroke="#2a3443"/>
-        <text x="482" y="214" fill="#e5e9f0" font-size="10" font-family="sans-serif">☰  View all clients</text>
+        <text x="482" y="214" fill="#e5e9f0" font-size="10" font-family="sans-serif">☰  View all customers</text>
         <line x1="599" y1="22" x2="599" y2="27" stroke="#79c0ff" stroke-width="1.5"/>
         <rect x="262" y="230" width="236" height="15" rx="7" fill="#1f6feb44"/>
-        <text x="380" y="241" fill="#79c0ff" font-size="9.5" font-family="sans-serif" text-anchor="middle">Client switcher: pick a client or Global View</text>
+        <text x="380" y="241" fill="#79c0ff" font-size="9.5" font-family="sans-serif" text-anchor="middle">Customer switcher: pick a customer or Global View</text>
         <line x1="498" y1="237" x2="490" y2="224" stroke="#79c0ff" stroke-width="1.5" stroke-dasharray="3,2"/>
       </svg>
-      <p class="help-screenshot-caption">The client switcher in the top bar, beside search, alerts, help and the settings gear. Pick a client, or <strong>Global View</strong> for every client you can reach; <strong>View all clients</strong> opens the full list. All data (assets, passwords, monitors) is isolated per organization.</p>
+      <p class="help-screenshot-caption">The customer switcher in the top bar, beside search, alerts, help and the settings gear. Pick a customer, or <strong>Global View</strong> for every customer you can reach; <strong>View all customers</strong> opens the full list. All data (assets, passwords, monitors) is isolated per organization.</p>
     </div>
 
     <h5 class="mt-4" id="users-roles"><i class="fas fa-users"></i> Users &amp; Roles</h5>
@@ -2058,7 +2058,7 @@ def help_reports(request):
     toc = [
         {'anchor': 'report-templates', 'heading': 'Report Templates'},
         {'anchor': 'scheduled-reports', 'heading': 'Scheduled Reports'},
-        {'anchor': 'psa-reports', 'heading': 'PSA and Finance Reports'},
+        {'anchor': 'psa-reports', 'heading': 'Service Desk and Finance Reports'},
         {'anchor': 'dashboards', 'heading': 'Dashboards & Wallboards'},
         {'anchor': 'saved-queries', 'heading': 'Saved Queries'},
     ]
@@ -2084,7 +2084,7 @@ def help_reports(request):
     <h5 class="mt-4" id="scheduled-reports"><i class="fas fa-calendar-check"></i> Scheduled Reports</h5>
     <p>A schedule runs a template daily, weekly, monthly (every 30 days) or quarterly (every 90 days) for the selected customer, in the format you choose. The scheduler's <strong>Scheduled Reports</strong> task checks every 15 minutes. Each report is saved under <em>Reports &rarr; Report History</em>; with an email delivery option, each recipient gets their own copy as an attachment through the SMTP settings in <em>Settings &rarr; Communications &rarr; SMTP / Email</em>. <strong>Download Only</strong> saves the report without emailing it. If an email can't be sent, the report notes why and the schedule still moves on.</p>
 
-    <h5 class="mt-4" id="psa-reports"><i class="fas fa-chart-line"></i> PSA and Finance Reports</h5>
+    <h5 class="mt-4" id="psa-reports"><i class="fas fa-chart-line"></i> Service Desk and Finance Reports</h5>
     <p>The Reports home links to reports across all customers: ticket, SLA and response-time reports; profitability by client, tech, contract and project; revenue leakage and margins; agreement, billing, accounting and bank reconciliation; AR aging and MRR forecast; KPIs, trends and the executive scorecard; procurement and software compliance. Money reports need <strong>View financial reports</strong>; labour cost and margin (profitability, margin analytics, effective rate, contract and project margin) also need <strong>view_profitability</strong>, which is for MSP staff only. Profitability pages are an operational estimate, not your accounting P&amp;L: each hour is costed at the technician's cost rate on the day of the work, hours without a rate are shown as unknown and the page is marked <strong>Incomplete</strong> rather than costed at an assumed rate. SLA reports need <strong>View SLA reports</strong>. Most offer a date range and CSV export.</p>
 
     <h5 class="mt-4" id="dashboards"><i class="fas fa-table-cells"></i> Dashboards &amp; Wallboards</h5>

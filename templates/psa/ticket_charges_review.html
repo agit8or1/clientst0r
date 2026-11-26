@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Review charges — {{ ticket.ticket_number }} — PSA{% endblock %}
+{% block title %}Review charges — {{ ticket.ticket_number }} — Service Desk{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">Service Desk</a></li>
         <li class="breadcrumb-item"><a href="{% url 'psa:ticket_detail' ticket.ticket_number %}">{{ ticket.ticket_number }}</a></li>
         <li class="breadcrumb-item active" aria-current="page">Review charges</li>
     </ol>

@@ -253,7 +253,7 @@ def commands(pal):
     from accounts.delegation import is_customer_actor
     org_list = _rev('accounts:organization_list')
     if org_list in dests and not is_customer_actor(pal.user):
-        add('create_client', _('Create Client'), 'fa-building',
+        add('create_client', _('Create Customer'), 'fa-building',
             _rev('accounts:organization_create'), 'new client organization customer')
 
     for key, label, icon, name, kw in (
@@ -339,7 +339,7 @@ def _rmm_item(d, next_url=''):
 
 
 def _client_item(o):
-    return _item(o.name, _rev('accounts:organization_detail', o.pk), 'fas fa-building', _('Client'))
+    return _item(o.name, _rev('accounts:organization_detail', o.pk), 'fas fa-building', _('Customer'))
 
 
 def _doc_item(d):
@@ -435,7 +435,7 @@ def search(pal, query):
             return []
         return [_report_item(r) for r in qs.filter(name__icontains=query).order_by('name')[:PER_GROUP]]
 
-    run('clients', _('Clients'), 'fas fa-building', clients)
+    run('clients', _('Customers'), 'fas fa-building', clients)
     run('tickets', _('Tickets'), 'fas fa-ticket', tickets)
     run('devices', _('Devices & assets'), 'fas fa-server', devices)
     run('projects', _('Projects'), 'fas fa-diagram-project', projects)

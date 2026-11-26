@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}PSA — {{ ticket.ticket_number }} — Vault Context{% endblock %}
+{% block title %}Service Desk — {{ ticket.ticket_number }} — Vault Context{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">Service Desk</a></li>
         <li class="breadcrumb-item"><a href="{% url 'psa:ticket_detail' ticket.ticket_number %}">{{ ticket.ticket_number }}</a></li>
         <li class="breadcrumb-item active">Vault Context</li>
     </ol>

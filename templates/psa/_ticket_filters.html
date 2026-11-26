@@ -15,9 +15,9 @@ workspace view rides along as a hidden field, so filtering keeps the tab.
                placeholder="Ticket number or subject…" class="form-control">
     </div>
     <div class="ui-field">
-        <label class="ui-field__label" for="tkClient">Client</label>
+        <label class="ui-field__label" for="tkClient">Customer</label>
         <select id="tkClient" name="client" class="form-select">
-            <option value="">All clients</option>
+            <option value="">All customers</option>
             {% for c in available_clients %}
             <option value="{{ c.id }}" {% if filter_values.client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
             {% endfor %}

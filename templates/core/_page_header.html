@@ -1,0 +1,19 @@
+{% comment %}
+The shared page header (docs/ux/SHARED_DESIGN_SYSTEM.md, "Page header"). Render it with
+{% page_header %} (core/templatetags/page_header.py); it renders exactly one <h1>.
+Styles: static/css/page_header.css.
+{% endcomment %}
+<header class="page-header{% if extra_class %} {{ extra_class }}{% endif %}">
+  {% if lead_html %}<div class="page-header__lead">{{ lead_html }}</div>{% endif %}
+  <div class="page-header__main">
+    {% if breadcrumb %}
+    <nav aria-label="Breadcrumb" class="page-header__crumbs"><ol class="breadcrumb mb-0">
+      {% for label, url in breadcrumb %}{% if url %}<li class="breadcrumb-item"><a href="{{ url }}">{{ label }}</a></li>{% else %}<li class="breadcrumb-item active" aria-current="page">{{ label }}</li>{% endif %}{% endfor %}
+    </ol></nav>
+    {% endif %}
+    {% if eyebrow %}<p class="page-header__eyebrow">{{ eyebrow }}</p>{% endif %}
+    <h1 class="page-header__title">{% if icon %}<i class="{{ icon }}" aria-hidden="true"></i>{% endif %}<span class="page-header__title-text">{{ title }}</span>{% if title_suffix %} <span class="page-header__title-suffix">· {{ title_suffix }}</span>{% endif %}{% if badges_html %}{{ badges_html }}{% endif %}</h1>
+    {% if subtitle_html %}<div class="page-header__sub">{{ subtitle_html }}</div>{% elif subtitle %}<p class="page-header__sub">{{ subtitle }}</p>{% endif %}
+  </div>
+  {% if actions %}<div class="page-header__actions">{{ actions }}</div>{% endif %}
+</header>

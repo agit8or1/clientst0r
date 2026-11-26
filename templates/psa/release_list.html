@@ -1,19 +1,19 @@
 {% extends "base.html" %}
+{% load page_header %}
 {% block title %}Release Windows{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">Service Desk</a></li>
         <li class="breadcrumb-item active">Releases</li>
     </ol>
 </nav>
 
-<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-    <h2 class="mb-0"><i class="fas fa-rocket me-2"></i>Release Windows</h2>
+{% page_header title="Release Windows" icon="fas fa-rocket" %}
     {% if can_manage %}
     <a href="{% url 'psa:release_create' %}" class="btn btn-primary"><i class="fas fa-plus me-1"></i>New Release</a>
     {% endif %}
-</div>
+{% endpage_header %}
 
 <form method="get" class="mb-3">
     <div class="row g-2 align-items-end">

@@ -1,8 +1,8 @@
-# Client Health
+# Customer Health
 
 A single 0 to 100 score for each client, built from the data Clientst0r already holds: devices, security
 alerts, backups, tickets, invoices and pulse check answers. It lives in the sidebar under **Business →
-Client Health** and is for MSP staff only. Customers never see it, in the portal or anywhere else. The numbers
+Customer Health** and is for MSP staff only. Customers never see it, in the portal or anywhere else. The numbers
 in each screenshot match the list under it. Every screenshot is a capture of the application against a demo
 database; the customers and people in it are invented.
 
@@ -99,9 +99,9 @@ A value is graded against two thresholds, **Healthy at or above** (default 75) a
 | Red | At risk | 0 to 49 |
 | Grey | Unknown or Stale | No score. Not counted. |
 
-## Client Health
+## Customer Health
 
-**Business → Client Health → Client Health** (`/client-health/`). Every active client you can reach, with its
+**Business → Customer Health → Customer Health** (`/client-health/`). Every active client you can reach, with its
 latest snapshot.
 
 <!-- guide-figure: guide-health-list -->
@@ -129,7 +129,7 @@ changes nothing else. `python manage.py compute_health_scores` runs it by hand, 
 
 ## A client's health
 
-**Business → Client Health →** a client name (`/client-health/<id>/`). The same card also appears on the
+**Business → Customer Health →** a client name (`/client-health/<id>/`). The same card also appears on the
 client's overview page, with a Details link.
 
 <!-- guide-figure: guide-health-detail -->
@@ -152,7 +152,7 @@ client's overview page, with a Details link.
 
 ## Weights
 
-**Business → Client Health → Weights** (`/client-health/settings/`).
+**Business → Customer Health → Weights** (`/client-health/settings/`).
 
 <!-- guide-figure: guide-health-weights -->
 ![The weights page with numbered callouts on the two thresholds, a dimension weight and a signal weight](images/guides/guide-health-weights.png "Client Health → Weights.")

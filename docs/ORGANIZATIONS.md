@@ -313,8 +313,8 @@ For fine-grained control beyond simple roles, use **Role Templates**.
 - Staff Users (via Organizations page)
 
 **Steps for Staff Users:**
-1. Navigate to **Clients → All Clients**
-2. Click **"Create Organization"**
+1. Navigate to **Customers → All Customers**
+2. Click **"Create Customer"**
 3. Enter name (slug auto-generates)
 4. Add optional description
 5. Click **"Save"**
@@ -346,7 +346,7 @@ For fine-grained control beyond simple roles, use **Role Templates**.
 
 **For Staff Users:**
 - Same process, OR
-- Use **Clients → All Clients** to see all orgs
+- Use **Customers → All Customers** to see all orgs
 - Can access any organization directly without switching
 
 ### Removing Members
@@ -388,7 +388,7 @@ For fine-grained control beyond simple roles, use **Role Templates**.
 **Goal:** Set up a new client organization and invite their admin.
 
 **Steps:**
-1. **Create Organization** (Staff User or Superuser)
+1. **Create Customer** (Staff User or Superuser)
    - Name: "Contoso Ltd"
    - Description: "Manufacturing company, 50 employees"
 

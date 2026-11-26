@@ -53,28 +53,28 @@ class Module:
 MODULES = (
     # ---- Service desk ---------------------------------------------------
     Module(
-        'psa', 'PSA / Service desk', 'fa-ticket-alt',
+        'psa', 'Service Desk', 'fa-ticket-alt',
         'Native tickets, queues, SLA, projects, contracts, quotes, invoices and procurement.',
         shows=(
-            'PSA menu for MSP staff: My Work, Tickets, Dispatch Board, Projects, '
+            'Service Desk menu for MSP staff: My Work, Tickets, Dispatch Board, Projects, '
             'Service Management, Billing, Procurement',
             'Modules → Security (security alerts) for MSP staff',
             'SLA, contract renewal and overdue invoice sections on Customer operations',
             'Customers with an active external PSA connection are opted out automatically',
         ),
-        settings_links=(('PSA settings', 'core:settings_psa'),
-                        ('Per-customer PSA settings', 'psa:client_settings')),
+        settings_links=(('Service Desk settings', 'core:settings_psa'),
+                        ('Per-customer Service Desk settings', 'psa:client_settings')),
         field='psa_enabled',
     ),
     Module(
         'ticket_ai', 'Ticket AI', 'fa-wand-magic-sparkles',
-        'OPTIONAL AI: suggested replies and suggested actions on PSA tickets.',
+        'OPTIONAL AI: suggested replies and suggested actions on Service Desk tickets.',
         shows=(
             'AI suggestions on the ticket page for staff whose role allows it',
-            'PSA → Tickets → AI Inbox tab',
+            'Service Desk → Tickets → AI Inbox tab',
             'My Profile → My AI keys for MSP staff',
         ),
-        settings_links=(('PSA settings (AI knobs)', 'core:settings_psa'),
+        settings_links=(('Service Desk settings (AI knobs)', 'core:settings_psa'),
                         ('AI provider and key', 'core:settings_ai'),
                         ('Ticket AI profiles', 'psa_ai:profiles')),
         field='psa_ai_enabled', requires=('psa',), optional_ai=True,
@@ -156,10 +156,10 @@ MODULES = (
              'portal users can still answer from the portal.',
     ),
     Module(
-        'client_health', 'Client health', 'fa-heart-circle-check',
-        'A health score per client from tickets, SLA, monitoring and billing signals.',
-        shows=('Business → Client Health for MSP staff', 'Daily health score snapshots'),
-        settings_links=(('Client health', 'health_score:list'),),
+        'client_health', 'Customer health', 'fa-heart-circle-check',
+        'A health score per customer from tickets, SLA, monitoring and billing signals.',
+        shows=('Business → Customer Health for MSP staff', 'Daily health score snapshots'),
+        settings_links=(('Customer health', 'health_score:list'),),
         field='client_health_enabled', works_better_with=('psa',), group='Business',
     ),
     Module(

@@ -4,7 +4,7 @@
 Permission denied (Django's default 403 handler renders this for every
 PermissionDenied, e.g. accounts.middleware.SectionPermissionMiddleware).
 
-Deliberately generic: it never names the page, the record, the client or the
+Deliberately generic: it never names the page, the record, the customer or the
 permission that was missing, and it does not echo the URL or the exception
 text, so a 403 tells nobody more than "not for you". The way forward is the
 user's own dashboard, the previous page, or their administrator.
@@ -15,7 +15,7 @@ user's own dashboard, the previous page, or their administrator.
     <div class="denied__icon" aria-hidden="true"><i class="fas fa-lock"></i></div>
     <h1 class="denied__title h4" id="deniedTitle">{% trans "You don't have access to this page" %}</h1>
     <p class="denied__text text-body-secondary">
-        {% trans "Your role does not include it, or it belongs to a client or module that is not available to you." %}
+        {% trans "Your role does not include it, or it belongs to a customer or module that is not available to you." %}
         {% trans "If you need it for your work, ask an administrator to review your access." %}
     </p>
     <div class="denied__actions">

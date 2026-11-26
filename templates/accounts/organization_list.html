@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 
-{% block title %}Organizations - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Clientst0r" }}{% endblock %}
+{% block title %}Customers - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Clientst0r" }}{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-building"></i> Organizations</h1>
+    <h1><i class="fas fa-building"></i> Customers</h1>
     <div class="btn-group">
         <a href="{% url 'accounts:organization_merge' %}" class="btn btn-warning">
-            <i class="fas fa-code-branch"></i> Merge Organizations
+            <i class="fas fa-code-branch"></i> Merge Customers
         </a>
         <a href="{% url 'accounts:organization_create' %}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Create Organization
+            <i class="fas fa-plus"></i> Create Customer
         </a>
     </div>
 </div>
@@ -185,7 +185,7 @@
 {% endif %}
 
 {% if is_paginated %}
-<nav aria-label="Organization pagination" class="mt-3">
+<nav aria-label="Customer pagination" class="mt-3">
     <ul class="pagination justify-content-center">
         {% if page_obj.has_previous %}
         <li class="page-item">
@@ -231,7 +231,7 @@
     </ul>
     <p class="text-center text-muted small mb-0">
         Page {{ page_obj.number }} of {{ paginator.num_pages }} &middot;
-        {{ paginator.count }} organization{{ paginator.count|pluralize }}
+        {{ paginator.count }} customer{{ paginator.count|pluralize }}
     </p>
 </nav>
 {% endif %}
@@ -240,16 +240,16 @@
 <div class="card">
     <div class="card-body text-center py-5">
         <i class="fas fa-building fa-3x text-muted mb-3"></i>
-        <h5 class="text-muted">No organizations found</h5>
+        <h5 class="text-muted">No customers found</h5>
         {% if search_query %}
         <p class="text-muted">No matches for "{{ search_query }}".</p>
         <a href="{% url 'accounts:organization_list' %}" class="btn btn-secondary">
             <i class="fas fa-times"></i> Clear Search
         </a>
         {% else %}
-        <p class="text-muted">Create your first organization to get started.</p>
+        <p class="text-muted">Create your first customer to get started.</p>
         <a href="{% url 'accounts:organization_create' %}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Create Organization
+            <i class="fas fa-plus"></i> Create Customer
         </a>
         {% endif %}
     </div>

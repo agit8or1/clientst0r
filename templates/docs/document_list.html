@@ -1,17 +1,13 @@
 {% extends "base.html" %}
-{% load office_tags m365docs_tags %}
+{% load office_tags m365docs_tags page_header %}
 
 {% block title %}Documents{% endblock %}
 
 {% block content %}
-<div class="ui-page-head">
-    <div class="ui-page-head__main">
-        <h1 class="ui-page-title"><i class="fas fa-file-alt"></i> Documents</h1>
-        <p class="ui-page-sub">
+{% page_header title="Documents" icon="fas fa-file-alt" %}
+{% ph_subtitle %}
             {{ org_docs|length }} document{{ org_docs|length|pluralize }}{% if query or selected_category or selected_tag %} matching the current filters{% endif %}
-        </p>
-    </div>
-    <div class="ui-page-head__actions">
+{% end_ph_subtitle %}
         {# Secondary, then primary. One bright action per page. #}
         <a href="{% url 'docs:ai_assistant' %}" class="btn btn-outline-secondary">
             <i class="fas fa-robot"></i> AI Assistant
@@ -56,8 +52,7 @@
         <a href="{% url 'docs:document_create' %}" class="btn btn-primary">
             <i class="fas fa-plus"></i> New document
         </a>
-    </div>
-</div>
+{% endpage_header %}
 
 {% m365_source_tabs 'local' %}
 

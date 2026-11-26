@@ -91,7 +91,7 @@ class ClientSwitcherTests(TestCase):
         self.assertIn(reverse('accounts:switch_to_global_view'), html)
         self.assertIn('id="clientSwitcherSearch"', html)
         self.assertIn(reverse('accounts:organization_list'), html)
-        self.assertIn('View all clients', html)
+        self.assertIn('View all customers', html)
 
     def test_80_plus_clients_render_bounded_markup(self):
         self._login(self.admin)
@@ -114,7 +114,7 @@ class ClientSwitcherTests(TestCase):
         self.assertNotIn(reverse('accounts:switch_to_global_view'), html)
         self.assertNotIn('MSP Internal', html)
         # Not an owner: the organizations list would be empty, so no link.
-        self.assertNotIn('View all clients', html)
+        self.assertNotIn('View all customers', html)
 
     def test_owner_gets_view_all_link(self):
         Membership.objects.filter(user=self.tech, organization=self.orgs[0]).update(role=Role.OWNER)

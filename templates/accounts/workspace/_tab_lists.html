@@ -1,7 +1,7 @@
 {% load contracts_tags %}
 {% comment %}
 One client-workspace tab: a slice of the module list page's own queryset for
-this client (accounts/client_workspace.py), each row linking to the module's
+this customer (accounts/client_workspace.py), each row linking to the module's
 detail page, which applies its own checks again.
 {% endcomment %}
 {% if ws_tab == 'tickets' %}
@@ -91,7 +91,7 @@ detail page, which applies its own checks again.
     <div class="ui-table-wrap"><table class="table table-sm table-hover mb-0 align-middle">
         <thead><tr><th>Title</th><th>Category</th><th>Updated</th></tr></thead>
         <tbody>{% for d in ws.rows %}
-        <tr><td class="ui-primary-cell"><a href="{% url 'docs:document_detail' d.slug %}">{{ d.title }}</a>{% if d.is_client_visible %} <span class="ui-badge ui-badge--info">Client visible</span>{% endif %}</td>
+        <tr><td class="ui-primary-cell"><a href="{% url 'docs:document_detail' d.slug %}">{{ d.title }}</a>{% if d.is_client_visible %} <span class="ui-badge ui-badge--info">Customer visible</span>{% endif %}</td>
             <td class="small">{{ d.category.name|default:"" }}</td>
             <td class="small text-body-secondary">{{ d.updated_at|date:"Y-m-d" }}</td></tr>
         {% endfor %}</tbody></table></div>
@@ -121,7 +121,7 @@ detail page, which applies its own checks again.
 {% if ws.psa %}
 <section class="card cw-panel" id="cw-tab-contracts">
     <div class="card-header cw-panel__head">
-        <h2 class="h6 mb-0">PSA contracts <span class="cw-count">{{ ws.psa.total }}</span></h2>
+        <h2 class="h6 mb-0">Service Desk contracts <span class="cw-count">{{ ws.psa.total }}</span></h2>
         <a class="btn btn-sm btn-outline-secondary" href="{{ ws.psa.list_url }}">Open in Contracts</a>
     </div>
     {% if ws.psa.rows %}
@@ -145,7 +145,7 @@ detail page, which applies its own checks again.
             <span class="ui-badge ui-badge--open">{{ ws.open_count }} open</span>
             {% for currency, amount in ws.open_amounts %}<span class="small text-body-secondary" data-amount="{{ currency }}">· balance {{ currency }} {{ amount|floatformat:2 }}</span>{% endfor %}</h2>
         <div class="d-flex gap-1">
-            {% if ws.account_url %}<a class="btn btn-sm btn-outline-secondary" href="{{ ws.account_url }}">Client account</a>{% endif %}
+            {% if ws.account_url %}<a class="btn btn-sm btn-outline-secondary" href="{{ ws.account_url }}">Customer account</a>{% endif %}
             <a class="btn btn-sm btn-outline-secondary" href="{{ ws.list_url }}">Open in Invoices</a>
         </div>
     </div>
@@ -205,7 +205,7 @@ detail page, which applies its own checks again.
             <td><span class="ui-badge {% if log.success %}ui-badge--neutral{% else %}ui-badge--danger{% endif %}">{{ log.get_action_display }}</span></td>
             <td class="small">{{ log.object_type }}{% if log.object_repr %}: {{ log.object_repr|truncatechars:60 }}{% endif %}</td></tr>
         {% endfor %}</tbody></table></div>
-    {% else %}<div class="card-body text-muted small">No audit entries for this client.</div>{% endif %}
+    {% else %}<div class="card-body text-muted small">No audit entries for this customer.</div>{% endif %}
 </section>
 {% endif %}
 {% endif %}

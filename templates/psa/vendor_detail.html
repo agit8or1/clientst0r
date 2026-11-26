@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}{{ vendor.name }} — Vendor — PSA{% endblock %}
+{% block title %}{{ vendor.name }} — Vendor — Service Desk{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb mb-2">
-        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">Service Desk</a></li>
         <li class="breadcrumb-item"><a href="{% url 'psa:vendor_list' %}">Vendors</a></li>
         <li class="breadcrumb-item active">{{ vendor.name }}</li>
     </ol>
@@ -97,7 +97,7 @@
     <div class="card-body p-0">
         <table class="table table-sm table-hover mb-0">
             <thead class="table-light">
-                <tr><th>Number</th><th>Title</th><th>Client</th><th>Status</th><th class="text-end">Total</th><th>Issued</th></tr>
+                <tr><th>Number</th><th>Title</th><th>Customer</th><th>Status</th><th class="text-end">Total</th><th>Issued</th></tr>
             </thead>
             <tbody>
                 {% for po in open_pos %}
@@ -128,7 +128,7 @@
     <div class="card-body p-0">
         <table class="table table-sm table-hover mb-0">
             <thead class="table-light">
-                <tr><th>Number</th><th>Title</th><th>Client</th><th>Status</th><th class="text-end">Total</th><th>Issued</th></tr>
+                <tr><th>Number</th><th>Title</th><th>Customer</th><th>Status</th><th class="text-end">Total</th><th>Issued</th></tr>
             </thead>
             <tbody>
                 {% for po in recent_pos %}

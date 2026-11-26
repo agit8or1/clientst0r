@@ -92,7 +92,7 @@ class RegistryTests(TestCase):
 
     def test_contracts_heading_keeps_the_two_systems_distinct(self):
         tabs = {t.url_name: str(t.label) for t in navigation.SECTIONS_BY_KEY['mod_contracts'].tabs}
-        self.assertEqual(tabs['psa:contract_list'], 'PSA Contracts')
+        self.assertEqual(tabs['psa:contract_list'], 'Service Desk Contracts')
         self.assertEqual(tabs['contracts:dashboard'], 'Contract Documents')
 
     def test_split_tabs_keeps_the_current_page_visible(self):

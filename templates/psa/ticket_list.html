@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static psa_ui %}
+{% load static psa_ui page_header %}
 {% block title %}Tickets{% if view_label %} · {{ view_label }}{% endif %}{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/ticket_workspace.css' %}">{% endblock %}
 {% block content %}
@@ -9,27 +9,22 @@ The ticket workspace. ?view= (psa/ticket_workspace.py TICKET_VIEWS) picks the
 view; the section tabs above (core/navigation.py psa_tickets) link to each one
 and mark the current one, so back/forward and bookmarks land on the same tab.
 {% endcomment %}
-<div class="ui-page-head">
-    <div class="ui-page-head__main">
-        <h1 class="ui-page-title"><i class="fas fa-ticket-alt"></i> Tickets{% if view_label %} <span class="text-muted fw-normal">· {{ view_label }}</span>{% endif %}</h1>
-        <p class="ui-page-sub">
+{% page_header title="Tickets" icon="fas fa-ticket-alt" title_suffix=view_label %}
+{% ph_subtitle %}
             {% if filter_values.client %}
                 {% for c in available_clients %}{% if c.id|slugify == filter_values.client %}{{ c.name }} · {% endif %}{% endfor %}
-            {% elif view != 'approvals' %}All clients · {% endif %}
+            {% elif view != 'approvals' %}All customers · {% endif %}
             {% if view == 'overview' %}{{ overview.open }} open ticket{{ overview.open|pluralize }}
             {% elif view == 'approvals' %}{{ approval_rows|length }} waiting approval{{ approval_rows|length|pluralize }} on tickets
             {% else %}{{ tickets|length }} ticket{{ tickets|length|pluralize }}{% if tickets|length == 200 %} (first 200){% endif %}
             {% if view == 'unassigned' %} · open, nobody assigned{% elif view == 'sla' %} · open{% elif view == 'escalated' %} · open, escalated by the customer{% endif %}
             {% endif %}
-        </p>
-    </div>
-    <div class="ui-page-head__actions">
+{% end_ph_subtitle %}
         {% if view == 'approvals' %}<a href="{% url 'psa:approval_list' %}" class="btn btn-outline-secondary"><i class="fas fa-list"></i> All approvals</a>{% endif %}
         {% if view == 'unassigned' and is_tech %}<a href="{% url 'psa:dispatch_board' %}" class="btn btn-outline-secondary"><i class="fas fa-table-list"></i> Dispatch Board</a>{% endif %}
         <a href="{% url 'psa:my_work' %}" class="btn btn-outline-primary"><i class="fas fa-user-check"></i> My Work</a>
-        <a href="{% url 'psa:ticket_create' %}"class="btn btn-primary"><i class="fas fa-plus"></i> New ticket</a>
-    </div>
-</div>
+        <a href="{% url 'psa:ticket_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> New ticket</a>
+{% endpage_header %}
 
 {% if view == 'overview' %}
 {% include "psa/_ticket_overview.html" %}
@@ -78,7 +73,7 @@ and mark the current one, so back/forward and bookmarks land on the same tab.
                     <tr>
                         {# On phones the less-used columns drop out (the client moves under the subject). #}
                         <th>Subject</th>
-                        <th class="d-none d-sm-table-cell">Client</th>
+                        <th class="d-none d-sm-table-cell">Customer</th>
                         <th{% if view %} class="d-none d-sm-table-cell"{% endif %}>Priority</th>
                         <th{% if view %} class="d-none d-md-table-cell"{% endif %}>Status</th>
                         {% if view == 'unassigned' %}

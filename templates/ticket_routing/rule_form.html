@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{% if rule %}Edit{% else %}New{% endif %} routing rule — PSA{% endblock %}
+{% block title %}{% if rule %}Edit{% else %}New{% endif %} routing rule — Service Desk{% endblock %}
 {% block content %}
 {% include "ticket_routing/_nav.html" with tab="overview" crumb=rule.name|default:"New rule" %}
 <h4 class="mb-3"><i class="fas fa-route me-2"></i>{% if rule %}Edit "{{ rule.name }}"{% else %}New routing rule{% endif %}</h4>

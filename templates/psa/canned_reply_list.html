@@ -1,22 +1,20 @@
 {% extends "base.html" %}
-{% block title %}PSA — Canned Replies{% endblock %}
+{% load page_header %}
+{% block title %}Service Desk — Canned Replies{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">Service Desk</a></li>
         <li class="breadcrumb-item active">Canned Replies</li>
     </ol>
 </nav>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-        <h2 class="mb-0"><i class="fas fa-magic me-2"></i>Canned Replies</h2>
-        <small class="text-muted">Reusable comment templates with variable substitution.</small>
-    </div>
+{% page_header title="Canned Replies" icon="fas fa-magic" %}
+{% ph_subtitle %}Reusable comment templates with variable substitution.{% end_ph_subtitle %}
     <a href="{% url 'psa:canned_reply_create' %}" class="btn btn-primary">
         <i class="fas fa-plus me-1"></i>New Canned Reply
     </a>
-</div>
+{% endpage_header %}
 
 <div class="card">
     <div class="card-body p-0">

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.790] - 2026-11-26
+
+### Changed
+- **One page header.** The 27 main pages (tickets, customers, assets, documents, passwords, billing and others) share
+  one header: breadcrumb, title, short description and the page's buttons in the same places, with exactly one main
+  heading per page. There is less space above the content.
+- **Section tabs only when they help.** The tab strip above a page now shows only when the sidebar is collapsed to
+  icons or on phones; with the full sidebar open it lists the same pages, so the tabs are hidden. This is a display
+  rule only: no page or permission changed.
+- **Consistent names.** "Service Desk" replaces "PSA" and "Customer" replaces "Client" in menus, titles, breadcrumbs,
+  module names and help text. Addresses (URLs), settings and the API are unchanged, so links, bookmarks and
+  integrations keep working.
+- Saved views sit inside the page frame and no longer show an empty hint sentence.
+- Roadmap: 113.8 shipped.
+
 ## [3.17.789] - 2026-11-26
 
 ### Fixed

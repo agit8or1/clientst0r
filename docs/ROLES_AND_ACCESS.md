@@ -539,7 +539,7 @@ Members, invitations, roles, ownership and organization settings.
 
 ### Tickets & queues
 
-PSA tickets, internal notes, assignment, routing and sharing.
+Service Desk tickets, internal notes, assignment, routing and sharing.
 
 | Key | Action | Sensitivity | Customer | Status | Description |
 |---|---|---|---|---|---|

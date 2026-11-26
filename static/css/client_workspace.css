@@ -145,13 +145,13 @@ main .cw-grid > .card { margin-bottom: 0; }
 /* custom.css / mobile.css stretch every .btn to full width on phones; the
    workspace keeps its buttons in compact rows instead. */
 @media (max-width: 768px) {
-    .cw .cw-head__actions .btn, .cw .cw-actions .btn, .cw .cw-panel__head .btn,
+    .cw .page-header__actions .btn, .cw .cw-actions .btn, .cw .cw-panel__head .btn,
     .cw .cw-services .btn, .cw .cw-ratings .btn { width: auto; padding: 4px 10px; font-size: var(--ui-text-sm); }
     .cw .cw-actions { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
 }
 @media (max-width: 575.98px) {
     .cw-head__title { font-size: 19px; }
-    .cw-head__actions { width: 100%; }
+
     .cw-context { padding: 6px var(--ui-2); }
     .cw-dl { grid-template-columns: minmax(0, 1fr); }
     .cw-dl dt { margin-top: 4px; }

@@ -12,7 +12,7 @@
     <a class="list-group-item list-group-item-action" href="{% url 'core:customer_ops' c.pk %}">{{ c.name }}</a>
     {% endfor %}
 </div>
-{% if more %}<p class="small text-muted">{% trans "Showing the first 50 customers. Switch to a customer with the client switcher to go straight to its page." %}</p>{% endif %}
+{% if more %}<p class="small text-muted">{% trans "Showing the first 50 customers. Switch to a customer with the customer switcher to go straight to its page." %}</p>{% endif %}
 {% else %}
 <div class="alert alert-info">{% trans "You have no customers to show." %}</div>
 {% endif %}

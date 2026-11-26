@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}{{ item.name }} — Contract — PSA{% endblock %}
+{% block title %}{{ item.name }} — Contract — Service Desk{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">Service Desk</a></li>
         <li class="breadcrumb-item"><a href="{% url 'psa:contract_list' %}">Contracts</a></li>
         <li class="breadcrumb-item active">{{ item.name }}</li>
     </ol>

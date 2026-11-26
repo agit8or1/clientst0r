@@ -1,0 +1,73 @@
+/* Shared page header (templates/core/_page_header.html, {% page_header %}).
+   One compact block: optional eyebrow, the h1, a one-line description and the
+   actions on the right (wrapping under the title below 768px). Only theme
+   variables are used. Height is content-driven; no hero banners. */
+.page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--ui-2, 8px) var(--ui-3, 12px);
+    margin: 0 0 6px;
+}
+.page-header__main {
+    min-width: 0;
+    flex: 1 1 10rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: var(--ui-3, 12px);
+}
+.page-header__main > * { max-width: 100%; }
+.page-header__crumbs, .page-header__eyebrow { flex: 0 0 100%; }
+.page-header__crumbs { margin-bottom: var(--ui-1, 4px); font-size: var(--ui-text-sm, 13px); }
+.page-header__crumbs .breadcrumb { background: none; padding: 0; }
+.page-header__eyebrow {
+    margin: 0 0 2px;
+    font-size: var(--ui-text-sm, 13px);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--ui-muted, var(--bs-secondary-color));
+}
+.page-header__title {
+    flex: 0 1 auto;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--ui-2, 8px);
+    margin: 0;
+    font-size: var(--ui-title, 26px);
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: var(--ui-text-color, var(--bs-body-color));
+    overflow-wrap: anywhere;
+}
+.page-header__title > i {
+    font-size: 20px;
+    color: var(--ui-muted, var(--bs-secondary-color));
+}
+.page-header__title-suffix { font-weight: 400; color: var(--ui-muted, var(--bs-secondary-color)); }
+.page-header__sub {
+    margin: 0;
+    font-size: var(--ui-text-sm, 13px);
+    color: var(--ui-muted, var(--bs-secondary-color));
+    flex: 0 1 auto;
+}
+.page-header__actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--ui-2, 8px);
+}
+.page-header__actions form { margin: 0; display: inline-block; }
+@media (max-width: 767.98px) {
+    .page-header { margin-bottom: var(--ui-2, 8px); }
+    .page-header__title { font-size: 22px; }
+    .page-header__actions { width: 100%; }
+}
+.page-header__lead { flex: 0 0 auto; display: flex; align-items: center; }
+/* A record's picture in the header stays a thumbnail; the full image is in the page. */
+.page-header__lead img { max-height: 44px !important; max-width: 96px !important; }
+.page-header__lead .asset-stock-img { width: 44px !important; height: 44px !important; }
+.page-header__lead .cw-head__logo, .page-header__lead .cw-head__icon { width: 36px; height: 36px; }

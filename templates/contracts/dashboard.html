@@ -44,7 +44,7 @@
 <form method="get" class="card card-body mb-3">
     <div class="row g-2 align-items-end">
         <div class="col-12 col-md-3"><label class="form-label small" for="f-q">Search</label><input id="f-q" name="q" value="{{ f.q }}" class="form-control form-control-sm" placeholder="Title, number or client"></div>
-        <div class="col-6 col-md-2"><label class="form-label small" for="f-client">Client</label><select id="f-client" name="client" class="form-select form-select-sm"><option value="">All</option>{% for o in clients %}<option value="{{ o.pk }}" {% if f.client == o.pk|stringformat:"d" %}selected{% endif %}>{{ o.name }}</option>{% endfor %}</select></div>
+        <div class="col-6 col-md-2"><label class="form-label small" for="f-client">Customer</label><select id="f-client" name="client" class="form-select form-select-sm"><option value="">All</option>{% for o in clients %}<option value="{{ o.pk }}" {% if f.client == o.pk|stringformat:"d" %}selected{% endif %}>{{ o.name }}</option>{% endfor %}</select></div>
         <div class="col-6 col-md-2"><label class="form-label small" for="f-owner">Owner</label><select id="f-owner" name="owner" class="form-select form-select-sm"><option value="">Anyone</option><option value="me" {% if f.owner == 'me' %}selected{% endif %}>Me</option>{% for u in owners %}<option value="{{ u.pk }}" {% if f.owner == u.pk|stringformat:"d" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div>
         <div class="col-6 col-md-2"><label class="form-label small" for="f-status">Status</label><select id="f-status" name="status" class="form-select form-select-sm"><option value="">Any</option><option value="open" {% if f.status == 'open' %}selected{% endif %}>Open for signing</option>{% for k, l in statuses %}<option value="{{ k }}" {% if f.status == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
         <div class="col-6 col-md-1"><label class="form-label small" for="f-df">Date</label><select id="f-df" name="date_field" class="form-select form-select-sm">
@@ -58,7 +58,7 @@
 <div class="card">
     {% if page.object_list %}
     <div class="table-responsive"><table class="table table-hover mb-0 align-middle">
-        <thead class="table-light"><tr><th>Contract</th><th>Client</th><th>Owner</th><th>Status</th><th>Views</th><th class="text-end">One-time</th><th class="text-end">Recurring</th><th>Updated</th></tr></thead>
+        <thead class="table-light"><tr><th>Contract</th><th>Customer</th><th>Owner</th><th>Status</th><th>Views</th><th class="text-end">One-time</th><th class="text-end">Recurring</th><th>Updated</th></tr></thead>
         <tbody>{% for c in page.object_list %}
         <tr><td><a href="{% url 'contracts:detail' c.pk %}"><strong>{{ c.reference }}</strong></a><br><small>{{ c.title|truncatechars:60 }}</small></td>
             <td>{{ c.client_name }}</td><td>{{ c.owner.get_full_name|default:c.owner.username|default:"—" }}</td>

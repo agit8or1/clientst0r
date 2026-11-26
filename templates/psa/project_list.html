@@ -1,22 +1,20 @@
 {% extends "base.html" %}
-{% block title %}PSA — Projects{% endblock %}
+{% load page_header %}
+{% block title %}Service Desk — Projects{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">Service Desk</a></li>
         <li class="breadcrumb-item active">Projects</li>
     </ol>
 </nav>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-        <h2 class="mb-0"><i class="fas fa-diagram-project me-2"></i>Projects</h2>
-        <small class="text-muted">Group related tickets under a delivery effort.</small>
-    </div>
+{% page_header title="Projects" icon="fas fa-diagram-project" %}
+{% ph_subtitle %}Group related tickets under a delivery effort.{% end_ph_subtitle %}
     <a href="{% url 'psa:project_create' %}" class="btn btn-primary">
         <i class="fas fa-plus me-1"></i>New Project
     </a>
-</div>
+{% endpage_header %}
 
 <form method="get" class="mb-3">
     <select name="status" class="form-select form-select-sm d-inline-block" style="width:auto;" data-autosubmit>
@@ -33,7 +31,7 @@
     <div class="card-body p-0">
         <table class="table table-hover mb-0">
             <thead class="table-light">
-                <tr><th>Name</th><th>Client</th><th>Status</th><th>Owner</th><th>Due</th><th>Tickets</th></tr>
+                <tr><th>Name</th><th>Customer</th><th>Status</th><th>Owner</th><th>Due</th><th>Tickets</th></tr>
             </thead>
             <tbody>
                 {% for p in projects %}

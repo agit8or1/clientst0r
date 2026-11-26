@@ -400,12 +400,27 @@ main:has(.breadcrumb:not(.app-trail__list)) .app-trail { display: none; }
     align-items: center;
     justify-content: space-between;
     gap: 4px 12px;
-    margin-bottom: .6rem;
+    margin-bottom: 4px;
 }
+/* 113.8: less chrome above the content: a tighter top edge for pages that have the trail row. */
+.app-main > main#main-content { padding-top: 4px; margin-top: 0 !important; }
+.page-frame .app-trail .breadcrumb { line-height: 1.3; }
 .page-frame .app-trail { flex: 0 1 auto; min-width: 0; }
 .page-frame .section-tabs { flex: 0 1 auto; margin-left: auto; max-width: 100%; }
+/* 113.8: the saved-views strip shares the trail's row. */
+.page-frame .saved-views { flex: 1 1 auto; min-width: 0; }
 @media (max-width: 767.98px) {
     .page-frame .section-tabs { margin-left: 0; flex-basis: 100%; }
+}
+
+/* The section tab strip repeats the sidebar's children, so it shows only when
+   the sidebar is not listing them: collapsed to the icon rail (body.appnav-rail,
+   set before first paint, and the default from 768px to 1199px) or on a phone
+   (off-canvas drawer). The tabs still exist on the page (and in the DOM for
+   assistive tech only when visible); the More and Configure menus go with them. */
+@media (min-width: 768px) {
+    body:not(.appnav-rail) .page-frame .section-tabs { display: none; }
+    body:not(.appnav-rail) .page-frame--tabs:not(:has(.app-trail)) { display: none; }
 }
 
 /* ==========================================================================
