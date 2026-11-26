@@ -1,4 +1,4 @@
-"""Monitoring health contract, version 1.0.0 (roadmap 82.7–82.12).
+"""Monitoring health contract, version 1.1.0 (roadmap 82.7–82.12, 82.15–82.20).
 
 The reference implementation of docs/standards/MONITORING_HEALTH_STANDARD.md.
 Pure Python: no models, no I/O, no randomness except the retry jitter. Every
@@ -16,9 +16,11 @@ Four fields are kept independently (standard §2):
                   invalid_response | ingestion_failed | stale_data |
                   configuration_error | other | '' (none)
 
-The eight labels people see (Healthy / quiet, Healthy / active, Degraded,
-Permission denied, Source unavailable, Ingestion failed, Stale, Unknown) are
-derived from those fields by ``display()``; nothing stores a label.
+The labels people see (Healthy / quiet, Healthy / active, Healthy /
+recovering, Degraded, Permission denied, Source unavailable, Ingestion
+failed, Stale, Unknown) are derived from those fields by ``display()``;
+nothing stores a label. Coverage over time (gaps, backfill, delivered-late
+events; schema 1.1.0) lives in events.coverage.
 
 Rules that make this safe:
 
@@ -39,7 +41,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone as _tz
 from typing import Iterable, Optional
 
-SCHEMA_VERSION = '1.0.0'
+SCHEMA_VERSION = '1.1.0'
 PRODUCT_ID = 'clientst0r'
 
 # --- the four fields --------------------------------------------------------------------------
@@ -397,6 +399,9 @@ def effective(fields: dict, now: datetime) -> dict:
         if f.get('alert_status') == NO_ALERTS:
             f['alert_status'] = UNKNOWN
         return f
+    if f.get('gap_open') and f.get('alert_status') == NO_ALERTS:
+        # A coverage gap that is not recovered yet: the quiet is not verified.
+        f['alert_status'] = UNKNOWN
     if fresh == STALE:
         if f.get('health') == HEALTHY:
             f['health'] = UNKNOWN
@@ -413,6 +418,7 @@ def effective(fields: dict, now: datetime) -> dict:
 
 D_HEALTHY_QUIET = 'healthy_quiet'
 D_HEALTHY_ACTIVE = 'healthy_active'
+D_RECOVERING = 'healthy_recovering'
 D_DEGRADED = 'degraded'
 D_PERMISSION = 'permission_denied'
 D_UNAVAILABLE = 'source_unavailable'
@@ -425,6 +431,7 @@ DISPLAY = {
     # key: (label, Bootstrap colour, icon, rank — higher is worse)
     D_HEALTHY_QUIET: ('Healthy / quiet', 'success', 'fa-circle-check', 0),
     D_HEALTHY_ACTIVE: ('Healthy / alerts', 'success', 'fa-bell', 1),
+    D_RECOVERING: ('Healthy / recovering', 'info', 'fa-clock-rotate-left', 2),
     D_UNKNOWN: ('Unknown', 'secondary', 'fa-circle-question', 2),
     D_DEGRADED: ('Degraded', 'warning', 'fa-triangle-exclamation', 3),
     D_STALE: ('Stale', 'warning', 'fa-hourglass-end', 4),
@@ -454,7 +461,11 @@ class Display:
 def display_key(f: dict) -> str:
     health, reason = f.get('health'), f.get('reason') or ''
     if health == HEALTHY:
-        return D_HEALTHY_ACTIVE if f.get('alert_status') == ACTIVE_ALERTS else D_HEALTHY_QUIET
+        if f.get('alert_status') == ACTIVE_ALERTS:
+            return D_HEALTHY_ACTIVE
+        if f.get('gap_open') or f.get('alert_status') == UNKNOWN:
+            return D_RECOVERING
+        return D_HEALTHY_QUIET
     if reason in (PERMISSION_DENIED, AUTHENTICATION_FAILURE):
         return D_PERMISSION
     if reason in (ENDPOINT_UNAVAILABLE, TIMEOUT) and health == FAILED:
@@ -483,6 +494,8 @@ def tooltip(f: dict, key: str = '') -> str:
     parts = {
         D_HEALTHY_QUIET: 'Collection verified; no qualifying alerts in the window.',
         D_HEALTHY_ACTIVE: 'Collection verified; alerts were found.',
+        D_RECOVERING: ('Collection works again, but the window it missed is not recovered yet, so the quiet '
+                       'period is not verified.'),
         D_UNKNOWN: ('Collection has not been verified, so an empty result cannot be trusted.'
                     if f.get('outcome') != NOT_ATTEMPTED else 'No collection has run yet.'),
         D_DEGRADED: 'Collection is partly working; some data may be missing.',
@@ -500,7 +513,12 @@ def tooltip(f: dict, key: str = '') -> str:
 
 
 def is_verified_healthy(f: dict) -> bool:
-    return f.get('health') == HEALTHY and f.get('freshness', FRESH) == FRESH
+    return f.get('health') == HEALTHY and f.get('freshness', FRESH) == FRESH and not f.get('gap_open')
+
+
+# Coverage window states that leave alerts possibly missing (events.coverage).
+UNRESOLVED_WINDOWS = ('partial_recovery', 'unrecoverable_gap')
+RECENT_GAP_HOURS = 24
 
 
 # --- aggregation and AI context -------------------------------------------------------------
@@ -524,12 +542,43 @@ def summarize(records: Iterable[dict]) -> dict:
                          'last_success_at': r.get('last_success_at'), 'reason': r.get('reason', '')})
     critical_gaps = [g for g in gaps if g['critical']]
     alerts = any(r.get('alert_status') == ACTIVE_ALERTS for r in records)
+    # Recent gaps that were not fully recovered: current collection may be
+    # fine, but alerts from that window may be missing.
+    missing = []
+    for r in records:
+        w = r.get('coverage_window')
+        if w is not None and getattr(w, 'state', '') in UNRESOLVED_WINDOWS and w.resolved_at and \
+                (w.recovered_at or w.resolved_at) >= _reference_time(records) - timedelta(hours=RECENT_GAP_HOURS):
+            missing.append({'name': r.get('name', ''), 'state': w.state, 'from': w.coverage_lost_at,
+                            'to': w.recovered_at or w.resolved_at})
     return {
         'total': len(records), 'counts': counts, 'gaps': gaps, 'critical_gaps': critical_gaps,
+        'missing_windows': missing,
         'verified': bool(records) and not critical_gaps,
         'worst': worst, 'has_alerts': alerts,
         'alert_status': (ACTIVE_ALERTS if alerts else NO_ALERTS if records and not critical_gaps else UNKNOWN),
     }
+
+
+def _reference_time(records):
+    """'Now' for a roll-up: the newest attempt in it (this module reads no clock)."""
+    times = [r.get('attempted_at') for r in records if r.get('attempted_at')]
+    return max(times) if times else datetime.now(_tz.utc)
+
+
+def _missing_sentence(summary):
+    m = summary.get('missing_windows') or []
+    if not m:
+        return ''
+    # In the install's time zone, named, so the sentence matches the tables on
+    # the page (which Django renders in that zone) and stays unambiguous elsewhere.
+    from django.utils import timezone as dj_tz
+
+    def _local(dt):
+        return dj_tz.localtime(dt) if dj_tz.is_aware(dt) else dt
+    names = ', '.join(f"{g['name']} ({_local(g['from']):%Y-%m-%d %H:%M}–{_local(g['to']):%H:%M %Z})"
+                      for g in m[:4])
+    return (f' Alerts from {names} may be missing: the coverage gap could not be fully recovered.')
 
 
 def visibility_statement(summary: dict) -> str:
@@ -539,14 +588,16 @@ def visibility_statement(summary: dict) -> str:
         return ('No monitoring source reports health for this scope, so its security status cannot be '
                 'verified.')
     if summary['verified']:
-        return 'Every monitoring source in scope was verified within its freshness threshold.'
+        return ('Every monitoring source in scope was verified within its freshness threshold.'
+                + _missing_sentence(summary))
     names = ', '.join(f"{g['name'] or g['kind']} ({g['label'].lower()})" for g in summary['critical_gaps'][:6])
     more = len(summary['critical_gaps']) - 6
     if more > 0:
         names += f' and {more} more'
     lead = ('Alerts were found in the successfully monitored sources.' if summary['has_alerts']
             else 'Zero threats detected in the successfully monitored sources.')
-    return f'{lead} Monitoring is not verified for {names}, so overall security status cannot be verified.'
+    return (f'{lead} Monitoring is not verified for {names}, so overall security status cannot be verified.'
+            + _missing_sentence(summary))
 
 
 def ai_context(summary: dict) -> dict:
@@ -612,6 +663,8 @@ def to_contract(f: dict, *, tenant_id, source_id: str, source_type: str, product
         'duration_ms': f.get('duration_ms') or 0,
         'display_state': display_key(f),
         'diagnostic': (f.get('diagnostic') or '')[:MAX_DIAGNOSTIC] or None,
+        # 1.1.0: coverage over time (events.coverage); null when not tracked.
+        'coverage': f.get('coverage') if 'coverage' in f else None,
     }
 
 
@@ -669,4 +722,53 @@ def validate(payload: dict) -> list:
         errors.append('no_alerts requires verified healthy collection')
     if payload['collection_outcome'] == FAILED and not payload['failure_reason']:
         errors.append('a failed collection needs a failure_reason')
+    if payload.get('display_state') is not None and payload['display_state'] not in DISPLAY:
+        errors.append('display_state not a known state')
+    errors += _validate_coverage(payload)
+    return errors
+
+
+COVERAGE_STATES = ('verified_quiet', 'active_monitoring', 'coverage_gap', 'recovered_late', 'partial_recovery',
+                   'unrecoverable_gap', 'not_verified')
+WINDOW_STATES = ('coverage_gap', 'recovered_late', 'partial_recovery', 'unrecoverable_gap')
+
+
+def _validate_coverage(payload) -> list:
+    """Rules for the optional 1.1.0 ``coverage`` object."""
+    cov = payload.get('coverage')
+    if cov is None:
+        return []
+    if not isinstance(cov, dict):
+        return ['coverage must be an object or null']
+    errors = []
+    state = cov.get('state')
+    if state not in COVERAGE_STATES:
+        errors.append('coverage.state not a known state')
+    gap = cov.get('gap')
+    if gap is not None and (not isinstance(gap, dict) or gap.get('state') not in WINDOW_STATES):
+        errors.append('coverage.gap.state not a known window state')
+        gap = None
+    for key in ('last_verified_coverage_at',):
+        v = cov.get(key)
+        if v is not None and (not isinstance(v, str) or not v.endswith('Z') or _parse_time(v) is None):
+            errors.append(f'coverage.{key} must be an ISO 8601 UTC timestamp ending in Z, or null')
+    if state == 'verified_quiet':
+        if payload['health'] != HEALTHY or payload['alert_status'] != NO_ALERTS:
+            errors.append('coverage verified_quiet requires healthy collection with no_alerts')
+        if gap is not None and gap.get('state') == 'coverage_gap':
+            errors.append('coverage verified_quiet cannot have an open gap')
+    if gap is not None and gap.get('state') == 'coverage_gap' and payload['alert_status'] == NO_ALERTS:
+        errors.append('an open coverage gap cannot report no_alerts')
+    if gap is not None and gap.get('state') == 'coverage_gap' and state != 'coverage_gap':
+        errors.append('an open coverage gap makes coverage.state coverage_gap')
+    if gap is not None and bool(gap.get('complete')) != (gap.get('state') == 'recovered_late'):
+        errors.append('coverage.gap.complete is true exactly when the gap is recovered_late')
+    if gap is not None and gap.get('state') == 'recovered_late':
+        cap = cov.get('history_capability') or {}
+        if not (cap.get('supports_history') is True and cap.get('max_lookback_minutes')
+                and cap.get('ordering') in ('ascending', 'descending', 'unordered')
+                and cap.get('pagination') in ('cursor_exhausted', 'short_page', 'total_count')):
+            errors.append('a recovered_late gap needs a fully declared history capability')
+        if gap.get('lookback_truncated'):
+            errors.append('a recovered_late gap cannot be lookback_truncated')
     return errors

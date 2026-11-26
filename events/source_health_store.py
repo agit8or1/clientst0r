@@ -79,6 +79,7 @@ def record_collection(conn, kind: str, result: sh.CollectionResult, *, legacy_st
             secrets = credential_values(conn)
             result.diagnostic = redact(result.diagnostic or (str(result.error) if result.error else ''),
                                        secrets)[:sh.MAX_DIAGNOSTIC]
+            previous_cursor = row.window_end_complete or row.last_success_at
             f = sh.evaluate(result, previous_of(row))
             row.organization_id = customer_of(conn)
             row.health = f['health']
@@ -110,6 +111,10 @@ def record_collection(conn, kind: str, result: sh.CollectionResult, *, legacy_st
                 row.error = f['diagnostic'] if f['outcome'] != sh.SUCCESS else ''
                 row.corrective_action = suggest_action(row.error, conn) if row.error else ''
             row.save()
+            # Coverage over time (82.15): open, extend or recover the gap.
+            from . import coverage
+            coverage.on_collection(row, f, result.attempted_at, name=getattr(conn, 'name', ''),
+                                   previous_cursor=previous_cursor)
             _transition(row, fields_of(row, name=getattr(conn, 'name', '')), result.attempted_at)
             return row
     except Exception:
@@ -151,6 +156,7 @@ def fields_of(row, name='') -> dict:
         'rejected': row.rejected_count, 'newest_event_at': row.newest_event_at,
         'newest_event_basis': row.newest_event_basis, 'duration_ms': row.duration_ms,
         'consecutive_failures': row.consecutive_failures, 'stale_after_minutes': row.stale_after_minutes,
+        'window_end_complete': row.window_end_complete,
         'diagnostic': row.error if row.collection_outcome != sh.SUCCESS else '',
         'source_id': f'{row.kind}:{row.content_type_id}:{row.object_id}', 'row_id': row.pk,
     }
@@ -208,13 +214,28 @@ def gather(org_ids=None, now=None, include_msp_wide=True, kinds=None) -> list:
     if want is None or 'monitor' in want:
         out += _monitor_records(now)
     if want is None or 'push' in want:
-        out += _push_records(now)
+        out += _push_records(now, polled=rows)
     if include_msp_wide and (want is None or 'pipeline' in want):
         out += _pipeline_records(now)
+    _attach_coverage(out, now)
     if org_ids is None:
         return out
     allowed = set(org_ids)
     return [f for f in out if f['customers'] & allowed]
+
+
+def _attach_coverage(records, now):
+    """Coverage over time for every record (82.15): never breaks the page."""
+    from . import coverage
+    try:
+        coverage.attach(records, now)
+    except Exception:
+        logger.warning('could not attach monitoring coverage', exc_info=True)
+        for r in records:
+            r.setdefault('coverage_state', coverage.NOT_VERIFIED)
+            r.setdefault('coverage_window', None)
+    for r in records:
+        r['coverage'] = coverage.contract_block(r)
 
 
 def _monitor_records(now):
@@ -244,23 +265,28 @@ def _monitor_records(now):
     return out
 
 
-def _push_records(now):
+def _push_records(now, polled=()):
     """Webhook-only security connections and SIEM endpoints. A push source
     cannot prove a quiet period: with a recent delivery it is healthy with
-    alerts; without one it is unknown, never healthy / quiet."""
+    alerts; without one it is unknown, never healthy / quiet. A connection that
+    already has a polled health row (``polled``) is listed once, by that row."""
     try:
+        from django.contrib.contenttypes.models import ContentType
         from django.db.models import Max
         from security_alerts.models import SecurityAlert, SecurityVendorConnection, SIEMWebhookEndpoint
         from security_alerts.capabilities import polls_api
     except Exception:
         return []
+    conn_ct = ContentType.objects.get_for_model(SecurityVendorConnection).pk
+    has_row = {r.object_id for r in polled if r.content_type_id == conn_ct}
     out = []
     last_by_conn = dict(SecurityAlert.objects.filter(connection__isnull=False).values('connection_id')
                         .annotate(m=Max('seen_at')).values_list('connection_id', 'm'))
     last_by_siem = dict(SecurityAlert.objects.filter(siem_endpoint__isnull=False).values('siem_endpoint_id')
                         .annotate(m=Max('seen_at')).values_list('siem_endpoint_id', 'm'))
     sources = [(c, last_by_conn.get(c.pk), f'push:conn:{c.pk}', customer_of(c))
-               for c in SecurityVendorConnection.objects.filter(is_active=True) if not polls_api(c.provider)]
+               for c in SecurityVendorConnection.objects.filter(is_active=True)
+               if not polls_api(c.provider) and c.pk not in has_row]
     sources += [(e, last_by_siem.get(e.pk), f'push:siem:{e.pk}', customer_of(e))
                 for e in SIEMWebhookEndpoint.objects.filter(is_active=True)]
     for obj, last, sid, org_id in sources:
@@ -437,11 +463,19 @@ def sweep(now=None) -> int:
     rows = list(IntegrationSyncHealth.objects.filter(kind__in=MONITORING_KINDS))
     names = _names(rows)
     changed = 0
+    from . import coverage
     for row in rows:
         f = fields_of(row, names.get((row.content_type_id, row.object_id), ''))
         before = row.display_state
         _transition(row, f, now)
         changed += row.display_state != before
+        e = sh.effective(f, now)
+        if e.get('freshness') == sh.STALE and row.last_success_at and e.get('outcome') != sh.FAILED:
+            # A collector that stopped writing: its silence is a gap too.
+            try:
+                coverage.open_for_stale(row, f, now)
+            except Exception:
+                logger.warning('could not open a coverage gap for a stale source', exc_info=True)
     return changed
 
 

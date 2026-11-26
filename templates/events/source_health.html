@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load coverage_tags %}
 {% block title %}Monitoring Reliability{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb"><ol class="breadcrumb">
@@ -6,13 +7,15 @@
   {% if customer %}<li class="breadcrumb-item"><a href="{% url 'events:source_health' %}">Monitoring reliability</a></li><li class="breadcrumb-item active">{{ customer_name }}</li>{% else %}<li class="breadcrumb-item active">Monitoring reliability</li>{% endif %}
 </ol></nav>
 <h2><i class="fas fa-satellite-dish me-2"></i>Monitoring reliability{% if customer_name %}: {{ customer_name }}{% endif %}</h2>
-<p class="text-muted small mb-2">Whether each monitoring source is actually collecting, kept separate from what it found. Zero alerts counts as quiet only when the collection was verified; a source that failed, went stale or cannot be verified is shown as such, never as healthy. <a href="{% url 'events:source_health_json' %}{% if customer %}?customer={{ customer }}{% endif %}">JSON (schema 1.0.0)</a></p>
+<p class="text-muted small mb-2">Whether each monitoring source is actually collecting, kept separate from what it found. Zero alerts counts as quiet only when the collection was verified; a source that failed, went stale or cannot be verified is shown as such, never as healthy. <a href="{% url 'events:source_health_json' %}{% if customer %}?customer={{ customer }}{% endif %}">JSON (schema {{ schema_version }})</a></p>
 <div class="alert {% if overall.verified %}alert-success{% else %}alert-warning{% endif %} py-2" role="status">
   <i class="fas {% if overall.verified %}fa-circle-check{% else %}fa-triangle-exclamation{% endif %} me-1" aria-hidden="true"></i>{{ statement }}
 </div>
 <details class="mb-3 small"><summary>What the states mean</summary>
   <ul class="list-unstyled mt-2 mb-0">{% for key, label, badge, icon in legend %}<li class="mb-1"><span class="badge bg-{{ badge }}{% if badge == 'warning' %} text-dark{% endif %}"><i class="fas {{ icon }} me-1" aria-hidden="true"></i>{{ label }}</span></li>{% endfor %}</ul>
   <p class="mt-2 mb-0">Monitoring health is separate from alert severity: a source can be healthy with critical alerts, or broken with none.</p>
+  <p class="mt-3 mb-1"><strong>Coverage</strong> — whether the source's alerts were seen as they happened. Current health says whether collection works now; coverage keeps every interruption on record.</p>
+  <ul class="list-unstyled mb-0">{% for c in coverage_legend %}<li class="mb-1">{% include "events/_coverage_state.html" %} <span class="text-muted">{{ c.tooltip }}</span></li>{% endfor %}</ul>
 </details>
 
 {% if not customer %}
@@ -38,7 +41,7 @@
 
 <div class="card mb-3"><div class="card-header py-2"><h6 class="mb-0">Sources</h6></div><div class="table-responsive">
   <table class="table table-sm mb-0 align-middle">
-    <thead><tr><th>Source</th><th>Type</th>{% if not customer %}<th>Customers</th>{% endif %}<th>Monitoring</th><th>Last successful collection</th><th>Last attempt</th><th>Records (retrieved / stored / rejected)</th><th>Newest event</th><th>Failures</th></tr></thead>
+    <thead><tr><th>Source</th><th>Type</th>{% if not customer %}<th>Customers</th>{% endif %}<th>Current health</th><th>Coverage</th><th>Last successful collection</th><th>Last attempt</th><th>Records (retrieved / stored / rejected)</th><th>Newest event</th><th>Failures</th></tr></thead>
     <tbody>
     {% for r in records %}
       <tr>
@@ -46,6 +49,7 @@
         <td class="small">{{ r.kind_label }}</td>
         {% if not customer %}<td class="small">{{ r.customer_names|join:", "|default:"MSP-wide" }}</td>{% endif %}
         <td>{% include "events/_source_state.html" with d=r.display %}{% if r.diagnostic %}<div class="small text-muted text-break">{{ r.diagnostic|truncatechars:160 }}</div>{% endif %}</td>
+        <td>{% include "events/_coverage_state.html" with c=r.coverage_display %}{% if r.window_display and r.window_display.key != 'coverage_gap' %}<div class="small mt-1"><span class="text-muted">Last gap:</span> {% include "events/_coverage_state.html" with c=r.window_display %}</div>{% endif %}</td>
         <td class="small">{{ r.last_success_at|date:"Y-m-d H:i"|default:"never" }}{% if r.freshness == 'stale' and r.last_success_at %} <span class="text-warning">(older than {{ r.stale_after_minutes|default:"120" }} min)</span>{% endif %}</td>
         <td class="small">{{ r.attempted_at|date:"Y-m-d H:i"|default:"—" }}</td>
         <td class="small">{% if r.kind == 'monitor' or r.kind == 'push' or r.kind == 'pipeline' %}—{% else %}{{ r.retrieved|default:"0" }} / {{ r.committed|default:"0" }} / {{ r.rejected|default:"0" }}{% endif %}</td>
@@ -53,10 +57,54 @@
         <td>{{ r.consecutive_failures|default:"0" }}</td>
       </tr>
     {% empty %}
-      <tr><td colspan="9" class="text-muted">No monitoring sources.</td></tr>
+      <tr><td colspan="10" class="text-muted">No monitoring sources.</td></tr>
     {% endfor %}
     </tbody>
   </table>
 </div></div>
-<p class="small text-muted">Collections that fail are retried with increasing waits (and the provider's Retry-After), never switched off. Technicians are e-mailed once when a critical source fails persistently or goes stale, and once when it recovers.</p>
+<div class="card mb-3"><div class="card-header py-2 d-flex flex-wrap justify-content-between align-items-center gap-2"><h6 class="mb-0">Coverage history (30 days)</h6>
+  <div class="btn-group btn-group-sm" role="group" aria-label="Coverage history filter">
+    <a class="btn {% if not view %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?{% if customer %}customer={{ customer }}{% endif %}">All gaps</a>
+    <a class="btn {% if view == 'delayed' %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?coverage=delayed{% if customer %}&amp;customer={{ customer }}{% endif %}">Delayed alerts</a>
+  </div></div>
+  <div class="table-responsive"><table class="table table-sm mb-0 align-middle">
+    <thead><tr><th>Source</th>{% if not customer %}<th>Customers</th>{% endif %}<th>Coverage</th><th>Coverage lost</th><th>Outage start</th><th>Recovered</th><th>Outage</th><th>Failed reads</th><th>Delivered late</th><th>Max delay</th><th>Backfill</th></tr></thead>
+    <tbody>
+    {% for h in history %}
+      <tr data-window="{{ h.w.pk }}">
+        <td>{{ h.name }}</td>
+        {% if not customer %}<td class="small">{{ h.customers|join:", "|default:"MSP-wide" }}</td>{% endif %}
+        <td>{% include "events/_coverage_state.html" with c=h.d %}</td>
+        <td class="small text-nowrap">{{ h.w.coverage_lost_at|date:"Y-m-d H:i" }}</td>
+        <td class="small text-nowrap">{{ h.w.first_failure_at|date:"Y-m-d H:i" }}</td>
+        <td class="small text-nowrap">{{ h.w.recovered_at|date:"Y-m-d H:i"|default:"not yet" }}</td>
+        <td class="small text-nowrap">{{ h.w.outage_seconds|delay }}</td>
+        <td>{{ h.w.failed_reads }}</td>
+        <td>{{ h.w.recovered_count }}{% if h.w.duplicate_count %} <span class="small text-muted" title="Already stored before; not stored again">(+{{ h.w.duplicate_count }} duplicates)</span>{% endif %}</td>
+        <td class="small">{% if h.w.max_delay_seconds is not None %}{{ h.w.max_delay_seconds|delay }}{% else %}—{% endif %}</td>
+        <td class="small">{{ h.w.get_backfill_state_display }}{% if h.w.lookback_truncated %} <span class="text-warning" title="Part of the gap is older than the lookback the source allows">(lookback limit)</span>{% endif %}{% if h.w.backfill_error and h.w.state == 'coverage_gap' %}<div class="text-muted">retrying: {{ h.w.backfill_error }}</div>{% endif %}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="11" class="text-muted">{% if view == 'delayed' %}No gap in the last 30 days delivered alerts late.{% else %}No coverage gaps in the last 30 days.{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% if view == 'delayed' %}
+<div class="card mb-3"><div class="card-header py-2"><h6 class="mb-0">Alerts delivered late</h6></div>
+  <div class="table-responsive"><table class="table table-sm mb-0 align-middle">
+    <thead><tr><th>Alert</th><th>Customer</th><th>Occurred</th><th>Received</th><th>Delay</th></tr></thead>
+    <tbody>
+    {% for e in delayed %}
+      <tr><td><a href="{% url 'events:detail' e.pk %}">{{ e.title }}</a></td><td class="small">{{ e.organization.name|default:"MSP-wide" }}</td>
+        <td class="small text-nowrap">{{ e.occurred_at|date:"Y-m-d H:i"|default:"unknown" }}</td><td class="small text-nowrap">{{ e.first_seen_at|date:"Y-m-d H:i" }}</td>
+        <td>{% include "events/_delivered_late.html" with delay=e.delivery_delay_seconds occurred=e.occurred_at %}</td></tr>
+    {% empty %}
+      <tr><td colspan="5" class="text-muted">No alerts were delivered late.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endif %}
+<p class="small text-muted">Collections that fail are retried with increasing waits (and the provider's Retry-After), never switched off. Technicians are e-mailed once when a critical source fails persistently or goes stale, and once when it recovers. After a recovery the missed window is retrieved where the source supports it; alerts found that way go through the normal ticket rules and incident handling, marked delivered late.</p>
 {% endblock %}

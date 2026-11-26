@@ -73,6 +73,8 @@ WIDGET_SPECS = {
     'monitors_status_breakdown': ('monitoring_view', SCOPE_ORG),
     'ssl_expiring_soon': ('monitoring_view', SCOPE_ORG),
     'domain_expiring_soon': ('monitoring_view', SCOPE_ORG),
+    # Monitoring coverage (82.20): same permission as Monitoring reliability.
+    'monitoring_coverage': ('events_view', SCOPE_ORG),
     'warranties_expiring_soon': ('assets_view', SCOPE_ORG),
     'vault_activity_24h': ('audit_view', SCOPE_ORG),
     # No client to scope these by, so they are MSP-wide or nothing.
@@ -579,6 +581,93 @@ def security_alerts_open_critical(params):
         return {'value': '0', 'subtitle': 'Security', 'icon': 'fa-shield-halved', 'color': 'secondary'}
 
 
+# ---- Monitoring coverage (roadmap 82.20) ------------------------------------
+
+def _cov_cell(d, extra=''):
+    """A state cell: icon + text label + tooltip (never colour alone)."""
+    text = d.label + (f' · {extra}' if extra else '')
+    return {'text': text, 'badge': d.badge, 'icon': d.icon, 'title': d.tooltip, 'key': d.key}
+
+
+def monitoring_coverage(params):
+    """Monitoring sources' current health next to their coverage history.
+
+    Categories: ``current`` (each source: current health, coverage, last
+    gap), ``gaps`` (historical gaps, 30 days) and ``delayed`` (alerts
+    delivered late, 7 days). Each state cell carries an icon, a text label
+    and a tooltip in ``rich_rows``; ``rows`` holds the same as plain text
+    for renderers that show text only."""
+    from datetime import timedelta
+    from django.utils import timezone
+    from core.models import Organization
+    from events import coverage, source_health as sh, source_health_store as store
+    from events.models import OperationalEvent
+    org_ids = _org_ids(params)
+    cat = (params or {}).get('category') or 'current'
+    allowed = None if org_ids is None else set(org_ids)
+    now = timezone.now()
+
+    def finish(headers, rich):
+        return {'headers': headers, 'columns': headers, 'rich_rows': rich,
+                'rows': [[c.get('text', '') for c in row] for row in rich]}
+
+    if cat == 'delayed':
+        qs = OperationalEvent.objects.filter(delivered_late=True, first_seen_at__gte=now - timedelta(days=7))
+        if allowed is not None:
+            qs = qs.filter(organization_id__in=allowed)
+        icon = coverage.coverage_display(coverage.RECOVERED_LATE).icon
+        rich = [[{'text': e.title[:80]}, {'text': e.organization.name if e.organization_id else 'MSP-wide'},
+                 {'text': e.get_severity_display()},
+                 {'text': f'{e.occurred_at:%Y-%m-%d %H:%M}' if e.occurred_at else 'unknown'},
+                 {'text': f'Delivered late · {coverage.format_delay(e.delivery_delay_seconds)}',
+                  'badge': 'warning', 'icon': icon, 'key': 'delivered_late',
+                  'title': 'Not seen in real time: received only after a monitoring coverage gap.'}]
+                for e in qs.select_related('organization').order_by('-first_seen_at')[:15]]
+        return finish(['Alert', 'Customer', 'Severity', 'Occurred', 'Delivery'], rich)
+
+    records = store.gather(allowed, include_msp_wide=allowed is None)
+    ids = set().union(*[r['customers'] for r in records]) if records else set()
+    if allowed is not None:
+        ids &= allowed
+    names = dict(Organization.objects.filter(pk__in=ids).values_list('pk', 'name'))
+
+    def customers(cust):
+        cust = cust if allowed is None else (cust & allowed)
+        return ', '.join(sorted(names.get(o, '') for o in cust)) or 'MSP-wide'
+
+    if cat == 'gaps':
+        by_source = {r['source_id']: r for r in records if r.get('source_id')}
+        rich = []
+        for w in coverage.windows_for(by_source, since=now - timedelta(days=coverage.HISTORY_DAYS), limit=15):
+            r = by_source.get(w.source_key, {})
+            rich.append([{'text': w.source_name or r.get('name') or w.kind},
+                         {'text': customers(r.get('customers', set()))},
+                         _cov_cell(coverage.coverage_display(w.state, recovered=w.recovered_count)),
+                         {'text': f'{w.first_failure_at:%Y-%m-%d %H:%M}'},
+                         {'text': coverage.format_delay(w.outage_seconds)},
+                         {'text': str(w.recovered_count)},
+                         {'text': coverage.format_delay(w.max_delay_seconds) if w.max_delay_seconds is not None
+                          else '—'}])
+        return finish(['Source', 'Customer', 'Coverage', 'Outage start', 'Outage', 'Delivered late', 'Max delay'],
+                      rich)
+
+    rows = []
+    for r in records:
+        d = sh.display(r)
+        c = coverage.coverage_display(r.get('coverage_state') or coverage.NOT_VERIFIED)
+        w = r.get('coverage_window')
+        rows.append((max(d.rank, c.rank), r.get('name') or '', [
+            {'text': r.get('name') or '—'}, {'text': customers(r.get('customers', set()))},
+            _cov_cell(d), _cov_cell(c),
+            _cov_cell(coverage.coverage_display(w.state, recovered=w.recovered_count)) if w else {'text': 'none'},
+            {'text': coverage.format_delay(w.outage_seconds) if w else '—'},
+            {'text': str(w.recovered_count) if w else '—'},
+            {'text': coverage.format_delay(w.max_delay_seconds) if w and w.max_delay_seconds is not None
+             else '—'}]))
+    rows.sort(key=lambda t: (-t[0], t[1].lower()))
+    return finish(['Source', 'Customer', 'Current health', 'Coverage', 'Last gap (30 days)', 'Outage',
+                   'Delivered late', 'Max delay'], [r[2] for r in rows[:15]])
+
 # ---- v3.17.224 — operations / monitoring widgets ---------------------------
 
 def techs_logged_in(params):
@@ -793,6 +882,8 @@ REGISTRY = {
     'vault_activity_24h': vault_activity_24h,
     'alerts_by_severity': alerts_by_severity,
     'monitors_status_breakdown': monitors_status_breakdown,
+    # 82.20
+    'monitoring_coverage': monitoring_coverage,
 }
 
 DATA_SOURCE_CHOICES = [
@@ -826,6 +917,7 @@ DATA_SOURCE_CHOICES = [
     ('vault_activity_24h', 'Vault events last 24h (metric)', 'metric'),
     ('alerts_by_severity', 'Open alerts by severity (table)', 'table'),
     ('monitors_status_breakdown', 'Monitor status breakdown (pie)', 'chart_pie'),
+    ('monitoring_coverage', 'Monitoring coverage: health, gaps, delayed alerts (table)', 'table'),
 ]
 
 
@@ -860,6 +952,11 @@ CATEGORIES = {
         {'value': 'daily', 'label': 'Daily', 'default': True},
         {'value': 'weekly', 'label': 'Weekly buckets'},
         {'value': 'cumulative', 'label': 'Cumulative (running total)'},
+    ],
+    'monitoring_coverage': [
+        {'value': 'current', 'label': 'Current health and coverage', 'default': True},
+        {'value': 'gaps', 'label': 'Historical gaps (30 days)'},
+        {'value': 'delayed', 'label': 'Delayed alerts (7 days)'},
     ],
     'at_risk_clients': [
         {'value': 'worst', 'label': 'Top 5 worst', 'default': True},
@@ -938,6 +1035,8 @@ WALLBOARD_TEMPLATES = [
             {'data_source': 'recent_failed_logins', 'title': 'Failed logins (24h)', 'widget_type': 'metric'},
             {'data_source': 'alerts_by_severity', 'title': 'All open alerts by severity', 'widget_type': 'table'},
             {'data_source': 'vault_activity_24h', 'title': 'Vault events (24h)', 'widget_type': 'metric'},
+            {'data_source': 'monitoring_coverage', 'title': 'Monitoring coverage', 'widget_type': 'table',
+             'width': 12},
         ],
     },
     {

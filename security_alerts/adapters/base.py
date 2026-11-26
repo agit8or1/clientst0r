@@ -37,6 +37,13 @@ class SecurityProvider(IntegrationProvider):
 
     supports_empty_window_probe = False
     ordering_guaranteed = False
+    # Monitoring coverage (82.15–82.20): what the vendor lets us ask for
+    # after an outage. None = not declared, so a missed window is never
+    # reported as fully recovered. An adapter that can page through past
+    # alerts declares an ``events.coverage.HistoryCapability`` (history
+    # support, maximum lookback, ordering, completeness signal) and
+    # implements ``fetch_history``.
+    history_capability = None
 
     @abstractmethod
     def poll_alerts(self, connection, since=None):
@@ -47,6 +54,13 @@ class SecurityProvider(IntegrationProvider):
         """Bounded verification probe for an empty window. Return True when
         the source answered (it could have returned data); raise on any
         failure. Read-only, at most one small request."""
+        raise NotImplementedError
+
+    def fetch_history(self, connection, start, end, page_token=None, limit=100):
+        """One page of alerts that occurred in [start, end), as an
+        ``events.coverage.HistoryPage`` of the same dicts poll_alerts
+        returns (with ``occurred_at``). Raise on any failure; never return
+        an empty page for an error. Read-only, bounded timeout."""
         raise NotImplementedError
 
     def sync(self, connection):
@@ -103,39 +117,33 @@ class SecurityProvider(IntegrationProvider):
                 verification = sh.V_NOT_SUPPORTED
 
         imported, committed, rejected, errors = 0, 0, 0, []
-        from security_alerts.ingest import upsert_alert
+        # An open coverage gap: alerts first stored by this read happened
+        # while nobody could see them (82.16).
+        from events import coverage
+        window = coverage.open_window(connection, 'security')
+        late = dups = 0
+        max_delay = None
         for a in alerts:
             try:
                 if not isinstance(a, dict):
                     raise _InvalidResponse('alert is not an object')
-                obj, created = upsert_alert(
-                    {'connection': connection, 'external_id': a.get('external_id', '')},
-                    {
-                        'organization': connection.organization,
-                        'client_org': connection.client_org,
-                        'severity': _bucket_severity(a.get('severity')),
-                        'title': (a.get('title') or '')[:300],
-                        'description': a.get('description', ''),
-                        'asset_hint': (a.get('asset_hint') or '')[:200],
-                        'raw_payload': a.get('raw_payload', {}),
-                    },
-                )
+                out = ingest_polled_alert(connection, a, window=window)
             except Exception as exc:
                 rejected += 1
                 if len(errors) < 5:
                     errors.append(f'{type(exc).__name__}')
                 continue
             committed += 1
-            if created:
+            if out['created']:
                 imported += 1
-                # Auto-ticket evaluation
-                _maybe_auto_ticket(obj)
-                # Phase 23 v3.17.338 — auto-correlate into a SecurityIncident
-                try:
-                    from security_alerts.models import _correlate_alert_to_incident
-                    _correlate_alert_to_incident(obj)
-                except Exception:
-                    pass
+                if out['late']:
+                    late += 1
+                    if out['delay'] is not None:
+                        max_delay = out['delay'] if max_delay is None else max(max_delay, out['delay'])
+            elif window is not None:
+                dups += 1
+        coverage.note_delivered(window, late=late, duplicates=dups, rejected=rejected if window else 0,
+                                max_delay=max_delay)
 
         from security_alerts.models import SecurityAlert
         open_alerts = SecurityAlert.objects.filter(connection=connection, status__in=('new', 'acknowledged')).count()
@@ -155,6 +163,61 @@ class SecurityProvider(IntegrationProvider):
 
 class _InvalidResponse(ValueError):
     health_reason = 'invalid_response'
+
+
+def ingest_polled_alert(connection, a, *, window=None, via_backfill=False):
+    """Store one polled alert through the normal path: deduplicated by
+    (connection, external id), then the alert-to-ticket rules and incident
+    correlation (whose playbooks keep their approval rules). Used by the
+    regular poll and by the backfill alike, so a backfilled alert gets no
+    shortcut. Returns {'alert', 'created', 'late', 'delay'}.
+
+    The vendor's event time is kept as ``occurred_at`` (validated; else
+    empty) and the delay to ``seen_at`` recorded. A new alert that happened
+    inside an open coverage gap is marked delivered late, and so are its
+    ticket and incident.
+    """
+    from django.utils import timezone
+    from events import coverage
+    from security_alerts.ingest import upsert_alert
+    now = timezone.now()
+    occurred = coverage.valid_event_time(a.get('occurred_at'), now)
+    late = coverage.is_late(window, occurred, now, via_backfill=via_backfill)
+    delay = coverage.delay_seconds(occurred, now)
+    obj, created = upsert_alert(
+        {'connection': connection, 'external_id': a.get('external_id', '')},
+        {
+            'organization': connection.organization,
+            'client_org': connection.client_org,
+            'severity': _bucket_severity(a.get('severity')),
+            'title': (a.get('title') or '')[:300],
+            'description': a.get('description', ''),
+            'asset_hint': (a.get('asset_hint') or '')[:200],
+            'raw_payload': a.get('raw_payload', {}),
+        },
+        create_only={'occurred_at': occurred, 'delivery_delay_seconds': delay, 'delivered_late': late,
+                     'coverage_window_id': window.pk if (late and window is not None) else None},
+    )
+    if created:
+        # Auto-ticket evaluation
+        _maybe_auto_ticket(obj)
+        # Phase 23 v3.17.338 — auto-correlate into a SecurityIncident
+        try:
+            from security_alerts.models import _correlate_alert_to_incident
+            incident = _correlate_alert_to_incident(obj)
+            if late and incident is not None:
+                incident.add_event(kind='delivered_late', alert=obj, message=late_note(obj))
+        except Exception:
+            pass
+    return {'alert': obj, 'created': created, 'late': bool(created and late), 'delay': delay if created else None}
+
+
+def late_note(alert):
+    from events.coverage import format_delay
+    when = f'{alert.occurred_at:%Y-%m-%d %H:%M} UTC' if alert.occurred_at else 'an unknown time'
+    return (f'Delivered late: alert {alert.pk} occurred at {when} and was received at '
+            f'{alert.seen_at:%Y-%m-%d %H:%M} UTC (delay {format_delay(alert.delivery_delay_seconds)}), after a '
+            f'monitoring coverage gap. It was not seen in real time.')
 
 
 # SR-08: an alert matching an open auto-ticket for the same customer, asset
@@ -269,10 +332,13 @@ def _maybe_auto_ticket(alert):
             priority = TicketPriority.objects.filter(code=priority_code).first() or TicketPriority.objects.first()
             status = TicketStatus.objects.filter(slug='new').first()
             ttype = TicketType.objects.first()
+            late = getattr(alert, 'delivered_late', False)
             ticket = Ticket.objects.create(
                 organization=alert.client_org or alert.organization,
-                subject=f'[Security] {alert.title[:200]}',
-                description=alert.description or '',
+                subject=(f'[Security][Delivered late] {alert.title[:185]}' if late
+                         else f'[Security] {alert.title[:200]}'),
+                description=(f'{late_note(alert)}\n\n{alert.description or ""}'.strip() if late
+                             else alert.description or ''),
                 queue=queue, priority=priority, status=status, ticket_type=ttype,
                 assigned_to=rule.ticket_assignee,
                 source='monitoring',

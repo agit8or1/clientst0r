@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/agit8or1/clientst0r/blob/main/docs/standards/monitoring-health/schema-1.1.0.json",
+  "title": "MSPZero monitoring source health record",
+  "description": "Monitoring Health Standard 1.1.0 (docs/standards/MONITORING_HEALTH_STANDARD.md). One record describes one monitoring source for one tenant. 1.1.0 adds the optional coverage object (gaps, recovery, backfill and delivered-late events, section 6.5) and the display state healthy_recovering; every 1.0.0 record is a valid 1.1.0 record. Four fields are independent: health, collection_outcome, alert_status and failure_reason. Cross-field rules in section 4.3 of the standard are not expressible here and are enforced by the reference validator (events/source_health.py validate()).",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version", "product_id", "tenant_id", "source_id", "source_type", "health",
+    "collection_outcome", "alert_status", "failure_reason", "completeness", "freshness",
+    "freshness_threshold_minutes", "last_attempt_at", "last_success_at", "records",
+    "newest_event_at", "consecutive_failures"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "pattern": "^1\\.[0-9]+\\.[0-9]+$"},
+    "product_id": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z0-9][a-z0-9_.-]*$"},
+    "tenant_id": {"type": ["string", "null"], "maxLength": 128, "description": "The product's own tenant id; null = provider-wide (no single tenant)."},
+    "source_id": {"type": "string", "minLength": 1, "maxLength": 200, "description": "Stable id of the source inside the product. Opaque; never a secret or URL with credentials."},
+    "source_type": {"type": "string", "minLength": 1, "maxLength": 64},
+    "health": {"enum": ["healthy", "degraded", "failed", "unknown"]},
+    "collection_outcome": {"enum": ["success", "partial", "failed", "not_attempted"]},
+    "alert_status": {"enum": ["no_alerts", "active_alerts", "unknown"]},
+    "failure_reason": {"enum": [null, "authentication_failure", "permission_denied", "endpoint_unavailable", "timeout", "rate_limited", "invalid_response", "ingestion_failed", "stale_data", "configuration_error", "other"]},
+    "completeness": {"enum": ["complete", "partial", "unverified"]},
+    "verification": {"enum": [null, "probe_passed", "connection_test", "records_returned", "not_supported", "push_only"]},
+    "freshness": {"enum": ["fresh", "stale"]},
+    "freshness_threshold_minutes": {"type": "integer", "minimum": 15, "maximum": 43200},
+    "last_attempt_at": {"type": ["string", "null"], "format": "date-time", "pattern": "Z$"},
+    "last_success_at": {"type": ["string", "null"], "format": "date-time", "pattern": "Z$"},
+    "query_window": {
+      "type": ["object", "null"],
+      "properties": {
+        "start": {"type": ["string", "null"], "format": "date-time", "pattern": "Z$"},
+        "end": {"type": ["string", "null"], "format": "date-time", "pattern": "Z$"}
+      }
+    },
+    "records": {
+      "type": "object",
+      "required": ["retrieved", "processed", "rejected", "committed"],
+      "properties": {
+        "retrieved": {"type": "integer", "minimum": 0},
+        "processed": {"type": "integer", "minimum": 0},
+        "rejected": {"type": "integer", "minimum": 0},
+        "committed": {"type": "integer", "minimum": 0}
+      }
+    },
+    "newest_event_at": {"type": ["string", "null"], "format": "date-time", "pattern": "Z$"},
+    "newest_event_basis": {"enum": ["source_order", "validated_timestamps", "unknown"]},
+    "consecutive_failures": {"type": "integer", "minimum": 0},
+    "duration_ms": {"type": "integer", "minimum": 0},
+    "display_state": {"enum": ["healthy_quiet", "healthy_active", "healthy_recovering", "degraded", "permission_denied", "source_unavailable", "ingestion_failed", "collection_failed", "stale", "unknown"]},
+    "diagnostic": {"type": ["string", "null"], "maxLength": 500, "description": "Redacted, human-readable. Never credentials, tokens, event content or customer data."},
+    "coverage": {
+      "type": ["object", "null"],
+      "description": "1.1.0: whether the source's events were seen as they happened (section 6.5). null = not tracked.",
+      "required": ["state"],
+      "properties": {
+        "state": {"enum": ["verified_quiet", "active_monitoring", "coverage_gap", "recovered_late", "partial_recovery", "unrecoverable_gap", "not_verified"], "description": "Current coverage of the source."},
+        "last_verified_coverage_at": {"type": ["string", "null"], "format": "date-time", "pattern": "Z$", "description": "End of the last window collected completely."},
+        "gap": {
+          "type": ["object", "null"],
+          "description": "The open gap, or the most recent one in the last 30 days.",
+          "required": ["state", "complete"],
+          "properties": {
+            "state": {"enum": ["coverage_gap", "recovered_late", "partial_recovery", "unrecoverable_gap"]},
+            "cause": {"type": ["string", "null"]},
+            "coverage_lost_at": {"type": ["string", "null"], "format": "date-time", "pattern": "Z$"},
+            "outage_started_at": {"type": ["string", "null"], "format": "date-time", "pattern": "Z$"},
+            "recovered_at": {"type": ["string", "null"], "format": "date-time", "pattern": "Z$"},
+            "resolved_at": {"type": ["string", "null"], "format": "date-time", "pattern": "Z$"},
+            "failed_reads": {"type": "integer", "minimum": 0},
+            "backfill_state": {"enum": [null, "pending", "running", "complete", "incomplete", "failed", "unsupported", "disabled"]},
+            "events_delivered_late": {"type": "integer", "minimum": 0},
+            "duplicates_skipped": {"type": "integer", "minimum": 0},
+            "records_rejected": {"type": "integer", "minimum": 0},
+            "max_delivery_delay_seconds": {"type": ["integer", "null"], "minimum": 0},
+            "lookback_truncated": {"type": "boolean"},
+            "complete": {"type": "boolean", "description": "True only for recovered_late: declared capability and retrieval both proved the window complete."}
+          }
+        },
+        "history_capability": {
+          "type": ["object", "null"],
+          "description": "What the provider declares about retrieving past events; null or null fields = not declared (never complete).",
+          "properties": {
+            "supports_history": {"type": ["boolean", "null"]},
+            "max_lookback_minutes": {"type": ["integer", "null"], "minimum": 1},
+            "ordering": {"enum": [null, "ascending", "descending", "unordered"]},
+            "pagination": {"enum": [null, "cursor_exhausted", "short_page", "total_count", "none"]}
+          }
+        }
+      }
+    }
+  }
+}

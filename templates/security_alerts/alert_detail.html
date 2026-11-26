@@ -25,6 +25,8 @@
                 <p class="text-muted mb-1">Client: {{ alert.client_org.name|default:"(unscoped)" }}</p>
                 <p class="text-muted mb-1">Asset hint: <code>{{ alert.asset_hint|default:"—" }}</code></p>
                 <p class="text-muted mb-1">External ID: <code>{{ alert.external_id }}</code></p>
+                {% if alert.occurred_at %}<p class="text-muted mb-1">Occurred (vendor time): {{ alert.occurred_at }}</p>{% endif %}
+                {% if alert.delivered_late %}<p class="mb-1">{% include "events/_delivered_late.html" with delay=alert.delivery_delay_seconds occurred=alert.occurred_at %} <span class="small text-muted">Received only after a monitoring coverage gap; it was not seen in real time.</span></p>{% endif %}
                 <p class="text-muted mb-1">Seen: {{ alert.seen_at }}{% if alert.acknowledged_at %} · Acknowledged: {{ alert.acknowledged_at }} ({{ alert.acknowledge_minutes }} min){% endif %}</p>
                 {% if alert.auto_ticket %}
                 <p>Ticket: <a href="/psa/tickets/{{ alert.auto_ticket_id }}/">{{ alert.auto_ticket.ticket_number }}</a></p>

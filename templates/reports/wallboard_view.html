@@ -119,11 +119,17 @@
                     {% endif %}
                     {% endwith %}
                         <tbody>
+                        {% if data.rich_rows %}
+                        {% for row in data.rich_rows %}
+                            <tr>{% for cell in row %}<td>{% if cell.icon %}<span class="badge bg-{{ cell.badge }}{% if cell.badge == 'warning' or cell.badge == 'info' %} text-dark{% endif %}" title="{{ cell.title }}" data-state="{{ cell.key }}"><i class="fas {{ cell.icon }} me-1" aria-hidden="true"></i>{{ cell.text }}</span>{% else %}{{ cell.text }}{% endif %}</td>{% endfor %}</tr>
+                        {% endfor %}
+                        {% else %}
                         {% for row in data.rows %}
                             <tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
                         {% empty %}
                             <tr><td class="text-muted text-center">no rows</td></tr>
                         {% endfor %}
+                        {% endif %}
                         </tbody>
                     </table>
                 </div>
@@ -237,9 +243,23 @@
             } else if (data.columns && data.columns.length) {
                 thead = '<thead><tr>' + data.columns.map(function(h) { return '<th>' + escapeHtml(h) + '</th>'; }).join('') + '</tr></thead>';
             }
-            var rows = (data.rows || []).map(function(r) {
-                return '<tr>' + r.map(function(cell) { return '<td>' + escapeHtml(cell) + '</td>'; }).join('') + '</tr>';
-            }).join('');
+            var rows;
+            if (data.rich_rows && data.rich_rows.length) {
+                // State cells: icon + text label + tooltip, never colour alone.
+                rows = data.rich_rows.map(function(r) {
+                    return '<tr>' + r.map(function(cell) {
+                        if (!cell || !cell.icon) return '<td>' + escapeHtml(cell && cell.text) + '</td>';
+                        var dark = (cell.badge === 'warning' || cell.badge === 'info') ? ' text-dark' : '';
+                        return '<td><span class="badge bg-' + escapeHtml(cell.badge) + dark + '" title="' +
+                            escapeHtml(cell.title) + '" data-state="' + escapeHtml(cell.key) + '"><i class="fas ' +
+                            escapeHtml(cell.icon) + ' me-1" aria-hidden="true"></i>' + escapeHtml(cell.text) + '</span></td>';
+                    }).join('') + '</tr>';
+                }).join('');
+            } else {
+                rows = (data.rows || []).map(function(r) {
+                    return '<tr>' + r.map(function(cell) { return '<td>' + escapeHtml(cell) + '</td>'; }).join('') + '</tr>';
+                }).join('');
+            }
             if (!rows) rows = '<tr><td class="text-muted text-center">no rows</td></tr>';
             body.innerHTML =
                 '<div class="table-responsive"><table class="table table-sm small mb-0">' +

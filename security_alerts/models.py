@@ -209,6 +209,19 @@ class SecurityAlert(models.Model):
         related_name='security_alerts',
         help_text='If a rule auto-created a ticket from this alert, link to it.',
     )
+    # Monitoring coverage (roadmap 82.15–82.20). ``seen_at`` is when
+    # Clientst0r stored the alert; ``occurred_at`` is the vendor's own event
+    # time (validated, else empty). An alert first stored after a monitoring
+    # outage — by the first read after recovery or by the backfill — is
+    # delivered late: it was not seen in real time.
+    occurred_at = models.DateTimeField(null=True, blank=True,
+                                       help_text="The vendor's own event time, when it gave a valid one")
+    delivered_late = models.BooleanField(default=False,
+                                         help_text='Stored only after a monitoring coverage gap')
+    delivery_delay_seconds = models.PositiveBigIntegerField(null=True, blank=True,
+                                                            help_text='seen_at minus occurred_at')
+    coverage_window_id = models.PositiveBigIntegerField(null=True, blank=True,
+                                                        help_text='events.CoverageWindow it was recovered from')
 
     class Meta:
         db_table = 'security_alerts'
@@ -507,6 +520,7 @@ class SecurityIncidentEvent(models.Model):
         ('playbook_action', 'Playbook action'),
         ('playbook_suggested', 'Playbook suggested'),
         ('sla_breach', 'SLA breach'),
+        ('delivered_late', 'Delivered late'),
     ]
 
     incident = models.ForeignKey(

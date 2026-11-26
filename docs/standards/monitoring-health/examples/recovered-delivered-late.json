@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.1.0",
+  "product_id": "clientst0r",
+  "tenant_id": "42",
+  "source_id": "security:31:7",
+  "source_type": "security",
+  "health": "healthy",
+  "collection_outcome": "success",
+  "alert_status": "active_alerts",
+  "failure_reason": null,
+  "completeness": "complete",
+  "verification": "records_returned",
+  "freshness": "fresh",
+  "freshness_threshold_minutes": 60,
+  "last_attempt_at": "2026-11-20T12:30:00Z",
+  "last_success_at": "2026-11-20T12:30:00Z",
+  "query_window": {
+    "start": "2026-11-20T12:00:00Z",
+    "end": "2026-11-20T12:05:00Z"
+  },
+  "records": {
+    "retrieved": 3,
+    "processed": 3,
+    "rejected": 0,
+    "committed": 3
+  },
+  "newest_event_at": "2026-11-20T12:03:41Z",
+  "newest_event_basis": "validated_timestamps",
+  "consecutive_failures": 0,
+  "duration_ms": 655,
+  "display_state": "healthy_active",
+  "diagnostic": null,
+  "coverage": {
+    "state": "active_monitoring",
+    "last_verified_coverage_at": "2026-11-20T12:30:00Z",
+    "gap": {
+      "state": "recovered_late",
+      "cause": "endpoint_unavailable",
+      "coverage_lost_at": "2026-11-20T12:00:00Z",
+      "outage_started_at": "2026-11-20T12:10:00Z",
+      "recovered_at": "2026-11-20T12:30:00Z",
+      "resolved_at": "2026-11-20T12:31:00Z",
+      "failed_reads": 2,
+      "backfill_state": "complete",
+      "events_delivered_late": 3,
+      "duplicates_skipped": 0,
+      "records_rejected": 0,
+      "max_delivery_delay_seconds": 1560,
+      "lookback_truncated": false,
+      "complete": true
+    },
+    "history_capability": {
+      "supports_history": true,
+      "max_lookback_minutes": 10080,
+      "ordering": "unordered",
+      "pagination": "cursor_exhausted"
+    }
+  }
+}

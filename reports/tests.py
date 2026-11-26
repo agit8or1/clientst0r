@@ -3439,6 +3439,18 @@ class WallboardFormCleanupTests(TestCase):
         b = Wallboard.objects.get(name='TplBoard')
         self.assertEqual(b.widgets.count(), 6)  # Operations template has 6 widgets
 
+    def test_alerts_template_puts_the_coverage_table_across_the_row(self):
+        from django.test import Client
+        from reports.models import Wallboard
+        c = Client()
+        self._login(c)
+        c.post('/reports/wallboards/new/', data={
+            'organization': self.org.pk, 'name': 'AlertsBoard', 'description': '', 'refresh_seconds': 60,
+            'rotate_seconds': 0, 'order': 100, 'is_active': 'on', 'template': 'alerts'})
+        b = Wallboard.objects.get(name='AlertsBoard')
+        self.assertEqual(b.widgets.get(data_source='monitoring_coverage').position, {'width': 12})
+        self.assertEqual(b.widgets.get(data_source='security_alerts_open_critical').position, {})
+
     def test_create_with_custom_template_creates_no_widgets(self):
         from django.test import Client
         from reports.models import Wallboard

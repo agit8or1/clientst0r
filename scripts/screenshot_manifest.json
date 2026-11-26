@@ -1246,8 +1246,8 @@
       "theme": "dark",
       "group": "operations",
       "heading": "Events",
-      "caption": "One list of alerts from every source — security vendors and SIEM, RMM, Rem0te, backups and website monitors — with severity, customer, status and repeat counts.",
-      "alt": "Events list in dark theme showing website, backup, security and RMM alerts across several customers with severity badges and occurrence counts",
+      "caption": "One list of alerts from every source — security vendors and SIEM, RMM, Rem0te, backups and website monitors — with severity, customer, status and repeat counts; alerts received only after a monitoring outage carry a Delivered late badge with the delay.",
+      "alt": "Events list in dark theme showing website, backup, security and RMM alerts across several customers with severity badges and occurrence counts, three Northwind security alerts marked Delivered late with their delays",
       "organization": "Beacon Managed IT",
       "max_h": 1300
     },
@@ -1257,10 +1257,44 @@
       "theme": "light",
       "group": "operations",
       "heading": "Event ingestion health",
-      "caption": "Per-source ingestion status, queue depth and dead letters, with retention settings per source and per customer.",
-      "alt": "Event ingestion health page listing each alert source with last ingestion time, error counts and retention settings",
+      "caption": "Per-source ingestion status, queue depth and dead letters, retention settings per source and per customer, and the monitoring coverage settings: backfill after an outage, its lookback limit and the gap notifications.",
+      "alt": "Event ingestion health page listing each alert source with last ingestion time, error counts and retention settings, followed by the Monitoring coverage card with the backfill switch, the gap notification threshold and the lookback limit",
       "organization": "Beacon Managed IT",
       "max_h": 1500
+    },
+    {
+      "name": "monitoring-reliability-light",
+      "route": "/security/events/sources/",
+      "theme": "light",
+      "group": "operations",
+      "heading": "Monitoring reliability",
+      "caption": "Per customer, whether each monitoring source collects now (current health) and whether its alerts were seen as they happened (coverage): an open coverage gap, active monitoring with the last gap of each source, and verified quiet.",
+      "alt": "Monitoring reliability page with a warning that Harbor Point's RMM is unavailable and that alerts from a Defender outage may be missing, a per-customer summary, and source rows with separate Current health and Coverage badges such as Coverage Gap, Active Monitoring with a last gap of Partial Recovery, Recovered – Delivered Late or Unrecoverable Gap, and Verified Quiet",
+      "organization": "Beacon Managed IT",
+      "max_h": 1580
+    },
+    {
+      "name": "monitoring-coverage-history-light",
+      "route": "/security/events/sources/",
+      "theme": "light",
+      "group": "operations",
+      "heading": "Coverage history",
+      "caption": "Every coverage gap of the last 30 days stays listed after the source recovers: when coverage was lost, how long the outage lasted, how many events were delivered late, the longest delay and how the backfill ended.",
+      "alt": "Coverage history table listing an open Coverage Gap, a Partial Recovery with three alerts delivered late, Recovered – Delivered Late and Recovered – None Missed backup windows, and an Unrecoverable Gap, with outage times, failed reads, late counts, maximum delay and backfill state",
+      "organization": "Beacon Managed IT",
+      "selector": "div.card:has(h6:has-text(\"Coverage history\"))",
+      "max_h": 1100
+    },
+    {
+      "name": "security-alerts-late-light",
+      "route": "/security/alerts/?late=1",
+      "theme": "light",
+      "group": "operations",
+      "heading": "Alerts delivered late",
+      "caption": "The security alert list filtered to alerts first received after a monitoring coverage gap, each with a Delivered late badge, the vendor's own event time and the delay.",
+      "alt": "Security alert list with the Delivered late only filter on, listing a high, a medium and a low severity Northwind alert, each marked Delivered late with its delay",
+      "organization": "Beacon Managed IT",
+      "max_h": 1100
     },
     {
       "name": "backup-monitoring-light",
@@ -1283,6 +1317,17 @@
       "alt": "Service Desk wallboard in dark theme with ticket, monitor and certificate counters, a monitor status pie chart, a 30-day ticket chart and tickets by priority",
       "organization": "Beacon Managed IT",
       "max_h": 1100
+    },
+    {
+      "name": "wallboard-security-dark",
+      "route": "/reports/wallboards/2/",
+      "theme": "dark",
+      "group": "operations",
+      "heading": "Security & Alerts wallboard",
+      "caption": "The Security & Alerts wallboard template: open critical alerts, new alerts by severity, failed logins, vault events and the Monitoring coverage table (current health and coverage per source).",
+      "alt": "Security & Alerts wallboard in dark theme with alert counters and a Monitoring coverage table listing each source with its current health, coverage, last gap, outage and late deliveries",
+      "organization": "Beacon Managed IT",
+      "max_h": 1500
     },
     {
       "name": "api-access-light",

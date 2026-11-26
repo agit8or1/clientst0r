@@ -1,9 +1,11 @@
 # MSPZero Monitoring Health and Reliability Standard
 
-**Specification version:** 1.0.0
-**Status:** Initial contract, as implemented by Clientst0r
-**Schema:** [`monitoring-health/schema-1.0.0.json`](monitoring-health/schema-1.0.0.json)
-**Reference implementation:** [`events/source_health.py`](../../events/source_health.py) (pure Python, no framework imports)
+**Specification version:** 1.1.0
+**Status:** Contract as implemented by Clientst0r; 1.1.0 adds coverage over time (gaps, recovery, backfill)
+**Schema:** [`monitoring-health/schema-1.1.0.json`](monitoring-health/schema-1.1.0.json)
+([1.0.0](monitoring-health/schema-1.0.0.json) stays published; every 1.0.0 record is a valid 1.1.0 record)
+**Reference implementation:** [`events/source_health.py`](../../events/source_health.py) (pure Python, no framework imports);
+coverage and backfill: [`events/coverage.py`](../../events/coverage.py)
 **Example payloads:** [`monitoring-health/examples/`](monitoring-health/examples/)
 
 > **Core principle.** An absence of alerts is not evidence of a healthy system unless monitoring is verified to be
@@ -27,6 +29,8 @@
 12. [Compliance matrix](#12-compliance-matrix)
 13. [Versioning and changelog](#13-versioning-and-changelog)
 14. [Acknowledgment](#14-acknowledgment)
+
+[Appendix A — Coverage audit of Clientst0r 3.17.790](#appendix-a--coverage-audit-of-clientst0r-317790)
 
 The key words MUST, MUST NOT, SHOULD and MAY are used as in RFC 2119.
 
@@ -112,6 +116,7 @@ Nothing stores a label; the derivation is the same everywhere.
 |---|---|---|---|
 | `healthy_quiet` | Healthy / quiet | `health=healthy`, `alert_status=no_alerts` | `fa-circle-check` |
 | `healthy_active` | Healthy / alerts | `health=healthy`, `alert_status=active_alerts` | `fa-bell` |
+| `healthy_recovering` | Healthy / recovering | `health=healthy` while a coverage gap is not recovered yet (1.1.0, §6.5) | `fa-clock-rotate-left` |
 | `degraded` | Degraded | `health=degraded` (no more specific state) | `fa-triangle-exclamation` |
 | `permission_denied` | Permission denied / Authentication failed | reason `permission_denied` or `authentication_failure` | `fa-lock` |
 | `source_unavailable` | Source unavailable | `health=failed`, reason `endpoint_unavailable` or `timeout` | `fa-plug-circle-xmark` |
@@ -121,7 +126,10 @@ Nothing stores a label; the derivation is the same everywhere.
 | `unknown` | Unknown | anything else | `fa-circle-question` |
 
 Severity order for roll-ups (worst first): permission denied = source unavailable > ingestion failed = collection
-failed > stale > degraded > unknown > healthy / alerts > healthy / quiet.
+failed > stale > degraded > unknown = healthy / recovering > healthy / alerts > healthy / quiet.
+
+Coverage (§6.5) is shown next to these states, never folded into them: current health says whether collection
+works now; coverage says whether the source's events were seen as they happened.
 
 ## 4. Telemetry contract
 
@@ -155,6 +163,24 @@ failed > stale > degraded > unknown > healthy / alerts > healthy / quiet.
 | `duration_ms` | integer ≥ 0 | no | — | |
 | `display_state` | enum §3.5 | no | — | Convenience; consumers MAY re-derive. |
 | `diagnostic` | string ≤ 500 or null | no | none | Redacted (§8). |
+| `coverage` | object or null | no (1.1.0) | not tracked | Coverage over time, §6.5. |
+| `coverage.state` | enum §6.5 | yes, in `coverage` | — | Current coverage of the source. |
+| `coverage.last_verified_coverage_at` | UTC timestamp | no | never verified | End of the last completely collected window (the cursor). |
+| `coverage.gap` | object or null | no | no gap in 30 days | The open gap, else the most recent one. |
+| `coverage.gap.state` | `coverage_gap` / `recovered_late` / `partial_recovery` / `unrecoverable_gap` | yes, in `gap` | — | |
+| `coverage.gap.coverage_lost_at` | UTC timestamp | no | — | Last verified coverage before the outage: events after it were not seen. |
+| `coverage.gap.outage_started_at` | UTC timestamp | no | — | The first failed read (or when a stopped collector went stale). |
+| `coverage.gap.recovered_at` | UTC timestamp | no | not recovered | The first successful read after the outage. |
+| `coverage.gap.resolved_at` | UTC timestamp | no | still open | When the gap's outcome was decided. |
+| `coverage.gap.failed_reads` | integer ≥ 0 | no | — | Failed reads during the gap. |
+| `coverage.gap.backfill_state` | `pending` / `running` / `complete` / `incomplete` / `failed` / `unsupported` / `disabled` or null | no | not started | |
+| `coverage.gap.events_delivered_late` | integer ≥ 0 | no | — | New events stored for the gap after the fact. |
+| `coverage.gap.duplicates_skipped` | integer ≥ 0 | no | — | Already stored; not stored, ticketed or notified again. |
+| `coverage.gap.records_rejected` | integer ≥ 0 | no | — | Retrieved but not storable (prevents `complete`). |
+| `coverage.gap.max_delivery_delay_seconds` | integer ≥ 0 or null | no | unknown | Largest ingestion time minus event time. |
+| `coverage.gap.lookback_truncated` | boolean | no | — | Part of the gap was older than the lookback allowed. |
+| `coverage.gap.complete` | boolean | yes, in `gap` | — | True exactly when `state = recovered_late`. |
+| `coverage.history_capability` | object or null | no | not declared | `supports_history`, `max_lookback_minutes`, `ordering`, `pagination` as declared by the provider (§6.5.2). |
 
 ### 4.2 Examples
 
@@ -166,6 +192,9 @@ failed > stale > degraded > unknown > healthy / alerts > healthy / quiet.
 | Failed (permission denied) | [`failed-permission.json`](monitoring-health/examples/failed-permission.json) |
 | Unknown (empty window not verifiable) | [`unknown-unverified.json`](monitoring-health/examples/unknown-unverified.json) |
 | Stale | [`stale.json`](monitoring-health/examples/stale.json) |
+| Collecting again, gap not recovered yet (1.1.0) | [`coverage-gap-recovering.json`](monitoring-health/examples/coverage-gap-recovering.json) |
+| Gap recovered completely, events delivered late (1.1.0) | [`recovered-delivered-late.json`](monitoring-health/examples/recovered-delivered-late.json) |
+| Quiet now, earlier gap unrecoverable (1.1.0) | [`unrecoverable-gap.json`](monitoring-health/examples/unrecoverable-gap.json) |
 
 ```json
 {
@@ -189,6 +218,14 @@ The JSON Schema cannot express these; validators MUST enforce them (`validate()`
 3. `collection_outcome = failed` requires a `failure_reason`.
 4. `records.committed` ≤ `records.retrieved` when `retrieved` > 0.
 5. The major version of `schema_version` must match the consumer's.
+6. (1.1.0) `coverage.state = verified_quiet` requires `health = healthy`, `alert_status = no_alerts` and no open
+   gap.
+7. (1.1.0) An open gap (`coverage.gap.state = coverage_gap`) forbids `alert_status = no_alerts` and makes
+   `coverage.state` `coverage_gap`.
+8. (1.1.0) `coverage.gap.complete` is true exactly when `coverage.gap.state = recovered_late`.
+9. (1.1.0) `recovered_late` requires a fully declared history capability (history supported, a maximum
+   lookback, an ordering and a pagination completeness signal other than `none`) and `lookback_truncated`
+   false.
 
 ### 4.4 Idempotency and deduplication
 
@@ -199,10 +236,15 @@ The JSON Schema cannot express these; validators MUST enforce them (`validate()`
 * Transitions are recorded with compare-and-set on the stored display state, so two workers record one
   transition once.
 
+* (1.1.0) Backfilled events go through the same deduplication as live ones. An event already stored is counted
+  as a duplicate and creates no ticket, incident, notification or second record; only a newly stored event is
+  marked delivered late.
+
 ### 4.5 Retention
 
 The record is a **current-state** row per source (overwritten by each attempt). History is kept as audit entries
-of state transitions (§6.4), retained with the product's audit log. Diagnostics are short and redacted; no event
+of state transitions (§6.4), retained with the product's audit log. Coverage gaps (1.1.0) are kept as one row per
+gap that a later outage never overwrites (§6.5.5). Diagnostics are short and redacted; no event
 content is stored in the health record.
 
 ## 5. Collector behaviour
@@ -286,6 +328,93 @@ immediately.
   Degraded (transient) states are visible on the dashboards but do not notify, to avoid alert floods.
 * Persistent failures appear in the product's system warnings until resolved.
 
+### 6.5 Coverage gaps, recovery and backfill (1.1.0)
+
+Added from community feedback in GitHub Discussion #161: a source that recovers after several failed reads and
+then backfills the missed window must be marked **recovered, delivered late** — not look verified quiet — so
+analysts know those alerts were not seen in real time.
+
+#### 6.5.1 States
+
+Coverage is tracked independently per tenant and per source.
+
+| State | Label | Meaning | Icon |
+|---|---|---|---|
+| `verified_quiet` | Verified Quiet | Collection verified and uninterrupted; no qualifying alerts. | `fa-circle-check` |
+| `active_monitoring` | Active Monitoring | Collection verified and uninterrupted; alerts arriving in real time. | `fa-satellite-dish` |
+| `coverage_gap` | Coverage Gap | Interrupted now, or recovered but the missed window is not resolved yet. | `fa-link-slash` |
+| `recovered_late` | Recovered – Delivered Late | The missed window was retrieved and proven complete; its events were not seen in real time. Shown as **Recovered – None Missed** when the complete window held no events. | `fa-clock-rotate-left` |
+| `partial_recovery` | Partial Recovery | Part of the window was retrieved, or completeness could not be proven. Alerts may be missing. | `fa-circle-half-stroke` |
+| `unrecoverable_gap` | Unrecoverable Gap | The window cannot be retrieved (no history support, nothing returned). Alerts may be missing permanently. | `fa-ban` |
+| `not_verified` | Not Verified | No coverage claim is possible (e.g. push-only sources). Not one of the six states above. | `fa-circle-question` |
+
+`coverage_gap`, `recovered_late`, `partial_recovery` and `unrecoverable_gap` are also the states of a gap
+record. The source's current state is `coverage_gap` while it has an open gap; otherwise it follows the current
+collection. An interruption is **never** represented as verified quiet: while a gap is open the source's
+`alert_status` cannot be `no_alerts` and its display state is `healthy_recovering` even if collection works again.
+
+#### 6.5.2 Declared history capability
+
+Each provider declares what it can return for a past window:
+
+| Field | Values | Meaning |
+|---|---|---|
+| `supports_history` | true / false / null | Events can be asked for by time window. |
+| `max_lookback` | duration / null | How far back the provider keeps and returns events. |
+| `ordering` | `ascending` / `descending` / `unordered` / null | Result ordering (`unordered`: every timestamp is validated). |
+| `pagination` | `cursor_exhausted` / `short_page` / `total_count` / `none` / null | How the provider signals the end of the results. |
+
+Null in any field means **not declared**, and an undeclared capability never makes a window complete.
+
+#### 6.5.3 When a window is fully recovered
+
+A gap is `recovered_late` only when **both** hold:
+
+1. the declared capability is complete (history supported, a maximum lookback, a known ordering and a
+   completeness signal other than `none`), **and**
+2. the retrieval proved the end of the results by that signal — `cursor_exhausted`: no next cursor *and* an
+   explicit end; `short_page`: a page shorter than the requested limit; `total_count`: as many records fetched as
+   the provider's total — with no record rejected and no part of the gap older than the lookback.
+
+A successful (HTTP 200) response alone proves nothing. Otherwise the gap is `partial_recovery` when anything was
+retrieved or covered, else `unrecoverable_gap`. A source without history support resolves at recovery: what the
+first successful read delivered is all there is (`partial_recovery` if it delivered anything, else
+`unrecoverable_gap`).
+
+#### 6.5.4 Backfill behaviour
+
+* Runs in the scheduler or collector, **never** on page render.
+* Requests the window from the last verified coverage to the recovery time, never further back than the provider's
+  maximum lookback or the product's lookback cap.
+* Pages are bounded; each page's records and its checkpoint (the next page token) are committed together and
+  persisted, so a restart resumes at the next page and a page fetched twice finds only duplicates.
+* A failed page is retried with the backoff of §6.2 from the same checkpoint; after a bounded number of attempts
+  the gap is resolved as `partial_recovery` or `unrecoverable_gap`.
+* A source that fails again before its window is recovered keeps one gap (it grows), resumed from the same
+  checkpoint.
+* Backfilled records go through the product's normal ingest path: deduplication keys, alert-to-ticket rules,
+  incident correlation and playbook approvals apply unchanged. Nothing is bypassed or auto-approved because an
+  alert arrived late.
+
+#### 6.5.5 Timestamps, delayed events and history
+
+* The event's own time (validated; else unknown) is kept separately from the ingestion time, and the delivery
+  delay (ingestion minus event time) is recorded.
+* A newly stored event is **delivered late** when its event time falls inside an open gap — or, without a
+  trustworthy time, when it came from the backfill or the first read after recovery. Tickets and incident
+  timelines created from it say so.
+* Delayed events are identifiable wherever alerts are shown (alert lists, incident details, the event timeline,
+  wallboards), with an icon and text, and filterable.
+* Each gap is its own record: failed reads, consecutive failures, outage start, recovery time, last successful read,
+  last verified coverage, backfill result, events delivered late, duplicates skipped and maximum delay. A later
+  outage opens a new record; gaps stay visible after recovery.
+
+#### 6.5.6 Notifications
+
+Configurable, through the product's existing technician notifications, **once per gap**: when a critical source
+has been interrupted longer than a threshold (Clientst0r default 60 minutes; 0 switches it off), and when a gap is
+resolved as `partial_recovery` or `unrecoverable_gap` (default on). Each change of these settings is audited.
+
 ## 7. Presentation and AI rules
 
 1. A green / healthy indicator represents **verified** operational health only.
@@ -304,6 +433,10 @@ immediately.
    Defender (source unavailable), so overall security status cannot be verified."*
    The product enforces this on the model's output (`guard_ai_text()`); a model cannot override it.
 7. Customer-facing "all clear" messages are sent only when monitoring is verified.
+8. (1.1.0) Current health and coverage history are shown separately, each state with icon, text and tooltip.
+   Wallboards show outage duration, events delivered late and the maximum delivery delay, and can filter to delayed
+   alerts and historical gaps. A recent gap that was not fully recovered is added to the visibility statement
+   ("Alerts from … may be missing: the coverage gap could not be fully recovered.").
 
 ## 8. Security and tenant isolation
 
@@ -341,8 +474,30 @@ original Phase 82 acceptance list).
 | C14 | Disconnection from Clientst0r | producer keeps local state; Clientst0r shows the remote source stale | *planned with §11* |
 | C15 | Incorrect / incomplete evidence presented to AI | output carries the visibility statement; model cannot claim healthy | `test_H_ai_cannot_report_healthy` |
 
-Schema conformance: every payload a product emits MUST validate against `schema-1.0.0.json` **and** the cross-field
-rules (§4.3). `SchemaTests` validates the example payloads and checks that the schema's enumerations match the
+Coverage cases (1.1.0; `events/tests_coverage.py`):
+
+| # | Case | Expected | Clientst0r test |
+|---|---|---|---|
+| C16 | Healthy, no alerts | `verified_quiet`, no gap | `test_01_healthy_no_alerts` |
+| C17 | Single failed read | gap opened at the last verified coverage, never quiet | `test_02_single_failed_read` |
+| C18 | Multiple consecutive failures | one gap, failed reads counted | `test_03_multiple_consecutive_failures` |
+| C19 | Recovery with complete backfill | `recovered_late`, events marked late, original times kept, delay recorded | `test_04_recovery_and_complete_backfill` |
+| C20 | Recovery with no missed events | `recovered_late` with zero events ("None Missed"); gap stays on record | `test_05_recovery_with_no_missed_events` |
+| C21 | Partial backfill (lookback) | `partial_recovery`, request bounded by the lookback | `test_06_partial_backfill_lookback_cap` |
+| C22 | Source without history capability; undeclared capability | `partial_recovery` / `unrecoverable_gap`, never complete | `test_07_source_without_history_capability` |
+| C23 | Backfill pagination failure | retried with backoff from the checkpoint, then `partial_recovery` | `test_08_backfill_pagination_failure` |
+| C24 | Duplicates during recovery | no second alert, ticket, incident or notification | `test_09_duplicates_during_recovery` |
+| C25 | Out-of-order events | lateness and delay from validated times, not order | `test_10_out_of_order_events` |
+| C26 | Repeated outages | one record per gap; a failure during recovery extends the gap | `test_11_repeated_outages` |
+| C27 | Restart during recovery | resumes at the persisted checkpoint, no duplicates | `test_12_restart_during_recovery` |
+| C28 | Tenant isolation | other tenants' gaps and delayed alerts never visible | `test_13_tenant_isolation`, `CoverageViewTests` |
+| C29 | Delayed high-severity alert | normal ticket rule and incident, marked delayed; playbook still needs approval | `test_14_delayed_high_severity_alert_goes_through_workflow` |
+| C30 | Historical wallboard accuracy after recovery | gap state, outage, delivered-late count and max delay; current health separate | `test_15_historical_wallboard_accuracy_after_recovery` |
+| C31 | Multiple sources in different states | each source keeps its own state; roll-up names unrecovered gaps | `test_16_multiple_sources_with_different_states` |
+| C32 | Notifications | once per gap; threshold 0 switches off; non-critical sources silent | `CoverageNotificationTests` |
+
+Schema conformance: every payload a product emits MUST validate against `schema-1.1.0.json` (or
+`schema-1.0.0.json` for a 1.0.0 producer) **and** the cross-field rules (§4.3). `SchemaTests` validates the example payloads and checks that the schema's enumerations match the
 reference implementation.
 
 ## 10. Adopting the standard in another product
@@ -389,6 +544,18 @@ interface SourceHealthV1 {
   freshness_threshold_minutes: number; last_attempt_at: string | null; last_success_at: string | null;
   records: { retrieved: number; processed: number; rejected: number; committed: number };
   newest_event_at: string | null; consecutive_failures: number;
+  coverage?: Coverage | null;                                    // 1.1.0
+}
+type CoverageState = 'verified_quiet' | 'active_monitoring' | 'coverage_gap' | 'recovered_late'
+  | 'partial_recovery' | 'unrecoverable_gap' | 'not_verified';
+interface Coverage {
+  state: CoverageState; last_verified_coverage_at?: string | null;
+  gap?: { state: 'coverage_gap' | 'recovered_late' | 'partial_recovery' | 'unrecoverable_gap'; complete: boolean;
+          coverage_lost_at?: string | null; outage_started_at?: string | null; recovered_at?: string | null;
+          failed_reads?: number; events_delivered_late?: number; max_delivery_delay_seconds?: number | null;
+          lookback_truncated?: boolean; backfill_state?: string | null } | null;
+  history_capability?: { supports_history: boolean | null; max_lookback_minutes: number | null;
+                         ordering: string | null; pagination: string | null } | null;
 }
 ```
 
@@ -406,7 +573,10 @@ interface SourceHealthV1 {
 - [ ] AI receives `ai_context()` facts and its output is guarded.
 - [ ] Tenant taken from configuration, never from payloads; outputs scoped to authorized tenants.
 - [ ] Diagnostics redacted; no secrets or event content in health records.
-- [ ] Conformance cases C1–C15 that apply pass; payloads validate against the schema and §4.3.
+- [ ] (1.1.0) A gap record per interruption; no `no_alerts` while a gap is open.
+- [ ] (1.1.0) Provider history capability declared; complete only when declared and proven (§6.5.3).
+- [ ] (1.1.0) Backfill off the request path, bounded, checkpointed, through the normal ingest path; late events marked.
+- [ ] Conformance cases C1–C32 that apply pass; payloads validate against the schema and §4.3.
 
 ## 11. Reporting health to Clientst0r
 
@@ -436,7 +606,7 @@ It will ship when the Connect event catalog takes the new event type (after the 
 
 | Product | Standard version | Implementation status | Test coverage | Known limitations |
 |---|---|---|---|---|
-| Clientst0r | 1.0.0 | **Implemented** for polled security connectors, RMM sync, polled backup connections; derived records for website monitors, webhook / SIEM push sources and the event pipeline | C1–C13, C15 (`events/tests_source_health.py`) | §11 inbound reporting planned (C14). No working security vendor API adapter ships yet (the Defender adapter is a stub), so the probe path is exercised by test adapters until Phase 84 connectors land. RMM alert-list errors are counted as rejected records (partial), not as a separate collection failure. Push-style backup connections keep their per-job freshness rules and are not recorded as collections. |
+| Clientst0r | 1.1.0 | **Implemented** for polled security connectors, RMM sync, polled backup connections; derived records for website monitors, webhook / SIEM push sources and the event pipeline. Coverage gaps for polled security, RMM and backup sources (1.1.0, in progress) | C1–C13, C15 (`events/tests_source_health.py`); C16–C32 (`events/tests_coverage.py`) | §11 inbound reporting planned (C14). Backfill: Proxmox Backup Server declares history (7-day lookback, short-page signal); no shipped security vendor adapter declares history yet, so security gaps resolve as Partial Recovery or Unrecoverable Gap until Phase 84 connectors implement `fetch_history`; RMM sync is a current-state list (declared no history). Push sources (webhooks, SIEM) are Not Verified and have no gap records. No working security vendor API adapter ships yet (the Defender adapter is a stub), so the probe path is exercised by test adapters until Phase 84 connectors land. RMM alert-list errors are counted as rejected records (partial), not as a separate collection failure. Push-style backup connections keep their per-job freshness rules and are not recorded as collections. |
 | rem0te | — | Not started | — | Adopt via §10; report to Clientst0r via §11. |
 | st0r | — | Not started | — | |
 | OPNManager | — | Not started | — | |
@@ -457,6 +627,18 @@ Semantic versioning:
 
 ### Changelog
 
+#### 1.1.0 — 2026-11-26
+
+Coverage over time, from community feedback in GitHub Discussion #161 (roadmap 82.15–82.20):
+
+* Optional `coverage` object: current coverage state, last verified coverage, the open or latest gap and the
+  provider's declared history capability; display state `healthy_recovering`.
+* Coverage states Verified Quiet, Active Monitoring, Coverage Gap, Recovered – Delivered Late, Partial Recovery,
+  Unrecoverable Gap (and Not Verified).
+* Completeness rule: a declared capability and a proven end of results, never a 200 response alone (§6.5.3).
+* Backfill, timestamp, delayed-event, history and notification rules (§6.5.4–6.5.6); cross-field rules 6–9.
+* Conformance cases C16–C32; schema 1.1.0 and three examples. Fully backward compatible with 1.0.0.
+
 #### 1.0.0 — 2026-11-21
 
 Initial contract, as implemented by Clientst0r (roadmap Phase 82.7–82.12):
@@ -476,3 +658,31 @@ visibly different from a source the collector could not read, his suggestions to
 the query window, counts read / normalized / accepted and the newest event time only when ordering can be trusted,
 and his proposed acceptance check — replaying the same quiet window with a working endpoint, a missing permission
 and a failed submission — which became conformance cases C1, C3 and C8.
+
+Version 1.1.0 follows his next suggestion in the same discussion: a source that recovers after several failed
+reads and backfills the missed window should be marked "recovered, delivered late" rather than look verified
+quiet, so analysts know those alerts were not seen in real time.
+
+## Appendix A — Coverage audit of Clientst0r 3.17.790
+
+What existed before 1.1.0 for each coverage requirement (file:line at v3.17.790), and what 1.1.0 added. The
+coverage work extends these pieces; it does not replace them.
+
+| Requirement | Existing (3.17.790) | Gap | 1.1.0 |
+|---|---|---|---|
+| Per tenant and per source | `integrations/models.py:1953` `IntegrationSyncHealth` (one row per connection and kind, customer copied from the connection: `events/source_health_store.py:38–51`) | — | Gap rows (`events.CoverageWindow`) keyed by the same source id; customer copied from the health row |
+| Failed reads, consecutive failures | `consecutive_failures` (`events/source_health.py:317`) | Failed reads per outage not kept after recovery | `CoverageWindow.failed_reads`, `first_failure_at`, `last_failure_at` |
+| Outage start, recovery time | Only `state_changed_at` and audit transitions (`events/source_health_store.py:_transition`) | Not stored as data | `first_failure_at`, `recovered_at`, `resolved_at` |
+| Last successful read / last verified coverage | `last_success_at`; cursor `window_end_complete` (`integrations/models.py:2006`, `events/source_health_store.py:131`) | — | Copied to `coverage_lost_at` when a gap opens; exposed as `last_verified_coverage_at` |
+| Never verified quiet | `evaluate()` / `effective()` (`events/source_health.py:291`, `:379`) | After recovery a source looked Healthy / quiet even though it missed a window | `gap_open` keeps `alert_status` unknown, display `healthy_recovering` |
+| Backfill after recovery | Security poll asks again from the cursor (`security_alerts/adapters/base.py:65`) — one call, no paging, no completeness; backup poll from last success − 2 days (`backup_monitoring/recording.py:118`), one page of 500 (`backup_monitoring/providers/pbs.py:160`); RMM full state sync (`integrations/sync.py:92`) | No pagination, checkpoint or completeness proof; nothing marked late | Scheduler backfill with durable checkpoints (`events/coverage.py:backfill_tick`); PBS paging |
+| Deduplication | `upsert_alert` by connection + external id (`security_alerts/ingest.py:12`, `security_alerts/models.py:217`); `record_run` (`backup_monitoring/recording.py:61`); event layer `uniq_event_source_dedup` (`events/models.py:80`); auto-ticket join and hourly cap (`security_alerts/adapters/base.py:169`) | — | Reused unchanged; duplicates counted per gap |
+| Original timestamps | `seen_at` only (`security_alerts/models.py:199`); vendor `occurred_at` used for the newest-event time then dropped; event layer `first_seen_at = seen_at` (`events/sources.py:75`) | Event time and delay not stored | `occurred_at`, `delivery_delay_seconds`, `delivered_late` on alerts and events |
+| States | Eight health display states (`events/source_health.py:424`) | No coverage states | Six coverage states (+ Not Verified) |
+| Capability declaration | `supports_empty_window_probe`, `ordering_guaranteed` (`security_alerts/adapters/base.py`) | No history capability | `HistoryCapability`; unknown = never complete |
+| Delayed alerts visible | — | — | Alert list/detail, incident detail, event list/detail, reliability page, wallboard widget |
+| Normal workflows | `_maybe_auto_ticket`; incident correlation with SR-37 playbook approval (`security_alerts/models.py:909`, `:954`) | — | Backfill uses the same path (`ingest_polled_alert`); ticket and incident marked delivered late |
+| Notifications | Once per source and state per 30 minutes (`events/source_health_store.py:373`) | Nothing for long gaps or failed recovery | Once per gap, configurable threshold, audited settings |
+| History after recovery | Current-state row plus audit transitions (§4.5) | Gap details lost | One row per gap, never overwritten |
+| Isolation, RBAC, audit | Reliability views scoped by `events_view` (`events/views.py:260`); config changes audited | — | Gaps reachable only through scoped sources; coverage settings audited |
+| Fault isolation | `events_tick` scheduler; `due()` backoff | — | Backfill in `events_tick` with its own budget, bounded pages and attempts, lookback cap |

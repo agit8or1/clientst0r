@@ -99,7 +99,10 @@ def alert_list(request):
     client = request.GET.get('client')
     start = request.GET.get('start')
     end = request.GET.get('end')
+    late = request.GET.get('late') == '1'
 
+    if late:
+        qs = qs.filter(delivered_late=True)
     if severity:
         qs = qs.filter(severity=severity)
     if status:
@@ -124,7 +127,7 @@ def alert_list(request):
         'filters': {
             'severity': severity or '', 'status': status or '',
             'vendor': vendor or '', 'client': client or '',
-            'start': start or '', 'end': end or '',
+            'start': start or '', 'end': end or '', 'late': '1' if late else '',
         },
         'can_acknowledge': user_has_perm(request.user, 'security_alerts_acknowledge'),
         'can_manage_rules': user_has_perm(request.user, 'security_alerts_create_rules'),

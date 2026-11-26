@@ -9,14 +9,16 @@ from django.db import IntegrityError, transaction
 SEVERITY_RANK = {'info': 0, 'low': 1, 'medium': 2, 'high': 3, 'critical': 4}
 
 
-def upsert_alert(lookup, values):
-    """(alert, created). ``lookup`` names the source and external id."""
+def upsert_alert(lookup, values, create_only=None):
+    """(alert, created). ``lookup`` names the source and external id.
+    ``create_only`` fields (event time, delivered-late marking) are set only
+    when the alert is new: a re-delivery never rewrites them."""
     from .models import SecurityAlert
     alert = SecurityAlert.objects.filter(**lookup).first()
     if alert is None:
         try:
             with transaction.atomic():
-                return SecurityAlert.objects.create(**lookup, **values), True
+                return SecurityAlert.objects.create(**lookup, **values, **(create_only or {})), True
         except IntegrityError:
             alert = SecurityAlert.objects.filter(**lookup).first()
             if alert is None:

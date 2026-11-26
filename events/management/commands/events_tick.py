@@ -26,6 +26,18 @@ class Command(BaseCommand):
             changed = 0
         if changed:
             self.stdout.write(f'Monitoring source health: {changed} state change(s).')
+        # Monitoring coverage (82.17, 82.19): backfill the windows recovered
+        # sources missed, then the once-per-gap notifications. Its own time
+        # budget; never blocks the projection below.
+        from events import coverage
+        try:
+            done = coverage.backfill_tick(budget_seconds=min(20, max(5, opts['budget'] // 2)))
+            if done['windows']:
+                self.stdout.write('Coverage backfill: {windows} window(s), {pages} page(s), '
+                                  '{resolved} resolved.'.format(**done))
+            coverage.notify_tick()
+        except Exception as exc:  # noqa: BLE001 - never stop the projection
+            self.stderr.write(f'Coverage backfill failed: {type(exc).__name__}')
         summary = projection.run(budget_seconds=opts['budget'])
         if summary.get('disabled'):
             self.stdout.write('Event ingestion is switched off.')

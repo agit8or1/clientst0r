@@ -195,10 +195,10 @@ class AcceptanceTests(_Base):
         from security_alerts import ingest
         real = ingest.upsert_alert
 
-        def flaky(lookup, values):
+        def flaky(lookup, values, **kw):
             if lookup['external_id'] == 'bad':
                 raise RuntimeError('constraint')
-            return real(lookup, values)
+            return real(lookup, values, **kw)
         with mock.patch('security_alerts.ingest.upsert_alert', side_effect=flaky):
             self.run_sync(FakeProvider(alerts=[alert('ok1', T0), alert('bad', T0), alert('ok2', T0)]))
         r = self.row()
@@ -477,7 +477,7 @@ class ViewTests(_Base):
         self.assertContains(r, f'?customer={self.b.pk}"')
         self.assertEqual(c.get(f'/security/events/sources/?customer={self.a.pk}').status_code, 403)
         data = c.get('/security/events/sources.json').json()
-        self.assertEqual(data['schema_version'], '1.0.0')
+        self.assertEqual(data['schema_version'], sh.SCHEMA_VERSION)
         self.assertEqual({p['tenant_id'] for p in data['sources']}, {str(self.b.pk)})
         for p in data['sources']:
             self.assertEqual(sh.validate(p), [], p)

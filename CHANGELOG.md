@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.795] - 2026-11-26
+
+Thanks to Dijar Vrella for the suggestion in GitHub Discussion #161: a source that recovers after failed reads and
+then delivers the missed alerts should not look as if it had been verified quiet the whole time.
+
+### Added
+- **Monitoring coverage history.** Every interruption of a monitoring source is kept as its own record, per customer
+  and source, and stays visible after recovery: outage start, failed reads, recovery time, last verified coverage,
+  events delivered late, duplicates and the longest delay. Each window has one of these states: *Verified Quiet*,
+  *Active Monitoring*, *Coverage Gap*, *Recovered – Delivered Late*, *Recovered – None Missed*, *Partial Recovery*
+  and *Unrecoverable Gap*. While a gap is open, "no alerts" is shown as unknown, never as quiet.
+- **Backfill after recovery**, where the source can retrieve its history. It runs in the scheduler (never while a
+  page loads), pages through the missed window and saves its place in the database after every page, so a restart
+  resumes where it stopped. Pages, attempts and lookback are bounded, with backoff after failures.
+- **"Recovered" has to be earned.** A window counts as fully recovered only when the provider declares history
+  support, lookback, ordering and an end-of-results signal, *and* the retrieval actually reached that end with
+  nothing rejected or cut off. A successful request alone, or a provider that declares nothing, is never enough.
+- **Delivered-late alerts.** Each alert and event keeps the source's own event time, the time it was received and
+  the delay. Late ones carry a *Delivered late* badge on the alert list and detail (with a filter), incident
+  details, the event list and detail, Monitoring reliability and wallboards.
+- **Normal workflows, marked late.** Backfilled alerts go through the usual deduplication, alert-to-ticket rules and
+  incident correlation; nothing creates a duplicate ticket, notification or incident, and playbook approvals are
+  unchanged. Tickets start `[Security][Delivered late]` and incidents get a delivered-late timeline entry.
+- **Gap notifications.** One e-mail per gap when a critical source stays interrupted past a threshold (default 60
+  minutes) and one when a gap cannot be fully recovered. Both can be switched off on the event ingestion page;
+  changes are audited.
+- **Monitoring reliability and wallboards.** The reliability page shows current health and coverage side by side,
+  plus a 30-day gap history with a delayed-alerts view. A new wallboard widget (in the Security & Alerts template,
+  full width) shows the same with an icon, text and tooltip for every state, outage duration, events delivered
+  late and the maximum delay. The JSON feed carries a `coverage` object (Monitoring Health Standard 1.1.0; the
+  1.0.0 schema stays published).
+
+### What can backfill today
+- **Proxmox Backup Server** retrieves its task history (up to 7 days, because PBS rotates it).
+- **Security vendor connectors** can opt in by declaring history support, but none of the shipped adapters does yet
+  (planned with the vendor connectors, 82.14). Their gaps therefore end as *Partial Recovery* or *Unrecoverable
+  Gap*, never as recovered.
+- **RMM sync** reads only the current alert list, so RMM gaps end as *Unrecoverable Gap*.
+- **Webhook and SIEM sources** push their alerts and cannot prove a quiet period; they show as *Not Verified*.
+
+### Tests
+- Acceptance tests for: a healthy source with no alerts, a single failed read, several failed reads, recovery with a
+  complete backfill, recovery with nothing missed, a partial backfill, a source without history, a pagination
+  failure, duplicates and out-of-order events during recovery, repeated outages, a restart during recovery, tenant
+  isolation, a delayed high-severity alert, wallboard history after recovery, and several sources in different
+  states.
+- The page query-count tests no longer depend on the once-a-minute session activity stamp, which made them fail now
+  and then in long runs.
+- Roadmap: 82.15–82.20 shipped.
+
 ## [3.17.794] - 2026-11-26
 
 ### Added

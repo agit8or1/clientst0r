@@ -45,6 +45,10 @@
         <option value="{{ c.pk }}" {% if filters.client == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
         {% endfor %}
     </select>
+    <select name="late" aria-label="Delivery" class="form-select form-select-sm" style="width:auto;" data-autosubmit>
+        <option value="">Any delivery</option>
+        <option value="1" {% if filters.late == '1' %}selected{% endif %}>Delivered late only</option>
+    </select>
     <input type="date" name="start" aria-label="From date" value="{{ filters.start }}" class="form-control form-control-sm" style="width:auto;">
     <input type="date" name="end" aria-label="To date" value="{{ filters.end }}" class="form-control form-control-sm" style="width:auto;">
     <button type="submit" class="btn btn-sm btn-outline-primary">Apply</button>
@@ -89,7 +93,7 @@
                         {% elif a.severity == 'low' %}<span class="badge bg-secondary">Low</span>
                         {% else %}<span class="badge bg-light text-dark border">Info</span>{% endif %}
                     </td>
-                    <td><a href="{% url 'security_alerts:alert_detail' a.pk %}">{{ a.title|truncatechars:80 }}</a></td>
+                    <td><a href="{% url 'security_alerts:alert_detail' a.pk %}">{{ a.title|truncatechars:80 }}</a>{% if a.delivered_late %} {% include "events/_delivered_late.html" with delay=a.delivery_delay_seconds occurred=a.occurred_at %}{% endif %}</td>
                     <td><span class="text-muted">{{ a.asset_hint|default:"—" }}</span></td>
                     <td>
                         {% if a.status == 'new' %}<span class="badge bg-danger">New</span>

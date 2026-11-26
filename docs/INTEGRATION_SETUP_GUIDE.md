@@ -509,6 +509,58 @@ Source unavailable, Ingestion failed, Stale or Unknown — the last successful c
   raise on HTTP, permission and malformed-response errors, and implement the empty-window probe for your
   provider.
 
+### Coverage gaps and alerts delivered late
+
+When a source fails to collect — even once — Clientst0r records a **coverage gap** for that customer and source:
+when coverage was last verified, when the outage started, how many reads failed and when collection worked again.
+The page shows **Current health** (does collection work now?) and **Coverage** (were the alerts seen as they
+happened?) in separate columns, each with an icon, a text label and a tooltip:
+
+| Coverage | Meaning |
+|---|---|
+| Verified Quiet | Collection verified and uninterrupted; no alerts. |
+| Active Monitoring | Collection verified and uninterrupted; alerts arriving in real time. |
+| Coverage Gap | Interrupted now, or collecting again but the missed window is not resolved yet. The source shows *Healthy / recovering*, never quiet. |
+| Recovered – Delivered Late | The missed window was retrieved and proven complete; its alerts were not seen in real time (*Recovered – None Missed* when it held none). |
+| Partial Recovery | Only part of the window could be retrieved, or completeness could not be proven: alerts may be missing. |
+| Unrecoverable Gap | The source cannot return past events for that window: alerts may be missing permanently. |
+| Not Verified | No coverage claim is possible (webhook and SIEM push sources). |
+
+![Monitoring reliability page: per customer, each source's current health next to its coverage — an open Coverage Gap, Active Monitoring, Verified Quiet — and the gap history with Recovered – Delivered Late, Partial Recovery and Unrecoverable Gap entries](images/github/monitoring-reliability-light.png)
+
+- *Backfill.* After a recovery the scheduler asks the source for the window it missed, page by page, where the
+  source supports it. Progress is saved after every page, so a restart continues where it stopped. Nothing runs
+  while a page loads. Today **Proxmox Backup Server** backup runs are backfilled (up to 7 days back). The shipped
+  security vendor adapters cannot return history yet, and RMM sync reads the current alert list only, so their gaps
+  end as Partial Recovery (what the first read after recovery returned) or Unrecoverable Gap.
+- *A 200 response is not proof.* A gap counts as fully recovered only when the provider declares how far back it
+  keeps events, how results are ordered and how it signals the last page, **and** the retrieval reached that last
+  page with nothing rejected and nothing older than the lookback.
+- *Delivered late.* Each alert keeps the vendor's own event time next to the time Clientst0r received it, and the
+  delay. Alerts first received after a gap carry a **Delivered late** badge on the security alert list and detail,
+  the incident, the event list and detail, and the reliability page (**Delayed alerts** filter); the alert lists
+  have a *Delivered late only* filter.
+
+  ![Security alert list filtered to alerts delivered late, each with its Delivered late badge and delay](images/github/security-alerts-late-light.png)
+- *Normal workflows, no shortcuts.* Backfilled alerts are deduplicated like any other (no second alert, ticket or
+  incident), follow your alert-to-ticket rules — the ticket subject starts with `[Security][Delivered late]` — and
+  join incidents as usual. A matching playbook still waits for approval unless it is set to run automatically.
+- *Gap history.* Every gap stays listed (30 days on the page, longer in the database) after the source recovers;
+  a later outage gets its own entry.
+
+  ![Coverage history: an open gap, a Partial Recovery with alerts delivered late, recovered backup windows and an Unrecoverable Gap, with outage times, late counts, maximum delay and backfill state](images/github/monitoring-coverage-history-light.png)
+- *Notifications.* **Security & Monitoring → Events → Ingestion health → Monitoring coverage**: e-mail technicians
+  once when a critical source has been interrupted longer than a threshold (default 60 minutes, 0 = off) and once
+  when a gap cannot be fully recovered (default on); switch backfill off or cap how far back it asks (default 168
+  hours). Changes are recorded in the audit log.
+- *Wallboards.* Add the **Monitoring coverage** widget (also in the *Security & Alerts* wallboard template). Its
+  menu switches between current health and coverage per source, historical gaps (outage duration, alerts delivered
+  late, maximum delay) and recent delayed alerts. It shows only the customers the viewer may see.
+
+  ![Security & Alerts wallboard in dark theme with the Monitoring coverage table](images/github/wallboard-security-dark.png)
+- *JSON feed.* `/security/events/sources.json` (schema 1.1.0) adds a `coverage` object per source; see the
+  [standard](standards/MONITORING_HEALTH_STANDARD.md#65-coverage-gaps-recovery-and-backfill-110).
+
 ## Troubleshooting
 
 ### Common Issues

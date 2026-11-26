@@ -250,7 +250,7 @@ unchanged. Click a feature for its details.
 | 63 | [RMM integration and technician workspace](#phase-63) | P0 | 🔵 In progress | 52, 56, 57; Rem0te contract | 63.17 contract hygiene now; 63.11–63.16 as Rem0te ships each item |
 | 74 | [Backup monitoring, backup management and endpoint health](#phase-74) | P1 | 🔵 In progress | 63, 82; St0r API (74.7) | 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands |
 | 79 | [Agit8or Connect: secure application-to-application integration](#phase-79) | — | 🔵 In progress | Rem0te contract | 79.26 suspended is not revoked; 79.23 reference-peer and TypeScript runs; then 79.24 security review |
-| 82 | [Shared operational event and alert foundation](#phase-82) | — | 🔵 In progress | 81 | 82.13 health reports over Connect; 82.3 per-connection rate limits; first consumers |
+| 82 | [Shared operational event and alert foundation](#phase-82) | — | 🔵 In progress | 81 | 82.14 history retrieval in the security connectors; 82.13 health reports over Connect; 82.3 per-connection rate limits |
 | 84 | [Security connector framework and vendor integrations](#phase-84) | P3\* | ⬜ Planned | 81, 82 | 84.1 connector SDK; vendor batches |
 | 85 | [Operations Center, alert triage and correlation](#phase-85) | P3\* | ⬜ Planned | 82, 84 | 85.1 Operations Center |
 | 86 | [SOAR Lite: approval-driven security automation](#phase-86) | P3\* | ⬜ Planned | 85, 51.20; Rem0te contract | 86.1 builder on the Phase 91 engine |
@@ -2906,9 +2906,9 @@ Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 8
 <a id="phase-82"></a>
 
 ## Phase 82 — Shared operational event and alert foundation **(L · monitoring)** [in progress]
-<!-- phase: ws=D view=later deps=81 next="82.13 health reports over Connect; 82.3 per-connection rate limits; first consumers" -->
+<!-- phase: ws=D view=later deps=81 next="82.14 history retrieval in the security connectors; 82.13 health reports over Connect; 82.3 per-connection rate limits" -->
 **Status:** 🔵 In progress · **Priority:** — · **Workstream:** D. RMM & Platform Integrations · **Depends on:** 81  
-**Next:** 82.13 health reports over Connect; 82.3 per-connection rate limits; first consumers
+**Next:** 82.14 history retrieval in the security connectors; 82.13 health reports over Connect; 82.3 per-connection rate limits
 
 <details markdown="1">
 <summary>Details, completed work and acceptance criteria</summary>
@@ -2980,6 +2980,37 @@ the shared contract for Clientst0r and later MSPZero products.
 - **82.14 Security vendor probes** *(planned — with the Phase 84 connectors)* — each real vendor connector
   implements its provider-specific bounded probe; until then vendor connections without an API adapter are
   push-only and shown as unverified when quiet.
+
+**Monitoring coverage: gaps, recovery and delivered-late alerts** — added 2026-11-26 from community feedback
+(GitHub Discussion [#161](https://github.com/agit8or1/clientst0r/discussions/161), credit: **Dijar Vrella**): a
+source that recovers after several failed reads and backfills the missed window must be marked "recovered,
+delivered late" rather than look verified quiet, so analysts know those alerts were not seen in real time.
+Implements [Monitoring Health Standard 1.1.0](https://github.com/agit8or1/clientst0r/blob/main/docs/standards/MONITORING_HEALTH_STANDARD.md)
+§6.5; extends 82.7–82.12 (shipped v3.17.769).
+
+- **82.15 Coverage gap history** *(shipped v3.17.795)* — one record per interruption, per customer and source: failed
+  reads, consecutive failures, outage start, recovery time, last successful read and last verified coverage;
+  states Verified Quiet, Active Monitoring, Coverage Gap, Recovered – Delivered Late, Partial Recovery and
+  Unrecoverable Gap; gaps stay on record after recovery; an open gap is never shown as quiet.
+- **82.16 Event time, delivery delay and delivered-late marking** *(shipped v3.17.795)* — the source's own event time is
+  kept apart from the ingestion time, with the delay; alerts first stored after an outage are marked delivered late
+  on the alert list and detail, incident details, the event timeline and wallboards, with a filter.
+- **82.17 Backfill with durable checkpoints** *(shipped v3.17.795)* — after recovery the scheduler retrieves the missed
+  window where the source supports it: page checkpoints persisted in the database (a restart resumes), bounded
+  pages and attempts, backoff, a lookback cap; never on page render. Proxmox Backup Server pages its task history;
+  security connectors opt in by declaring history support (none of the shipped adapters does yet, see 82.14).
+- **82.18 Declared history capability and completeness** *(shipped v3.17.795)* — per provider: history support, maximum
+  lookback, ordering and a pagination completeness signal. A window is fully recovered only when the declaration
+  and the retrieval both establish it; a 200 response alone or an undeclared capability never is.
+- **82.19 Delayed alerts through normal workflows and gap notifications** *(shipped v3.17.795)* — backfilled alerts go
+  through the existing deduplication, alert-to-ticket rules and incident correlation (playbook approvals
+  unchanged), with the ticket and incident marked delivered late; one technician e-mail per gap when a critical
+  source stays interrupted past a threshold (default 60 minutes, 0 = off) and when a gap cannot be fully recovered;
+  settings audited.
+- **82.20 Coverage on the reliability page, feed and wallboards** *(shipped v3.17.795)* — Monitoring reliability shows
+  current health and coverage side by side plus a 30-day gap history with a delayed-alerts filter; the JSON feed
+  carries the schema 1.1.0 `coverage` object; a wallboard widget shows current health, historical gaps and
+  delayed alerts with icon, text and tooltip per state, outage duration, events delivered late and maximum delay.
 
 **Sizing:** **L** — envelope and links first, then queueing, retention and health.
 

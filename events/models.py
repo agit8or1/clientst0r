@@ -73,6 +73,17 @@ class OperationalEvent(models.Model):
                                                                f'({RAW_MAX_BYTES // 1024} KB)')
     created_at = models.DateTimeField(auto_now_add=True)
     projected_at = models.DateTimeField(default=timezone.now, db_index=True)
+    # Monitoring coverage (82.15–82.20): the source's own event time, kept
+    # apart from when Clientst0r received it (first_seen_at for security
+    # alerts is the ingestion time). An alert that arrived only after a
+    # monitoring outage is marked delivered late: nobody saw it in real time.
+    occurred_at = models.DateTimeField(null=True, blank=True,
+                                       help_text="The source's own event time, when it gave a valid one")
+    delivered_late = models.BooleanField(default=False,
+                                         help_text='Arrived only after a monitoring coverage gap (backfill or the '
+                                                   'first read after recovery)')
+    delivery_delay_seconds = models.PositiveBigIntegerField(null=True, blank=True,
+                                                            help_text='Ingestion time minus the event time')
 
     class Meta:
         db_table = 'events_operational_events'
@@ -167,6 +178,16 @@ class SourceHealth(models.Model):
 class EventSettings(models.Model):
     """Install-wide switches and retention (82.4, 82.6). One row."""
     ingestion_enabled = models.BooleanField(default=True, help_text='Copy source alerts into the shared event layer')
+    # Monitoring coverage (82.15–82.20).
+    backfill_enabled = models.BooleanField(default=True, help_text='Retrieve missed events after a monitoring '
+                                                                   'source recovers, where the source supports it')
+    backfill_max_lookback_hours = models.PositiveIntegerField(
+        default=168, help_text='Never ask a source for events older than this (hours), whatever it allows')
+    coverage_gap_notify_minutes = models.PositiveIntegerField(
+        default=60, help_text='E-mail technicians once when a critical source has been interrupted this long '
+                              '(0 = never)')
+    coverage_recovery_notify = models.BooleanField(
+        default=True, help_text='E-mail technicians once when a gap could not be fully recovered')
     retention_days = models.PositiveIntegerField(default=180, help_text='Delete closed events after this many days')
     raw_retention_days = models.PositiveIntegerField(default=30,
                                                      help_text='Clear the raw payload copy after this many days')
@@ -195,3 +216,91 @@ class CustomerRetention(models.Model):
 
     class Meta:
         db_table = 'events_customer_retention'
+
+
+# --- monitoring coverage (82.15–82.20) -------------------------------------------------------
+
+COVERAGE_GAP = 'coverage_gap'
+RECOVERED_LATE = 'recovered_late'
+PARTIAL_RECOVERY = 'partial_recovery'
+UNRECOVERABLE_GAP = 'unrecoverable_gap'
+WINDOW_STATES = ((COVERAGE_GAP, 'Coverage Gap'), (RECOVERED_LATE, 'Recovered – Delivered Late'),
+                 (PARTIAL_RECOVERY, 'Partial Recovery'), (UNRECOVERABLE_GAP, 'Unrecoverable Gap'))
+BACKFILL_STATES = (('', 'Not started'), ('pending', 'Pending'), ('running', 'Running'), ('complete', 'Complete'),
+                   ('incomplete', 'Incomplete'), ('failed', 'Failed'), ('unsupported', 'Not supported'),
+                   ('disabled', 'Switched off'))
+
+
+class CoverageWindow(models.Model):
+    """One interruption of one monitoring source (82.15). Opened by the first
+    failed read (or by the freshness sweep when a collector stops), closed
+    when the missed window has been backfilled or found unrecoverable. Rows
+    are never overwritten by a later outage: each gap stays in the history.
+
+    The customer is copied from the source's health row (which copies it
+    from the connection), never from a payload.
+    """
+    organization = models.ForeignKey('core.Organization', null=True, blank=True, on_delete=models.CASCADE,
+                                     related_name='coverage_windows',
+                                     help_text='The customer; empty = MSP-wide source')
+    health = models.ForeignKey('integrations.IntegrationSyncHealth', null=True, blank=True,
+                               on_delete=models.SET_NULL, related_name='coverage_windows')
+    source_key = models.CharField(max_length=80, db_index=True,
+                                  help_text='kind:content_type:object_id, as in the reliability feed')
+    kind = models.CharField(max_length=20)
+    source_name = models.CharField(max_length=200, blank=True, default='')
+    state = models.CharField(max_length=24, choices=WINDOW_STATES, default=COVERAGE_GAP)
+    cause = models.CharField(max_length=30, blank=True, default='', help_text='Failure reason that opened it')
+    coverage_lost_at = models.DateTimeField(help_text='Last verified coverage: events after this were not seen')
+    first_failure_at = models.DateTimeField(help_text='Outage start: the first failed read')
+    last_failure_at = models.DateTimeField(null=True, blank=True)
+    failed_reads = models.PositiveIntegerField(default=0)
+    recovered_at = models.DateTimeField(null=True, blank=True, help_text='First successful read after the outage')
+    backfill_state = models.CharField(max_length=12, choices=BACKFILL_STATES, blank=True, default='')
+    backfill_from = models.DateTimeField(null=True, blank=True, help_text='Start actually requested (lookback cap)')
+    backfill_to = models.DateTimeField(null=True, blank=True)
+    checkpoint_cursor = models.CharField(max_length=500, blank=True, default='',
+                                        help_text='Durable resume point: the next page to request')
+    checkpoint_at = models.DateTimeField(null=True, blank=True,
+                                         help_text='Coverage established up to here (time-ordered sources only)')
+    pages_fetched = models.PositiveIntegerField(default=0)
+    records_fetched = models.PositiveIntegerField(default=0)
+    backfill_attempts = models.PositiveSmallIntegerField(default=0)
+    backfill_next_at = models.DateTimeField(null=True, blank=True)
+    backfill_error = models.CharField(max_length=300, blank=True, default='')
+    recovered_count = models.PositiveIntegerField(default=0, help_text='Events delivered late')
+    duplicate_count = models.PositiveIntegerField(default=0, help_text='Already stored; not stored again')
+    rejected_count = models.PositiveIntegerField(default=0)
+    max_delay_seconds = models.PositiveBigIntegerField(null=True, blank=True)
+    lookback_truncated = models.BooleanField(default=False)
+    capability = models.JSONField(default=dict, blank=True, help_text='Declared history capability when resolved')
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    notified_prolonged_at = models.DateTimeField(null=True, blank=True)
+    notified_unrecovered_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'events_coverage_windows'
+        ordering = ['-first_failure_at']
+        constraints = [models.UniqueConstraint(fields=['source_key'], condition=models.Q(state='coverage_gap'),
+                                               name='uniq_open_coverage_window')]
+        indexes = [models.Index(fields=['organization', '-first_failure_at']),
+                   models.Index(fields=['state', 'backfill_state'])]
+
+    def __str__(self):
+        return f'{self.source_name or self.source_key}: {self.get_state_display()}'
+
+    @property
+    def is_open(self):
+        return self.state == COVERAGE_GAP
+
+    @property
+    def outage_seconds(self):
+        end = self.recovered_at or timezone.now()
+        return max(0, int((end - self.first_failure_at).total_seconds()))
+
+    @property
+    def gap_seconds(self):
+        end = self.recovered_at or timezone.now()
+        return max(0, int((end - self.coverage_lost_at).total_seconds()))

@@ -36,6 +36,10 @@
     <option value="">All customers</option>
     {% for id, name in customers %}<option value="{{ id }}" {% if filters.customer == id|stringformat:'s' %}selected{% endif %}>{{ name }}</option>{% endfor %}
   </select>
+  <select name="late" class="form-select form-select-sm" style="width:auto" aria-label="Delivery" data-autosubmit>
+    <option value="">Any delivery</option>
+    <option value="1" {% if filters.late == '1' %}selected{% endif %}>Delivered late only</option>
+  </select>
   <input type="search" name="q" value="{{ filters.q }}" class="form-control form-control-sm" style="width:auto" placeholder="Title, host or vendor id">
   <button class="btn btn-sm btn-outline-primary">Filter</button>
 </form>
@@ -48,7 +52,7 @@
       {% for e in page %}
         <tr>
           <td>{% include "events/_severity.html" with s=e.severity %}</td>
-          <td><a href="{% url 'events:detail' e.pk %}">{{ e.title }}</a>{% if e.asset_hint %}<div class="small text-muted">{{ e.asset_hint }}</div>{% endif %}</td>
+          <td><a href="{% url 'events:detail' e.pk %}">{{ e.title }}</a>{% if e.delivered_late %} {% include "events/_delivered_late.html" with delay=e.delivery_delay_seconds occurred=e.occurred_at %}{% endif %}{% if e.asset_hint %}<div class="small text-muted">{{ e.asset_hint }}</div>{% endif %}</td>
           <td>{{ e.organization.name|default:"MSP-wide" }}</td>
           <td class="small">{{ e.get_source_display }}{% if e.connection_label %}<div class="text-muted">{{ e.connection_label }}</div>{% endif %}</td>
           <td>{{ e.get_status_display }}{% if e.occurrences > 1 %} <span class="badge bg-light text-dark border">×{{ e.occurrences }}</span>{% endif %}</td>

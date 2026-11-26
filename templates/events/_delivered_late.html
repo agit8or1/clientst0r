@@ -1,0 +1,2 @@
+{% load coverage_tags %}{# Delivered-late marker. Needs `delay` (seconds or None) and optional `occurred` (datetime). #}
+<span class="badge bg-warning text-dark" data-delivered-late="1" title="Not seen in real time: received only after a monitoring coverage gap{% if occurred %}. Occurred {{ occurred|date:'Y-m-d H:i' }} UTC{% endif %}. Delay {{ delay|delay }}."><i class="fas fa-clock-rotate-left me-1" aria-hidden="true"></i>Delivered late{% if delay is not None %} · {{ delay|delay }}{% endif %}</span>

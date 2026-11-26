@@ -17,6 +17,7 @@
         <dt class="col-sm-4">Severity</dt><dd class="col-sm-8">{{ event.get_severity_display }}{% if event.source_severity %} <span class="text-muted">(source: {{ event.source_severity }})</span>{% endif %}</dd>
         <dt class="col-sm-4">Type</dt><dd class="col-sm-8">{{ event.event_type|default:"—" }}</dd>
         <dt class="col-sm-4">First / last seen</dt><dd class="col-sm-8">{{ event.first_seen_at|date:"Y-m-d H:i" }} / {{ event.last_seen_at|date:"Y-m-d H:i" }}{% if event.occurrences > 1 %} · {{ event.occurrences }} occurrences{% endif %}</dd>
+        {% if event.occurred_at or event.delivered_late %}<dt class="col-sm-4">Event time (source)</dt><dd class="col-sm-8">{{ event.occurred_at|date:"Y-m-d H:i"|default:"not given by the source" }}{% if event.delivered_late %} {% include "events/_delivered_late.html" with delay=event.delivery_delay_seconds occurred=event.occurred_at %}<div class="text-muted">Received only after a monitoring coverage gap: this alert was not seen in real time.</div>{% endif %}</dd>{% endif %}
         {% if event.resolved_at %}<dt class="col-sm-4">Resolved</dt><dd class="col-sm-8">{{ event.resolved_at|date:"Y-m-d H:i" }}</dd>{% endif %}
         <dt class="col-sm-4">Asset</dt><dd class="col-sm-8">{% if event.asset %}<a href="{% url 'assets:asset_detail' event.asset.pk %}">{{ event.asset }}</a>{% else %}{{ event.asset_hint|default:"—" }}{% endif %}</dd>
         {% if event.vendor_event_id %}<dt class="col-sm-4">Vendor event id</dt><dd class="col-sm-8"><code class="text-break">{{ event.vendor_event_id }}</code></dd>{% endif %}

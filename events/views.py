@@ -41,7 +41,9 @@ def _may_act(user, event):
 @require_perm(VIEW_PERM)
 def event_list(request):
     qs = scoped_events(request.user).select_related('organization')
-    f = {k: request.GET.get(k, '') for k in ('source', 'severity', 'status', 'customer', 'q')}
+    f = {k: request.GET.get(k, '') for k in ('source', 'severity', 'status', 'customer', 'q', 'late')}
+    if f['late'] == '1':
+        qs = qs.filter(delivered_late=True)
     if f['source'] in dict(M.SOURCES):
         qs = qs.filter(source=f['source'])
     if f['severity'] in M.SEVERITY_RANK:
@@ -174,6 +176,8 @@ def ingestion_health(request):
             _audit(request, None, f'Retried {n} failed event projections')
         elif action == 'customer_retention':
             return _customer_retention(request)
+        elif action == 'coverage':
+            return _coverage_settings(request, settings)
         elif action == 'settings':
             try:
                 values = {k: int(request.POST.get(k) or 0)
@@ -217,6 +221,35 @@ def ingestion_health(request):
         'live_count': M.OperationalEvent.objects.filter(status__in=(M.STATUS_OPEN, M.STATUS_ACK)).count(),
         'queue_cap': QUEUE_CAP,
     })
+
+
+def _coverage_settings(request, settings):
+    """Backfill and coverage-gap notification settings (82.17, 82.19).
+    Install-wide; audited with the old and new values."""
+    try:
+        lookback = int(request.POST.get('backfill_max_lookback_hours') or 0)
+        gap_minutes = int(request.POST.get('coverage_gap_notify_minutes') or 0)
+    except ValueError:
+        messages.error(request, 'Lookback and threshold must be whole numbers.')
+        return redirect('events:health')
+    if not 1 <= lookback <= 24 * 90:
+        messages.error(request, 'The backfill lookback must be between 1 hour and 90 days (2160 hours).')
+        return redirect('events:health')
+    if gap_minutes and gap_minutes < 5:
+        messages.error(request, 'Notify after at least 5 minutes (0 switches the notification off).')
+        return redirect('events:health')
+    fields = ('backfill_enabled', 'backfill_max_lookback_hours', 'coverage_gap_notify_minutes',
+              'coverage_recovery_notify')
+    before = {k: getattr(settings, k) for k in fields}
+    settings.backfill_enabled = request.POST.get('backfill_enabled') == '1'
+    settings.backfill_max_lookback_hours = lookback
+    settings.coverage_gap_notify_minutes = gap_minutes
+    settings.coverage_recovery_notify = request.POST.get('coverage_recovery_notify') == '1'
+    settings.save()
+    after = {k: getattr(settings, k) for k in fields}
+    _audit(request, None, 'Changed monitoring coverage settings', extra={'before': before, 'after': after})
+    messages.success(request, 'Saved.')
+    return redirect('events:health')
 
 
 def _retention_customers(user):
@@ -293,16 +326,41 @@ def source_health(request):
         r['display'] = sh.display(r)
         r['kind_label'] = store.KIND_LABELS.get(r['kind'], r['kind'])
         r['customer_names'] = sorted(names.get(o, '') for o in r['customers'])
+    from datetime import timedelta
+    from django.utils import timezone
+    from . import coverage
+    for r in records:
+        r['coverage_display'] = coverage.coverage_display(r.get('coverage_state') or coverage.NOT_VERIFIED)
+        w = r.get('coverage_window')
+        r['window_display'] = coverage.coverage_display(w.state, recovered=w.recovered_count) if w else None
     rows = store.by_customer(records, names)
     msp_wide = [r for r in records if not r['customers']]
     overall = sh.summarize(records)
+    # Coverage history (82.18): every gap of the visible sources in the
+    # last 30 days, never overwritten by a later one.
+    view = request.GET.get('coverage', '')
+    view = view if view in ('gaps', 'delayed') else ''
+    by_source = {r['source_id']: r for r in records if r.get('source_id')}
+    now = timezone.now()
+    windows = coverage.windows_for(by_source, since=now - timedelta(days=coverage.HISTORY_DAYS), limit=200)
+    if view == 'delayed':
+        windows = [w for w in windows if w.recovered_count]
+    history = [{'w': w, 'd': coverage.coverage_display(w.state, recovered=w.recovered_count),
+                'name': w.source_name or by_source.get(w.source_key, {}).get('name') or w.kind,
+                'customers': by_source.get(w.source_key, {}).get('customer_names', [])} for w in windows]
+    delayed = []
+    if view == 'delayed':
+        delayed = list(scoped_events(request.user).filter(delivered_late=True)
+                       .select_related('organization').order_by('-first_seen_at')[:50])
     return render(request, 'events/source_health.html', {
         'customers': rows, 'msp_wide': msp_wide, 'overall': overall,
         'statement': sh.visibility_statement(overall), 'customer': customer,
         'customer_name': names.get(customer, '') if customer else '',
         'records': sorted(records, key=lambda r: (-r['display'].rank, r.get('name') or '')),
         'legend': [(k, v[0], v[1], v[2]) for k, v in sh.DISPLAY.items()],
-        'all_scope': all_scope,
+        'coverage_legend': [coverage.coverage_display(k) for k in coverage.COVERAGE_VALUES],
+        'history': history, 'delayed': delayed, 'view': view,
+        'all_scope': all_scope, 'schema_version': sh.SCHEMA_VERSION,
     })
 
 

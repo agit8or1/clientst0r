@@ -87,6 +87,15 @@ class PageBudgetBase(TestCase):
     def setUp(self):
         nav_cache.clear()
         nav_cache.clear_html()
+        # The session activity stamp is rewritten at most once a minute
+        # (accounts.middleware.SessionIdleTimeoutMiddleware). In a slow run a
+        # measured request can land just past that minute and count the session
+        # save, so the counts here would depend on the clock. Keep it out.
+        from unittest import mock
+        from accounts.middleware import SessionIdleTimeoutMiddleware
+        patcher = mock.patch.object(SessionIdleTimeoutMiddleware, 'ACTIVITY_WRITE_INTERVAL', 10 ** 9)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     # -- fixtures ----------------------------------------------------------
 

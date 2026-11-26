@@ -80,6 +80,10 @@ class SecurityAlertAdapter(Adapter):
             'raw': _cap_raw(a.raw_payload),
             'dedup_key': f'security:{a.pk}',
             'correlation_group': _group(a.client_org_id or a.organization_id, a.asset_hint),
+            # Coverage (82.16): the vendor's event time and late delivery.
+            'occurred_at': getattr(a, 'occurred_at', None),
+            'delivered_late': bool(getattr(a, 'delivered_late', False)),
+            'delivery_delay_seconds': getattr(a, 'delivery_delay_seconds', None),
         }
 
     def links(self, a):

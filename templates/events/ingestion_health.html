@@ -55,6 +55,18 @@
     </div>
   </div>
 </div>
+<div class="card mt-3"><div class="card-header py-2"><h6 class="mb-0">Monitoring coverage: backfill and gap notifications</h6></div>
+  <form method="post" class="card-body" id="coverage-settings">{% csrf_token %}<input type="hidden" name="action" value="coverage">
+    <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" id="backfill_enabled" name="backfill_enabled" value="1" {% if settings.backfill_enabled %}checked{% endif %} {% if not can_admin %}disabled{% endif %}><label class="form-check-label" for="backfill_enabled">Retrieve missed events after a source recovers, where the source supports it</label></div>
+    <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" id="coverage_recovery_notify" name="coverage_recovery_notify" value="1" {% if settings.coverage_recovery_notify %}checked{% endif %} {% if not can_admin %}disabled{% endif %}><label class="form-check-label" for="coverage_recovery_notify">E-mail technicians when a gap could not be fully recovered</label></div>
+    <div class="row g-2">
+      <div class="col-sm-6"><label class="form-label small" for="coverage_gap_notify_minutes">E-mail technicians when a critical source is interrupted for (minutes, 0 = never)</label><input class="form-control form-control-sm" type="number" min="0" id="coverage_gap_notify_minutes" name="coverage_gap_notify_minutes" value="{{ settings.coverage_gap_notify_minutes }}" {% if not can_admin %}disabled{% endif %}></div>
+      <div class="col-sm-6"><label class="form-label small" for="backfill_max_lookback_hours">Never ask a source for events older than (hours)</label><input class="form-control form-control-sm" type="number" min="1" max="2160" id="backfill_max_lookback_hours" name="backfill_max_lookback_hours" value="{{ settings.backfill_max_lookback_hours }}" {% if not can_admin %}disabled{% endif %}></div>
+    </div>
+    <small class="text-muted d-block mt-2">Each notification is sent once per gap. Backfill runs in the scheduler with bounded pages and retries, never while a page loads. A gap older than the lookback, or one the source cannot prove complete, is shown as Partial Recovery or Unrecoverable Gap — never as recovered.</small>
+    {% if can_admin %}<button class="btn btn-sm btn-primary mt-2">Save</button>{% endif %}
+  </form>
+</div>
 <div class="card mt-3"><div class="card-header py-2"><h6 class="mb-0">Retention per customer</h6></div>
   <div class="card-body small">
     {% if customer_retention %}

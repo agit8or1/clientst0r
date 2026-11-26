@@ -1,0 +1,2 @@
+{# One coverage state: icon + text + tooltip, never colour alone. Needs `c` (events.coverage.CoverageDisplay). #}
+<span class="badge bg-{{ c.badge }}{% if c.badge == 'warning' or c.badge == 'info' %} text-dark{% endif %}" title="{{ c.tooltip }}" data-coverage="{{ c.key }}"><i class="fas {{ c.icon }} me-1" aria-hidden="true"></i>{{ c.label }}</span>

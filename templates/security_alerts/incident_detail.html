@@ -85,9 +85,9 @@
             <tr>
                 <td><a href="{% url 'security_alerts:alert_detail' a.pk %}">#{{ a.pk }}</a></td>
                 <td>{{ a.get_severity_display }}</td>
-                <td>{{ a.title|truncatechars:80 }}</td>
+                <td>{{ a.title|truncatechars:80 }}{% if a.delivered_late %} {% include "events/_delivered_late.html" with delay=a.delivery_delay_seconds occurred=a.occurred_at %}{% endif %}</td>
                 <td><code>{{ a.asset_hint|default:"—" }}</code></td>
-                <td>{{ a.seen_at }}</td>
+                <td>{{ a.seen_at }}{% if a.occurred_at %}<div class="small text-muted">occurred {{ a.occurred_at }}</div>{% endif %}</td>
             </tr>
             {% empty %}
             <tr><td colspan="5" class="text-muted">No alerts attached.</td></tr>

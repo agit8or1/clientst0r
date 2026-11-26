@@ -2211,6 +2211,8 @@ def wallboard_form(request, pk=None):
                             widget_type=w['widget_type'],
                             data_source=w['data_source'],
                             order=rank,
+                            # A template may give a widget a grid width (12 = full row).
+                            position={'width': w['width']} if w.get('width') else {},
                         )
                         rank += 10
             label = instance.name + (' (Global)' if org is None else '')

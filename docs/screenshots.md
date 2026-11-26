@@ -1,6 +1,6 @@
 # Clientst0r — screenshot gallery
 
-121 views of the running application — 65 in the light theme (Default Blue), 56 in Professional Dark, the default theme. Every one is a capture of Clientst0r against an isolated demo database; no mockups, no composites.
+125 views of the running application — 68 in the light theme (Default Blue), 57 in Professional Dark, the default theme. Every one is a capture of Clientst0r against an isolated demo database; no mockups, no composites.
 
 All organizations, people, hostnames, addresses and credentials below are invented. Domains use the reserved `.example` TLD and addresses are RFC 1918. Nothing is masked after the fact because nothing needed masking — the application never renders a secret into a list, a ticket or a report.
 
@@ -18,7 +18,7 @@ All organizations, people, hostnames, addresses and credentials below are invent
 - [Tickets and the paired RMM](#tickets-and-the-paired-rmm) — 6 views
 - [Management and configuration](#management-and-configuration) — 10 views
 - [Access and administration](#access-and-administration) — 14 views
-- [Operations and monitoring](#operations-and-monitoring) — 4 views
+- [Operations and monitoring](#operations-and-monitoring) — 8 views
 - [Business operations](#business-operations) — 5 views
 - [Security and client data protection](#security-and-client-data-protection) — 10 views
 
@@ -896,17 +896,41 @@ Every alert source in one event list, ingestion health, backup monitoring and th
 
 **Professional Dark theme**
 
-[![Events list in dark theme showing website, backup, security and RMM alerts across several customers with severity badges and occurrence counts](images/github/events-dark.png)](images/github/events-dark.png)
+[![Events list in dark theme showing website, backup, security and RMM alerts across several customers with severity badges and occurrence counts, three Northwind security alerts marked Delivered late with their delays](images/github/events-dark.png)](images/github/events-dark.png)
 
-One list of alerts from every source — security vendors and SIEM, RMM, Rem0te, backups and website monitors — with severity, customer, status and repeat counts.
+One list of alerts from every source — security vendors and SIEM, RMM, Rem0te, backups and website monitors — with severity, customer, status and repeat counts; alerts received only after a monitoring outage carry a Delivered late badge with the delay.
 
 ### Event ingestion health
 
 **Light theme**
 
-[![Event ingestion health page listing each alert source with last ingestion time, error counts and retention settings](images/github/events-ingestion-light.png)](images/github/events-ingestion-light.png)
+[![Event ingestion health page listing each alert source with last ingestion time, error counts and retention settings, followed by the Monitoring coverage card with the backfill switch, the gap notification threshold and the lookback limit](images/github/events-ingestion-light.png)](images/github/events-ingestion-light.png)
 
-Per-source ingestion status, queue depth and dead letters, with retention settings per source and per customer.
+Per-source ingestion status, queue depth and dead letters, retention settings per source and per customer, and the monitoring coverage settings: backfill after an outage, its lookback limit and the gap notifications.
+
+### Monitoring reliability
+
+**Light theme**
+
+[![Monitoring reliability page with a warning that Harbor Point's RMM is unavailable and that alerts from a Defender outage may be missing, a per-customer summary, and source rows with separate Current health and Coverage badges such as Coverage Gap, Active Monitoring with a last gap of Partial Recovery, Recovered – Delivered Late or Unrecoverable Gap, and Verified Quiet](images/github/monitoring-reliability-light.png)](images/github/monitoring-reliability-light.png)
+
+Per customer, whether each monitoring source collects now (current health) and whether its alerts were seen as they happened (coverage): an open coverage gap, active monitoring with the last gap of each source, and verified quiet.
+
+### Coverage history
+
+**Light theme**
+
+[![Coverage history table listing an open Coverage Gap, a Partial Recovery with three alerts delivered late, Recovered – Delivered Late and Recovered – None Missed backup windows, and an Unrecoverable Gap, with outage times, failed reads, late counts, maximum delay and backfill state](images/github/monitoring-coverage-history-light.png)](images/github/monitoring-coverage-history-light.png)
+
+Every coverage gap of the last 30 days stays listed after the source recovers: when coverage was lost, how long the outage lasted, how many events were delivered late, the longest delay and how the backfill ended.
+
+### Alerts delivered late
+
+**Light theme**
+
+[![Security alert list with the Delivered late only filter on, listing a high, a medium and a low severity Northwind alert, each marked Delivered late with its delay](images/github/security-alerts-late-light.png)](images/github/security-alerts-late-light.png)
+
+The security alert list filtered to alerts first received after a monitoring coverage gap, each with a Delivered late badge, the vendor's own event time and the delay.
 
 ### Backup monitoring
 
@@ -923,6 +947,14 @@ Backup health per customer from Proxmox Backup Server and restic reports: newest
 [![Service Desk wallboard in dark theme with ticket, monitor and certificate counters, a monitor status pie chart, a 30-day ticket chart and tickets by priority](images/github/wallboard-dark.png)](images/github/wallboard-dark.png)
 
 A configurable wallboard for the office screen: open and overdue tickets, monitors down, certificates expiring, monitor status and ticket trends.
+
+### Security & Alerts wallboard
+
+**Professional Dark theme**
+
+[![Security & Alerts wallboard in dark theme with alert counters and a Monitoring coverage table listing each source with its current health, coverage, last gap, outage and late deliveries](images/github/wallboard-security-dark.png)](images/github/wallboard-security-dark.png)
+
+The Security & Alerts wallboard template: open critical alerts, new alerts by severity, failed logins, vault events and the Monitoring coverage table (current health and coverage per source).
 
 ---
 

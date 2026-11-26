@@ -161,7 +161,35 @@ class ProxmoxBackupServerProvider(BaseBackupProvider):
         if since is not None:
             params['since'] = int(since.timestamp())
         tasks = self._get('/nodes/localhost/tasks', params) or []
-        sizes = self._snapshot_sizes()
+        return self._runs(tasks, self._snapshot_sizes())
+
+    # Monitoring coverage (82.17). The task list takes since / until and
+    # start / limit, so a missed window can be paged through; a page shorter
+    # than the limit is the end of the results. Results are not documented as
+    # time-ordered, so every timestamp is validated. PBS rotates its task
+    # archive by size, so 7 days is the lookback Clientst0r relies on; an
+    # older gap is never reported as fully recovered.
+    @property
+    def history_capability(self):
+        from datetime import timedelta
+        from events.coverage import HistoryCapability, ORDER_UNORDERED, PAGE_SHORT
+        return HistoryCapability(supports_history=True, max_lookback=timedelta(days=7), ordering=ORDER_UNORDERED,
+                                 pagination=PAGE_SHORT, page_size=200)
+
+    def fetch_history(self, start, end, token=None, limit=200):
+        from events.coverage import HistoryPage
+        offset = int(token) if token and str(token).isdigit() else 0
+        params = {'typefilter': 'backup', 'since': int(start.timestamp()), 'until': int(end.timestamp()),
+                  'start': offset, 'limit': int(limit)}
+        tasks = self._get('/nodes/localhost/tasks', params)
+        if not isinstance(tasks, list):
+            raise ProviderError('PBS returned no task list.', 'invalid_response')
+        runs = self._runs(tasks, self._snapshot_sizes() if tasks else {})
+        # Short-page detection counts what PBS returned, not the runs kept.
+        return HistoryPage(records=runs, next_token=str(offset + len(tasks)) if len(tasks) >= limit else '',
+                           exhausted=len(tasks) < limit, raw_count=len(tasks))
+
+    def _runs(self, tasks, sizes):
         out = []
         for t in tasks:
             if t.get('worker_type') != 'backup' or ':' not in (t.get('worker_id') or ''):

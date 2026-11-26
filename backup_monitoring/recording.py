@@ -137,6 +137,11 @@ def poll_connection(connection, now=None):
 
     since_window = since
     rejected = 0
+    # Runs first stored while a coverage gap is open were not seen in real
+    # time (roadmap 82.16): counted against the gap.
+    from events import coverage
+    window = coverage.open_window(connection, 'backup')
+    late, max_delay = 0, None
     with transaction.atomic():
         for r in repos:
             record_repository(connection, r.external_id, r.name, r.total_bytes, r.used_bytes, r.available,
@@ -151,10 +156,16 @@ def poll_connection(connection, now=None):
             _, outcome = record_run(job, run.external_id, run.started_at, run.status, run.finished_at,
                                     run.bytes_processed, run.message)
             created += outcome == 'created'
+            occurred = run.finished_at or run.started_at
+            if outcome == 'created' and coverage.is_late(window, occurred, now):
+                late += 1
+                d = coverage.delay_seconds(occurred, now)
+                max_delay = d if max_delay is None or (d is not None and d > max_delay) else max_delay
         connection.last_poll_at = now
         connection.last_poll_status, connection.last_poll_error = 'ok', ''
         connection.save(update_fields=['last_poll_attempt_at', 'last_poll_at', 'last_poll_status',
                                        'last_poll_error'])
+    coverage.note_delivered(window, late=late, max_delay=max_delay)
     _record_health(connection, now, window_start=since_window, retrieved=len(runs), committed=len(runs) - rejected,
                    rejected=rejected, times=[r.finished_at or r.started_at for r in runs])
     return {'ok': True, 'message': 'ok', 'runs': created}
