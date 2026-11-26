@@ -470,8 +470,8 @@
 {% endblock %}
 
 {% block extra_js %}
-<link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+<link href="{% static 'vendor/quill/2.0.3/quill.snow.css' %}" rel="stylesheet">
+<script src="{% static 'vendor/quill/2.0.3/quill.js' %}"></script>
 <script src="{% static 'vendor/select2/4.1.0-rc.0/js/select2.min.js' %}"></script>
 
 <script nonce="{{ csp_nonce }}">

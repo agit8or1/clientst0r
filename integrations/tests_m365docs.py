@@ -661,7 +661,11 @@ class BrowseViewTests(M365DocsBase):
         resp = self.client.get(url, {'loc': loc.pk})
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, '2026')
-        self.assertNotContains(resp, 'HR')
+        # The random CSRF token can contain 'HR' by chance; look at the page without it.
+        page = resp.content.decode()
+        for token in set(re.findall(r'name="csrf-token" content="([^"]+)"', page)):
+            page = page.replace(token, '')
+        self.assertNotIn('HR', page)
         self.assertNotContains(resp, 'onclick')
         resp = self.client.get(url, {'loc': loc.pk, 'drive': DRIVE, 'item': 'F2'})
         self.assertContains(resp, 'Plan.docx')

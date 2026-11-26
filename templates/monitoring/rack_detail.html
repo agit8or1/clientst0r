@@ -1114,7 +1114,7 @@
 
 {% block extra_js %}
 <!-- SortableJS Library -->
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="{% static 'vendor/sortablejs/Sortable.min.js' %}"></script>
 <script src="{% static 'js/rack_elevation.js' %}"></script>
 
 <script nonce="{{ csp_nonce }}">

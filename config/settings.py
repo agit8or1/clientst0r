@@ -565,26 +565,19 @@ CSP_ENABLED = os.getenv('CSP_ENABLED', 'True').lower() == 'true'
 CSP_REPORT_ONLY = os.getenv('CSP_REPORT_ONLY', 'True').lower() == 'true'
 CSP_REPORT_URI = os.getenv('CSP_REPORT_URI', '/csp-report/')
 CSP_REPORT_RATE_LIMIT = int(os.getenv('CSP_REPORT_RATE_LIMIT', '30'))  # reports / minute / client IP
-# Hosts some pages still load a library from (Chart.js, Quill, SortableJS,
-# jsvectormap, html5-qrcode, older Font Awesome on the sign-in pages). What
-# every page loads (Font Awesome 6.5.1, DataTables, Select2, Leaflet, jQuery)
-# is served from static/vendor (core/tests/test_vendored_libraries.py).
-_CSP_CDNS = [
-    'https://cdn.jsdelivr.net',
-    'https://cdnjs.cloudflare.com',
-    'https://unpkg.com',
-]
+# No CDN hosts: every script, stylesheet and font is served from static/vendor
+# (core/tests/test_no_cdn.py, static/vendor/VENDORED.md).
 CSP_POLICY = {
     'default-src': [_CSP.SELF],
     # Inline <script> blocks carry the per-request nonce; no 'unsafe-inline'.
-    'script-src': [_CSP.SELF, _CSP.NONCE, *_CSP_CDNS],
+    'script-src': [_CSP.SELF, _CSP.NONCE],
     # No inline event-handler attributes: templates wire events through
     # static/js/csp-events.js (data-action, data-confirm, ...). A test fails
     # if one is added back (core/tests/test_csp.py).
     'script-src-attr': [_CSP.NONE],
     # ~90 <style> blocks, ~780 style="" attributes and library-injected styles.
-    'style-src': [_CSP.SELF, _CSP.UNSAFE_INLINE, *_CSP_CDNS],
-    'font-src': [_CSP.SELF, 'data:', 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com'],
+    'style-src': [_CSP.SELF, _CSP.UNSAFE_INLINE],
+    'font-src': [_CSP.SELF, 'data:'],
     # https: — user-authored KB/document content and map tiles (OSM/ArcGIS)
     # embed images from arbitrary hosts.
     'img-src': [_CSP.SELF, 'data:', 'blob:', 'https:'],

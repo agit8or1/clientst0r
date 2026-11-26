@@ -189,7 +189,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="{% static 'vendor/html5-qrcode/html5-qrcode.min.js' %}"></script>
 <script nonce="{{ csp_nonce }}">
     let html5QrcodeScanner = null;
 

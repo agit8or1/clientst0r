@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.791] - 2026-11-26
+
+### Changed
+- **Nothing loads from a CDN any more.** Chart.js 4.4.1, SortableJS 1.15.2, the world map (jsvectormap 1.6.0) and
+  the QR code scanner (html5-qrcode 2.3.8) are now served by Clientst0r itself, like Bootstrap, Font Awesome and the
+  other libraries already were. Pages that draw charts, maps or drag-and-drop lists, and the vehicle inventory scanner,
+  work on networks without internet access. Each file was checked against the npm registry's published checksums;
+  versions, sources and SHA-256 hashes are listed in `static/vendor/VENDORED.md`.
+- **Inter is bundled** (4.1, variable font, SIL Open Font Licence) instead of being fetched from a font service.
+- **Stricter browser security policy:** scripts, stylesheets and fonts may only come from Clientst0r itself; the
+  three CDN hosts are no longer allowed. A test fails if a template, stylesheet or script refers to a CDN again.
+- Rack detail used SortableJS 1.15.0; every page now uses 1.15.2 (same interface).
+
+### Tests
+- A Microsoft 365 documents test could fail by chance when the page's random security token contained the folder
+  name it checks for; it now ignores the token.
+- Roadmap: 113.5 partly shipped.
+
 ## [3.17.790] - 2026-11-26
 
 ### Changed

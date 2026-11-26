@@ -149,7 +149,7 @@
 
 {% block extra_js %}
 {% if has_chart %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{% static 'vendor/chartjs/chart.umd.js' %}"></script>
 <script nonce="{{ csp_nonce }}">
 (function() {
     function readJson(id) {

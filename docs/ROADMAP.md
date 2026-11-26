@@ -4031,7 +4031,7 @@ increment is tested with no peer application and no RMM configured. Hiding a lin
   showing healthy.
 - **113.4 Urgent accessibility fixes** *(shipped v3.17.789 — 418 label and name findings on 93 other pages listed in docs/ux/UX_AUDIT.md for later increments)* — styled error messages, readable skip link and current-page marker,
   focus ring and top-bar contrast, names for unlabelled fields and icon buttons, 404/500 pages inside the shell.
-- **113.5 Design tokens in CSS** *(in progress)* — one generated token stylesheet, existing themes mapped onto it, a
+- **113.5 Design tokens in CSS** *(in progress — CDN libraries and Inter bundled v3.17.791; token stylesheet and System theme next)* — one generated token stylesheet, existing themes mapped onto it, a
   system-following theme, self-hosted Inter, every CDN script and font bundled.
 - **113.6 Standalone hardening** *(shipped v3.17.783 — the two GitHub update checks that still run while a page loads are noted for a later release)* — no-network smoke test over every page, peer-unreachable fixture, RMM-only
   navigation, widgets and tabs hidden when no RMM is connected, timeout lint, safe removal of an RMM connection,

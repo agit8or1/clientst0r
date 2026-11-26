@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Customize Quick Actions{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb">
@@ -100,7 +101,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script src="{% static 'vendor/sortablejs/Sortable.min.js' %}"></script>
 <script nonce="{{ csp_nonce }}">
 (function() {
     var selectedList = document.getElementById('qa-selected');

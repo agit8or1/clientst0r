@@ -45,7 +45,7 @@
     --ui-12: 48px;
 
     /* Type */
-    --ui-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --ui-font: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --ui-text: 14px;          /* body + table text            */
     --ui-text-sm: 13px;       /* supporting metadata          */
     --ui-text-xs: 12px;       /* timestamps, counts, captions */

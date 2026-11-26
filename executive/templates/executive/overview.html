@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Business Overview{% endblock %}
 {% block extra_css %}
 <style>
@@ -143,7 +144,7 @@
   {% if hidden_count %}<p class="bo-sub">{{ hidden_count }} metric{{ hidden_count|pluralize }} not shown: your role does not include {{ hidden_count|pluralize:"it,them" }}.</p>{% endif %}
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{% static 'vendor/chartjs/chart.umd.js' %}"></script>
 <script nonce="{{ csp_nonce }}">
 (function () {
   'use strict';

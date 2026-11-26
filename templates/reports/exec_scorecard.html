@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Executive Scorecard{% endblock %}
 {% block extra_css %}
 <style>
@@ -149,7 +150,7 @@
 
 {{ chart_payload|json_script:"es-chart-data" }}
 {{ pie_payload|json_script:"es-pie-data" }}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{% static 'vendor/chartjs/chart.umd.js' %}"></script>
 <script nonce="{{ csp_nonce }}">
 (function() {
   const chartData = JSON.parse(document.getElementById('es-chart-data').textContent);
