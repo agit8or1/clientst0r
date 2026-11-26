@@ -74,7 +74,7 @@
     --warning-ink: #664d03;
     --danger-ink: #b02a37;
     --info-ink: #055160;
-    --sidebar-bg: #0d6efd;
+    --sidebar-bg: #0950b8; /* white text 7.4:1; the 20% active pill still 4.7:1 */
     --sidebar-text: #ffffff;
     --sidebar-hover: #0b5ed7;
     --card-bg: #ffffff;

@@ -774,3 +774,6 @@ main:has(.breadcrumb:not(.app-trail__list)) .app-trail { display: none; }
 @media (min-width: 1440px) and (max-width: 1599.98px) {
     .navbar.app-topbar .navbar-nav #orgDropdown { max-width: 180px; }
 }
+
+/* 404 search box (templates/404.html) */
+.denied__search { max-width: 18rem; }

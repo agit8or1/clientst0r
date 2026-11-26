@@ -267,3 +267,125 @@ Each has acceptance criteria that can be checked with a test or a measurement. D
 2. Is "Service Desk" or "PSA" the user-facing name (F-11)? The sidebar and docs say Service Desk; breadcrumbs and several titles say PSA.
 3. Should the classic dashboard be retired once the compact one has run for a release (F-17)?
 4. Is Inter acceptable as a bundled font (OFL license, about 300 KB for variable woff2)? The program asks for it; no decision is recorded.
+
+
+### 113.4 label and name check
+
+Checker: `core/a11y_lint.py` (stdlib HTML parser; skips template, hidden, aria-hidden and display:none subtrees). Test: `core/tests/test_a11y_names.py` (add pages to `CHECKED_PAGES`). It counts a visible control with no label, `aria-label`, `aria-labelledby` or `title`, and an `a`/`button` with no text, name attribute or `img alt`. `title` counts as a name here, so row-action buttons that only had `title` are not counted (the audit's browser script did not count them); the user list actions now also have `aria-label` naming the record. Counts are findings on the page rendered for a superuser with a little seeded data, so they can differ from the 2026-11 browser measurements.
+
+Fixed pages (before / after):
+
+| Page | Before | After |
+|---|---|---|
+| `/core/dashboard/` | 0 | 0 |
+| `/psa/` | 0 | 0 |
+| `/psa/new/` | 9 | 0 |
+| `/assets/create/` | 24 | 0 |
+| `/assets/` | 0 | 0 |
+| `/security/alerts/` | 7 | 0 |
+| `/accounts/users/` | 0 | 0 |
+| `/audit/` | 0 | 0 |
+| `/monitoring/racks/` | 0 | 0 |
+| `/psa/changes/` | 2 | 0 |
+| `/scheduling/tasks/` | 2 | 0 |
+| `/psa/projects/1/` | 5 | 0 |
+
+Remaining on other navigation landing pages (after; pages not listed have 0):
+
+| Page | Findings |
+|---|---|
+| `/core/settings/scheduler/` | 152 |
+| `/settings/security/technician-access/` | 45 |
+| `/hardware/labels/` | 20 |
+| `/core/free-consult/` | 7 |
+| `/field-ops/dispatch-geo/` | 7 |
+| `/psa/routing/alerts/maintenance/` | 7 |
+| `/hardware/vlans/` | 6 |
+| `/psa/routing/alerts/` | 6 |
+| `/psa/routing/` | 6 |
+| `/hardware/catalog/` | 5 |
+| `/resourcing/shifts/templates/` | 5 |
+| `/psa/routing/on-call/` | 5 |
+| `/security/events/` | 4 |
+| `/inventory/` | 4 |
+| `/licensing/mappings/` | 4 |
+| `/scheduling/` | 4 |
+| `/vehicles/vehicles/` | 4 |
+| `/core/settings/psa/` | 3 |
+| `/docs/diagrams/` | 3 |
+| `/docs/kb/` | 3 |
+| `/hardware/` | 3 |
+| `/inventory/items/` | 3 |
+| `/locations/` | 3 |
+| `/monitoring/wans/` | 3 |
+| `/psa/problems/` | 3 |
+| `/psa/settings/` | 3 |
+| `/readiness/repair/` | 3 |
+| `/reports/psa/revenue-leakage/` | 3 |
+| `/vehicles/inventory/by-vehicle/` | 3 |
+| `/vehicles/inventory/global/` | 3 |
+| `/vehicles/inventory/` | 3 |
+| `/vehicles/inventory/shop/` | 3 |
+| `/assets/rma/` | 2 |
+| `/core/settings/firewall/` | 2 |
+| `/core/install/` | 2 |
+| `/core/secure-notes/links-dashboard/` | 2 |
+| `/crm/commissions/` | 2 |
+| `/crm/leads/` | 2 |
+| `/hardware/import/` | 2 |
+| `/licensing/renewals/` | 2 |
+| `/monitoring/websites/` | 2 |
+| `/processes/` | 2 |
+| `/reports/psa/effective-hourly-rate/` | 2 |
+| `/reports/psa/margin-analytics/` | 2 |
+| `/reports/psa/profitability-by-client/` | 2 |
+| `/reports/psa/profitability-by-contract/` | 2 |
+| `/reports/psa/profitability-by-project/` | 2 |
+| `/reports/psa/profitability-by-tech/` | 2 |
+| `/reports/psa/sla-trends/` | 2 |
+| `/resourcing/capacity/` | 2 |
+| `/security/incidents/` | 2 |
+| `/settings/security/technician-access/superusers/` | 2 |
+| `/vault/access-rules/` | 2 |
+| `/assets/serials/` | 1 |
+| `/core/help/assets/` | 1 |
+| `/core/help/documentation/` | 1 |
+| `/core/help/features/` | 1 |
+| `/core/help/getting-started/` | 1 |
+| `/core/help/` | 1 |
+| `/core/help/locations/` | 1 |
+| `/core/help/monitoring/` | 1 |
+| `/core/help/reports/` | 1 |
+| `/core/help/search/` | 1 |
+| `/core/help/security/` | 1 |
+| `/core/help/vault/` | 1 |
+| `/core/help/vehicles/` | 1 |
+| `/core/help/workflows/` | 1 |
+| `/core/settings/maintenance/` | 1 |
+| `/core/search/` | 1 |
+| `/crm/opportunities/` | 1 |
+| `/docs/lifecycle/analytics/` | 1 |
+| `/field-ops/my-location-history/` | 1 |
+| `/hardware/cables/` | 1 |
+| `/hardware/catalog/coverage/` | 1 |
+| `/integrations/rmm/software/` | 1 |
+| `/inventory/tools/` | 1 |
+| `/payments/` | 1 |
+| `/psa/catalog-changes/` | 1 |
+| `/psa/kb/` | 1 |
+| `/psa/timesheet/` | 1 |
+| `/psa/purchase-orders/` | 1 |
+| `/psa/projects/` | 1 |
+| `/psa/quotes/` | 1 |
+| `/psa/releases/` | 1 |
+| `/psa/requisitions/` | 1 |
+| `/readiness/` | 1 |
+| `/reports/asset-lifecycle/` | 1 |
+| `/reports/billing-reconciliation/` | 1 |
+| `/reports/hardware-margin/` | 1 |
+| `/reports/operational-metrics/` | 1 |
+| `/reports/quote-conversion/` | 1 |
+| `/reports/vendor-cost-history/` | 1 |
+| `/scheduling/wallboard/` | 1 |
+
+Not checked (page errors when rendered with seed data): `/accounts/roles/why/` (error TypeError), `/assets/relationships/map/` (error TemplateDoesNotExist), `/core/report-bug/` (HTTP 405), `/psa/ai/inbox/` (HTTP 404).

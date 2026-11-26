@@ -37,6 +37,7 @@
     <link href="{% static 'css/ui.css' %}" rel="stylesheet">
     <link href="{% static 'css/navigation.css' %}" rel="stylesheet">
     <link href="{% static 'css/command_palette.css' %}" rel="stylesheet">
+    <link href="{% static 'css/a11y.css' %}" rel="stylesheet">
     {% block extra_css %}{% endblock %}
     <script src="{% static 'js/csp-events.js' %}"></script>
 </head>
@@ -75,7 +76,7 @@
                 <i class="fas fa-bars" aria-hidden="true"></i>
             </button>
             {% endif %}
-            <a class="navbar-brand" href="{% url 'home' %}">
+            <a class="navbar-brand" href="{% url 'home' %}" aria-label="{{ system_settings.custom_company_name|default:'Clientst0r' }} - {% trans 'home' %}">
                 {% if system_settings.custom_logo %}
                     <img src="{{ system_settings.custom_logo.url }}" alt="{{ system_settings.custom_company_name|default:'Clientst0r' }}" height="{{ system_settings.custom_logo_height }}">
                 {% else %}
@@ -214,14 +215,7 @@
 
     <main id="main-content" class="{% block main_class %}container mt-2{% endblock %}" tabindex="-1">
         {% csrf_token %}
-        {% if messages %}
-            {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            {% endfor %}
-        {% endif %}
+        {% include "includes/_flash_messages.html" %}
 
         {% if default_password_warning %}
         <div class="alert alert-danger d-flex flex-wrap align-items-center gap-2" role="alert" data-default-password-warning>

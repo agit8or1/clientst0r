@@ -73,15 +73,29 @@ def relationship_map(request):
                 'label': rel.get_relation_type_display(),
                 'type': rel.relation_type
             })
-    else:
-        # Show all assets with relationships
-        assets = Asset.objects.for_organization(org)[:20]  # Limit to 20 for performance
+    recent = []
+    if not object_id and org is not None:
+        # No record chosen: the latest links at this customer, each side
+        # resolved through get_node_data (which applies the same visibility
+        # rules, e.g. passwords the user may not see are left out).
+        for rel in Relationship.objects.filter(organization=org).order_by('-id')[:25]:
+            src = get_node_data(org, rel.source_type, rel.source_id, request.user)
+            dst = get_node_data(org, rel.target_type, rel.target_id, request.user)
+            if src and dst:
+                recent.append({'source': src, 'target': dst, 'label': rel.get_relation_type_display()})
+
+    node_by_id = {n['id']: n for n in nodes}
+    links = [{'source': node_by_id.get(e['source']), 'target': node_by_id.get(e['target']), 'label': e['label']}
+             for e in edges if e['source'] in node_by_id and e['target'] in node_by_id]
 
     return render(request, 'assets/relationship_map.html', {
         'nodes': nodes,
         'edges': edges,
+        'links': links,
+        'recent': recent,
         'object_type': object_type,
         'object_id': object_id,
+        'current_organization': org,
     })
 
 

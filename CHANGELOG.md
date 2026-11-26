@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.789] - 2026-11-26
+
+### Fixed
+- **Error, warning, info and success messages are styled again.** Error messages carried a style name the stylesheet
+  didn't recognise, so they showed unstyled. All four now show in their colours, and screen readers announce errors
+  and warnings straight away and the others politely.
+- **Keyboard and contrast:** the skip-to-content link, the current-page marker in the menu, the focus ring and the
+  top-bar text now meet the WCAG 2.2 AA contrast level; pagination controls have names.
+- **Labels and names:** every form field has a label and every icon-only button has a name on the pages the
+  interface audit found worst — asset create (24 problems), ticket create (9), security alerts (7), project detail
+  (5), change requests and scheduling (2 each). The buttons on the Users list say which person they act on.
+- **"Page not found" and server error pages** now show inside the app's frame, with its navigation; the server error
+  page runs no database queries.
+- **Assets → Relationships** showed an error page: its template was missing. It now lists the latest linked records,
+  or the links of one chosen record, with the same visibility rules (passwords you can't see stay hidden).
+
+### Tests
+- A new check fails on a visible form field without a label or an icon-only control without a name, on the shared
+  parts of the page and the worst pages. 418 findings on 93 other pages are listed in `docs/ux/UX_AUDIT.md`.
+- Roadmap: 113.4 shipped.
+
 ## [3.17.788] - 2026-11-26
 
 ### Changed

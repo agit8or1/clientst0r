@@ -48,8 +48,8 @@
         {% endif %}
         <div class="row g-3 mb-3">
             <div class="col-md-6">
-                <label class="form-label">Client <span class="text-danger">*</span></label>
-                <select name="client" class="form-select" required>
+                <label class="form-label" for="ticket-client">Client <span class="text-danger">*</span></label>
+                <select name="client" id="ticket-client" class="form-select" required>
                     <option value="">Pick a client…</option>
                     {% for c in eligible_clients %}
                     <option value="{{ c.id }}" {% if preselected_client_id == c.id %}selected{% endif %}>{{ c.name }}</option>
@@ -107,37 +107,37 @@
         {% else %}
         {# Free-form ticket — used when no catalog template was selected. #}
         <div class="mb-3">
-            <label class="form-label">Subject <span class="text-danger">*</span></label>
-            <input type="text" name="subject" class="form-control" required maxlength="300"
+            <label class="form-label" for="ticket-subject">Subject <span class="text-danger">*</span></label>
+            <input type="text" name="subject" id="ticket-subject" class="form-control" required maxlength="300"
                    value="{% if catalog_item %}{{ catalog_item.default_subject }}{% elif prefill_subject %}{{ prefill_subject }}{% endif %}">
         </div>
         <div class="mb-3">
-            <label class="form-label">Description</label>
-            <textarea name="description" class="form-control" rows="6">{% if catalog_item %}{{ catalog_item.default_body }}{% endif %}</textarea>
+            <label class="form-label" for="ticket-description">Description</label>
+            <textarea name="description" id="ticket-description" class="form-control" rows="6">{% if catalog_item %}{{ catalog_item.default_body }}{% endif %}</textarea>
         </div>
         {% endif %}
         <div class="row g-3">
             <div class="col-md-6 col-lg-3">
-                <label class="form-label">Queue</label>
-                <select name="queue" class="form-select">
+                <label class="form-label" for="ticket-queue">Queue</label>
+                <select name="queue" id="ticket-queue" class="form-select">
                     {% for q in queues %}<option value="{{ q.pk }}" {% if catalog_item and catalog_item.default_queue_id == q.pk %}selected{% endif %}>{{ q.name }}</option>{% endfor %}
                 </select>
             </div>
             <div class="col-md-6 col-lg-3">
-                <label class="form-label">Status</label>
-                <select name="status" class="form-select">
+                <label class="form-label" for="ticket-status">Status</label>
+                <select name="status" id="ticket-status" class="form-select">
                     {% for s in statuses %}<option value="{{ s.pk }}">{{ s.name }}</option>{% endfor %}
                 </select>
             </div>
             <div class="col-md-6 col-lg-3">
-                <label class="form-label">Priority</label>
-                <select name="priority" class="form-select">
+                <label class="form-label" for="ticket-priority">Priority</label>
+                <select name="priority" id="ticket-priority" class="form-select">
                     {% for p in priorities %}<option value="{{ p.pk }}" {% if catalog_item and catalog_item.default_priority_id == p.pk %}selected{% endif %}>{{ p.code }} — {{ p.name }}</option>{% endfor %}
                 </select>
             </div>
             <div class="col-md-6 col-lg-3">
-                <label class="form-label">Type</label>
-                <select name="ticket_type" class="form-select">
+                <label class="form-label" for="ticket-type">Type</label>
+                <select name="ticket_type" id="ticket-type" class="form-select">
                     {% for t in types %}<option value="{{ t.pk }}" {% if catalog_item and catalog_item.default_type_id == t.pk %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
                 </select>
             </div>
@@ -145,8 +145,8 @@
 
         {% if can_assign and eligible_assignees %}
         <div class="mt-3">
-            <label class="form-label"><i class="fas fa-user me-1 text-muted"></i>Assign to <span class="text-muted small">(optional)</span></label>
-            <select name="assigned_to" class="form-select">
+            <label class="form-label" for="ticket-assignee"><i class="fas fa-user me-1 text-muted"></i>Assign to <span class="text-muted small">(optional)</span></label>
+            <select name="assigned_to" id="ticket-assignee" class="form-select">
                 <option value="">— Unassigned —</option>
                 {% for u in eligible_assignees %}
                 <option value="{{ u.id }}">{{ u.username }}{% if u.is_superuser or u.is_staff %} (staff){% endif %}</option>
@@ -160,8 +160,8 @@
            ticket will be created with that workflow's checklist already
            embedded (you can also attach one later via Launch Workflow). {% endcomment %}
         <div class="mb-0 mt-3">
-            <label class="form-label"><i class="fas fa-diagram-project me-1 text-muted"></i>Attach a workflow <span class="text-muted small">(optional)</span></label>
-            <select name="workflow_id" class="form-select">
+            <label class="form-label" for="ticket-workflow"><i class="fas fa-diagram-project me-1 text-muted"></i>Attach a workflow <span class="text-muted small">(optional)</span></label>
+            <select name="workflow_id" id="ticket-workflow" class="form-select">
                 <option value="">— No workflow —</option>
                 {% for w in available_workflows %}
                 <option value="{{ w.pk }}">{{ w.title }}{% if w.organization__name %} — {{ w.organization__name }}{% else %} — global{% endif %}</option>

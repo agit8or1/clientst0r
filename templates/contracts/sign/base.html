@@ -18,7 +18,7 @@
     </div>
 </header>
 <main class="container cs-container py-3">
-    {% if messages %}{% for m in messages %}<div class="alert alert-{% if m.tags == 'error' %}danger{% else %}{{ m.tags|default:'info' }}{% endif %} py-2" role="status">{{ m }}</div>{% endfor %}{% endif %}
+    {% include "includes/_flash_messages.html" with dismissible=0 %}
     {% block content %}{% endblock %}
 </main>
 <footer class="container cs-container small text-body-secondary pb-4">This page is personal to the person it was sent to. Please do not forward the link.</footer>

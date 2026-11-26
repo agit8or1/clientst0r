@@ -610,7 +610,8 @@ class ImportOutcomeViewTests(_CSVTestBase):
     def test_failed_import_shows_error(self):
         job = self.make_job('password', PASSWORD_MAP, 'Name,User,Secret,Link\n,a,b,\n')
         msgs = self._start(job)
-        self.assertTrue(any(level == 'error' for level, _ in msgs), msgs)
+        # Error messages are tagged 'danger' (Bootstrap's class) since 113.4.
+        self.assertTrue(any(level in ('error', 'danger') for level, _ in msgs), msgs)
         job.refresh_from_db()
         self.assertEqual(job.status, 'failed')
 

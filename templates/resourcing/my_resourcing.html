@@ -28,11 +28,7 @@
 </div>
 {% endif %}
 
-{% if messages %}
-{% for m in messages %}
-<div class="alert alert-{{ m.tags|default:'info' }}">{{ m }}</div>
-{% endfor %}
-{% endif %}
+{% include "includes/_flash_messages.html" %}
 
 <div class="row g-4">
 

@@ -14,11 +14,7 @@
     {% if target.id != request.user.id %}<small class="text-muted">— {{ target.username }}</small>{% endif %}
 </h1>
 
-{% if messages %}
-{% for m in messages %}
-<div class="alert alert-{{ m.tags|default:'info' }}">{{ m }}</div>
-{% endfor %}
-{% endif %}
+{% include "includes/_flash_messages.html" %}
 
 {% if view_only %}
 <div class="card mb-4">

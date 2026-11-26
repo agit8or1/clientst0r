@@ -35,7 +35,7 @@ ALLOWED_UNLINKED = {
     'oidc_sso:account': 'reached from accounts:profile (Single sign-on button)',
     'assets:contact_list': 'reached from assets:contact_detail',
     'assets:equipment_model_list': 'reached from assets:equipment_model_detail',
-    'assets:relationship_map': 'BROKEN: its template assets/relationship_map.html does not exist (500). Not linked until it is fixed',
+    'assets:relationship_map': 'reached from the Link records form (Cancel); its page exists since 113.4 and gets a menu entry later',
     'assets:rma_list': 'reached from assets:serial_search',
     'core:free_consult': 'reached from core:about',
     'core:global_dashboard': 'reached through the client switcher (Global View, accounts:switch_to_global_view)',

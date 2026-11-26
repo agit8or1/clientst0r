@@ -17,6 +17,9 @@ from core.views import beta_onboarding as core_beta_onboarding
 from core.views import health as core_health
 from core.csp_views import csp_report as core_csp_report
 
+handler404 = 'core.error_pages.not_found'
+handler500 = 'core.error_pages.server_error'
+
 urlpatterns = [
     # v3.17.490 — anonymous health endpoint for Docker HEALTHCHECK +
     # load balancers + uptime monitors. Returns 200 + JSON immediately.

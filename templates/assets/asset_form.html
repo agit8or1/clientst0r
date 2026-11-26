@@ -29,7 +29,7 @@
             <div class="row g-3">
                 <!-- Basic Information - 2 columns -->
                 <div class="col-md-6">
-                    <label class="form-label"><strong>{{ form.name.label }}</strong> <span class="text-danger">*</span></label>
+                    <label class="form-label" for="{{ form.name.id_for_label }}"><strong>{{ form.name.label }}</strong> <span class="text-danger">*</span></label>
                     {{ form.name }}
                     {% if form.name.errors %}
                         <div class="text-danger small">{{ form.name.errors }}</div>
@@ -37,7 +37,7 @@
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label"><strong>{{ form.asset_type.label }}</strong></label>
+                    <label class="form-label" for="{{ form.asset_type.id_for_label }}"><strong>{{ form.asset_type.label }}</strong></label>
                     {{ form.asset_type }}
                     {% if form.asset_type.errors %}
                         <div class="text-danger small">{{ form.asset_type.errors }}</div>
@@ -46,7 +46,7 @@
 
                 <!-- Identification - 3 columns -->
                 <div class="col-md-4">
-                    <label class="form-label">{{ form.asset_tag.label }}</label>
+                    <label class="form-label" for="{{ form.asset_tag.id_for_label }}">{{ form.asset_tag.label }}</label>
                     {{ form.asset_tag }}
                     {% if form.asset_tag.errors %}
                         <div class="text-danger small">{{ form.asset_tag.errors }}</div>
@@ -54,7 +54,7 @@
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label">{{ form.serial_number.label }}</label>
+                    <label class="form-label" for="{{ form.serial_number.id_for_label }}">{{ form.serial_number.label }}</label>
                     {{ form.serial_number }}
                     {% if form.serial_number.errors %}
                         <div class="text-danger small">{{ form.serial_number.errors }}</div>
@@ -62,7 +62,7 @@
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label">{{ form.primary_contact.label }}</label>
+                    <label class="form-label" for="{{ form.primary_contact.id_for_label }}">{{ form.primary_contact.label }}</label>
                     {{ form.primary_contact }}
                     {% if form.primary_contact.errors %}
                         <div class="text-danger small">{{ form.primary_contact.errors }}</div>
@@ -76,7 +76,7 @@
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label">{{ form.equipment_vendor.label }}</label>
+                    <label class="form-label" for="{{ form.equipment_vendor.id_for_label }}">{{ form.equipment_vendor.label }}</label>
                     {{ form.equipment_vendor }}
                     <small class="form-text text-muted d-block">{{ form.equipment_vendor.help_text }}</small>
                     {% if form.equipment_vendor.errors %}
@@ -85,7 +85,7 @@
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label">{{ form.equipment_model.label }}</label>
+                    <label class="form-label" for="{{ form.equipment_model.id_for_label }}">{{ form.equipment_model.label }}</label>
                     {{ form.equipment_model }}
                     <small class="form-text text-muted d-block">{{ form.equipment_model.help_text }}</small>
                     {% if form.equipment_model.errors %}
@@ -97,7 +97,7 @@
 
                 <!-- Manufacturer Details - 2 columns -->
                 <div class="col-md-6">
-                    <label class="form-label">{{ form.manufacturer.label }}</label>
+                    <label class="form-label" for="{{ form.manufacturer.id_for_label }}">{{ form.manufacturer.label }}</label>
                     {{ form.manufacturer }}
                     <small class="form-text text-muted d-block">{{ form.manufacturer.help_text }}</small>
                     {% if form.manufacturer.errors %}
@@ -106,7 +106,7 @@
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label">{{ form.model.label }}</label>
+                    <label class="form-label" for="{{ form.model.id_for_label }}">{{ form.model.label }}</label>
                     {{ form.model }}
                     <small class="form-text text-muted d-block">{{ form.model.help_text }}</small>
                     {% if form.model.errors %}
@@ -119,7 +119,7 @@
                     <h6 class="text-muted mb-2"><i class="fas fa-network-wired"></i> Network</h6>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">{{ form.hostname.label }}</label>
+                    <label class="form-label" for="{{ form.hostname.id_for_label }}">{{ form.hostname.label }}</label>
                     {{ form.hostname }}
                     {% if form.hostname.errors %}
                         <div class="text-danger small">{{ form.hostname.errors }}</div>
@@ -127,7 +127,7 @@
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label">{{ form.ip_address.label }}</label>
+                    <label class="form-label" for="{{ form.ip_address.id_for_label }}">{{ form.ip_address.label }}</label>
                     {{ form.ip_address }}
                     {% if form.ip_address.errors %}
                         <div class="text-danger small">{{ form.ip_address.errors }}</div>
@@ -135,7 +135,7 @@
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label">{{ form.mac_address.label }}</label>
+                    <label class="form-label" for="{{ form.mac_address.id_for_label }}">{{ form.mac_address.label }}</label>
                     {{ form.mac_address }}
                     {% if form.mac_address.errors %}
                         <div class="text-danger small">{{ form.mac_address.errors }}</div>
@@ -147,12 +147,12 @@
                     <h6 class="text-muted mb-2"><i class="fas fa-desktop"></i> Operating System</h6>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">{{ form.os_name.label }}</label>
+                    <label class="form-label" for="{{ form.os_name.id_for_label }}">{{ form.os_name.label }}</label>
                     {{ form.os_name }}
                     {% if form.os_name.errors %}<div class="text-danger small">{{ form.os_name.errors }}</div>{% endif %}
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">{{ form.os_version.label }}</label>
+                    <label class="form-label" for="{{ form.os_version.id_for_label }}">{{ form.os_version.label }}</label>
                     {{ form.os_version }}
                     {% if form.os_version.errors %}<div class="text-danger small">{{ form.os_version.errors }}</div>{% endif %}
                 </div>
@@ -162,12 +162,12 @@
                     <h6 class="text-muted mb-2"><i class="fas fa-microchip"></i> Hardware Specs <small class="text-muted fw-normal">(optional, for servers/workstations)</small></h6>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">{{ form.cpu.label }}</label>
+                    <label class="form-label" for="{{ form.cpu.id_for_label }}">{{ form.cpu.label }}</label>
                     {{ form.cpu }}
                     {% if form.cpu.errors %}<div class="text-danger small">{{ form.cpu.errors }}</div>{% endif %}
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">{{ form.ram_gb.label }}</label>
+                    <label class="form-label" for="{{ form.ram_gb.id_for_label }}">{{ form.ram_gb.label }}</label>
                     <div class="input-group">
                         {{ form.ram_gb }}
                         <span class="input-group-text">GB</span>
@@ -175,7 +175,7 @@
                     {% if form.ram_gb.errors %}<div class="text-danger small">{{ form.ram_gb.errors }}</div>{% endif %}
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">{{ form.storage.label }}</label>
+                    <label class="form-label" for="{{ form.storage.id_for_label }}">{{ form.storage.label }}</label>
                     {{ form.storage }}
                     {% if form.storage.errors %}<div class="text-danger small">{{ form.storage.errors }}</div>{% endif %}
                 </div>
@@ -195,7 +195,7 @@
                 </div>
 
                 <div class="col-md-6" id="rack-units-field" style="display: none;">
-                    <label class="form-label">{{ form.rack_units.label }}</label>
+                    <label class="form-label" for="{{ form.rack_units.id_for_label }}">{{ form.rack_units.label }}</label>
                     {{ form.rack_units }}
                     <small class="form-text text-muted">Height in rack units (1U, 2U, etc.)</small>
                     {% if form.rack_units.errors %}
@@ -205,7 +205,7 @@
 
                 <!-- Port Configuration - Only for network equipment -->
                 <div class="col-md-6" id="port-count-field" style="display: none;">
-                    <label class="form-label">{{ form.port_count.label }}</label>
+                    <label class="form-label" for="{{ form.port_count.id_for_label }}">{{ form.port_count.label }}</label>
                     {{ form.port_count }}
                     <small class="form-text text-muted d-block">{{ form.port_count.help_text }}</small>
                     {% if form.port_count.errors %}
@@ -221,7 +221,7 @@
                 <!-- Tags - Full width if present -->
                 {% if form.tags.field.queryset %}
                 <div class="col-12">
-                    <label class="form-label">{{ form.tags.label }}</label>
+                    <label class="form-label" for="{{ form.tags.id_for_label }}">{{ form.tags.label }}</label>
                     <div class="border rounded p-2" style="max-height: 120px; overflow-y: auto;">
                         {{ form.tags }}
                     </div>
@@ -233,7 +233,7 @@
 
                 <!-- Notes - Full width -->
                 <div class="col-12">
-                    <label class="form-label">{{ form.notes.label }}</label>
+                    <label class="form-label" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
                     {{ form.notes }}
                     {% if form.notes.errors %}
                         <div class="text-danger small">{{ form.notes.errors }}</div>
@@ -324,7 +324,7 @@
                 </div>
 
                 <div class="col-md-3">
-                    <label class="form-label">{{ form.purchase_date.label }}</label>
+                    <label class="form-label" for="{{ form.purchase_date.id_for_label }}">{{ form.purchase_date.label }}</label>
                     {{ form.purchase_date }}
                     <small class="form-text text-muted d-block">{{ form.purchase_date.help_text }}</small>
                     {% if form.purchase_date.errors %}
@@ -333,7 +333,7 @@
                 </div>
 
                 <div class="col-md-3">
-                    <label class="form-label">{{ form.lifespan_years.label }}</label>
+                    <label class="form-label" for="{{ form.lifespan_years.id_for_label }}">{{ form.lifespan_years.label }}</label>
                     {{ form.lifespan_years }}
                     <small class="form-text text-muted d-block">{{ form.lifespan_years.help_text }}</small>
                     {% if form.lifespan_years.errors %}
@@ -355,7 +355,7 @@
                 </div>
 
                 <div class="col-md-3">
-                    <label class="form-label">{{ form.lifespan_reminder_months.label }}</label>
+                    <label class="form-label" for="{{ form.lifespan_reminder_months.id_for_label }}">{{ form.lifespan_reminder_months.label }}</label>
                     {{ form.lifespan_reminder_months }}
                     <small class="form-text text-muted d-block">{{ form.lifespan_reminder_months.help_text }}</small>
                     {% if form.lifespan_reminder_months.errors %}
@@ -371,21 +371,21 @@
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label">Firmware Version <small class="text-muted">(installed)</small></label>
+                    <label class="form-label" for="{{ form.firmware_version.id_for_label }}">Firmware Version <small class="text-muted">(installed)</small></label>
                     {{ form.firmware_version }}
                     <small class="form-text text-muted d-block">Current firmware installed on this device</small>
                     {% if form.firmware_version.errors %}<div class="text-danger small">{{ form.firmware_version.errors }}</div>{% endif %}
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label">Warranty Expiry</label>
+                    <label class="form-label" for="{{ form.warranty_expiry.id_for_label }}">Warranty Expiry</label>
                     {{ form.warranty_expiry }}
                     <small class="form-text text-muted d-block">Warranty or support contract expiry date</small>
                     {% if form.warranty_expiry.errors %}<div class="text-danger small">{{ form.warranty_expiry.errors }}</div>{% endif %}
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label">Warranty Coverage</label>
+                    <label class="form-label" for="{{ form.warranty_status.id_for_label }}">Warranty Coverage</label>
                     {{ form.warranty_status }}
                     <small class="form-text text-muted d-block">e.g., ProSupport Plus, NBD on-site, Basic</small>
                     {% if form.warranty_status.errors %}<div class="text-danger small">{{ form.warranty_status.errors }}</div>{% endif %}

@@ -1,0 +1,13 @@
+/* Standalone error pages (templates/errors/_standalone.html, 500.html). */
+.errorpage { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; background: #f4f7fb; color: #172033; }
+.errorpage__panel { max-width: 34rem; width: 100%; padding: 24px; background: #ffffff; border: 1px solid #c5ced9; border-radius: 8px; }
+.errorpage__code { color: #5b6576; }
+.errorpage a:not(.btn) { color: #1d4ed8; }
+.errorpage .btn:focus-visible, .errorpage a:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; box-shadow: none; }
+@media (prefers-color-scheme: dark) {
+    .errorpage { background: #0b1220; color: #e2e8f0; }
+    .errorpage__panel { background: #152033; border-color: #2b3a55; }
+    .errorpage__code { color: #94a3b8; }
+    .errorpage a:not(.btn) { color: #93c5fd; }
+    .errorpage .btn:focus-visible, .errorpage a:focus-visible { outline-color: #60a5fa; }
+}

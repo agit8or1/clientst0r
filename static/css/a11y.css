@@ -1,0 +1,84 @@
+/* Accessibility basics (113.4). Loaded last so it settles the cases the
+   earlier sheets leave to Bootstrap defaults.
+
+   Focus: one solid 2px indicator in --ui-focus (ui.css), which is the theme's
+   link colour, so it clears 3:1 (in practice 4.5:1) on the page and cards of
+   every theme, light and dark. On the top bar the indicator takes the bar's
+   own text colour; in the sidebar, the sidebar's focus colour.
+
+   Pagination: the current page is drawn with the theme's link colour as the
+   fill and the card surface as the text, the pair every theme already
+   guarantees at 4.5:1, which also separates it from its neighbours. */
+
+html a:focus-visible,
+html button:focus-visible,
+html summary:focus-visible,
+html [tabindex]:focus-visible,
+html .btn:focus-visible,
+html .btn-close:focus-visible,
+html .nav-link:focus-visible,
+html .page-link:focus-visible,
+html .dropdown-item:focus-visible,
+html .list-group-item-action:focus-visible,
+html .accordion-button:focus-visible {
+    outline: 2px solid var(--ui-focus, #0b5ed7);
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
+html .form-control:focus-visible,
+html .form-select:focus-visible,
+html .form-check-input:focus-visible,
+html .form-range:focus-visible,
+html input:focus-visible,
+html select:focus-visible,
+html textarea:focus-visible {
+    outline: 2px solid var(--ui-focus, #0b5ed7);
+    outline-offset: 1px;
+}
+
+/* Items inside a menu or list have no room outside the box. */
+html .dropdown-item:focus-visible,
+html .list-group-item-action:focus-visible,
+html .page-link:focus-visible {
+    outline-offset: -2px;
+}
+html .page-link:focus-visible { z-index: 4; }
+
+/* Top bar: the bar's text colour is guaranteed against its background. */
+html .navbar a:focus-visible,
+html .navbar button:focus-visible,
+html .navbar .nav-link:focus-visible,
+html .navbar input:focus-visible,
+html .navbar.app-topbar .topbar-cmdk:focus-visible {
+    outline: 2px solid var(--sidebar-text, #ffffff);
+    outline-offset: 2px;
+}
+/* Menus opened from the bar sit on a normal surface again. */
+html .navbar .dropdown-menu a:focus-visible,
+html .navbar .dropdown-menu button:focus-visible {
+    outline-color: var(--ui-focus, #0b5ed7);
+    outline-offset: -2px;
+}
+
+/* Sidebar. */
+html .app-nav a:focus-visible,
+html .app-nav button:focus-visible,
+html .app-nav input:focus-visible,
+html .app-nav [tabindex]:focus-visible {
+    outline: 2px solid var(--appnav-focus, #6cc6ff);
+    outline-offset: 2px;
+}
+
+/* Pagination: current page. */
+html .pagination .page-item.active .page-link,
+html .pagination .page-item.active .page-link:hover,
+html .page-item.active .page-link {
+    background-color: var(--link-color, var(--primary-color, #0b5ed7)) !important;
+    border-color: var(--link-color, var(--primary-color, #0b5ed7)) !important;
+    color: var(--surface, #ffffff) !important;
+    font-weight: 600;
+}
+
+/* Flash messages that still carry Django's raw level name. */
+.alert-error { --bs-alert-color: var(--bs-danger-text-emphasis); --bs-alert-bg: var(--bs-danger-bg-subtle); --bs-alert-border-color: var(--bs-danger-border-subtle); }

@@ -16,7 +16,7 @@
         <form method="GET">
             <div class="row g-3">
                 <div class="col-md-3">
-                    <select name="status" class="form-select">
+                    <select name="status" aria-label="Status" class="form-select">
                         <option value="">All Statuses</option>
                         {% for value, label in status_choices %}
                         <option value="{{ value }}" {% if filter_status == value %}selected{% endif %}>{{ label }}</option>
@@ -24,7 +24,7 @@
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <select name="priority" class="form-select">
+                    <select name="priority" aria-label="Priority" class="form-select">
                         <option value="">All Priorities</option>
                         {% for value, label in priority_choices %}
                         <option value="{{ value }}" {% if filter_priority == value %}selected{% endif %}>{{ label }}</option>

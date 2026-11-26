@@ -1,0 +1,10 @@
+{% extends "errors/_standalone.html" %}
+{% comment %}Rendered by core.error_pages.server_error with no context at all: keep it static.{% endcomment %}
+{% block title %}Something went wrong{% endblock %}
+{% block body %}
+<h1 class="h4">Something went wrong</h1>
+<p>The page could not be shown because of a problem on the server. It has been logged.</p>
+<p>Wait a minute and try again, or go back to the start page. If it keeps happening, tell your administrator and say what you were doing.</p>
+<p class="errorpage__actions"><a class="btn btn-primary btn-sm" href="/">Go to the start page</a></p>
+<p class="errorpage__code small mb-0">Error 500</p>
+{% endblock %}

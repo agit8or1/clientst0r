@@ -1,0 +1,10 @@
+{% comment %}
+One flash message. Expects `message` (a django.contrib.messages Message).
+Optional: dismissible (default yes; pass dismissible=0 to switch off).
+Levels map to Bootstrap classes in settings.MESSAGE_TAGS (error -> danger).
+Warning and error announce at once (role="alert"); the rest are polite (role="status").
+{% endcomment %}
+{% load i18n %}<div class="alert alert-{{ message.level_tag|default:'info' }}{% if dismissible != 0 %} alert-dismissible fade show{% endif %}" role="{% if message.level >= 30 %}alert{% else %}status{% endif %}">
+    {{ message }}
+    {% if dismissible != 0 %}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{% trans 'Close' %}"></button>{% endif %}
+</div>

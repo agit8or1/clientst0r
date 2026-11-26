@@ -114,7 +114,7 @@
     --ui-muted: var(--text-secondary, #647084);
     --ui-primary: var(--primary-color, #0d6efd);
     --ui-link: var(--link-color, var(--primary-color, #0b5ed7));
-    --ui-focus: var(--focus-ring, var(--primary-color, #0d6efd));
+    --ui-focus: var(--focus-ring, var(--link-color, var(--primary-color, #0d6efd)));
     --ui-success: var(--success-color, #198754);
     --ui-warning: var(--warning-color, #ffc107);
     --ui-danger: var(--danger-color, #dc3545);

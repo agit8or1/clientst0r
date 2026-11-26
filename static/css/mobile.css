@@ -456,30 +456,41 @@
 }
 
 /* ===== Accessibility Improvements ===== */
-/* Focus visible for keyboard navigation */
+/* Focus visible for keyboard navigation. One solid indicator: the theme's
+   focus colour (ui.css --ui-focus: a link colour that clears 4.5:1 on the
+   page and cards of every theme). Specific overrides for Bootstrap controls,
+   the top bar and the sidebar are in a11y.css. */
 *:focus-visible {
-    outline: 3px solid rgba(13, 110, 253, 0.5);
+    outline: 2px solid var(--ui-focus, #0b5ed7);
     outline-offset: 2px;
 }
-/* A half-transparent blue ring nearly disappears on a dark page. */
-[data-bs-theme="dark"] *:focus-visible {
-    outline: 2px solid var(--ui-focus, #8fb4e8);
-}
 
-/* Skip to main content link */
-.skip-to-main {
+/* Skip to main content link. Off screen until focused; then a dark pill with
+   white text (18.7:1) and a white edge, so it reads on the blue top bar, on a
+   white page and on a dark page alike. The colour rules must win over the
+   generic link colour (themes.css a:not(...) !important, specificity 0,4,1),
+   hence the tripled class and !important. */
+html a.skip-to-main.skip-to-main.skip-to-main {
     position: absolute;
-    top: -40px;
-    left: 0;
-    background: #0d6efd;
-    color: white;
+    top: -48px;
+    left: 8px;
+    background: #0b1220;
+    color: #ffffff !important;
     padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
     text-decoration: none;
-    z-index: 100;
+    z-index: 2000;
 }
 
-.skip-to-main:focus {
-    top: 0;
+html a.skip-to-main.skip-to-main.skip-to-main:focus,
+html a.skip-to-main.skip-to-main.skip-to-main:focus-visible {
+    top: 8px;
+    background: #0b1220;
+    color: #ffffff !important;
+    outline: 3px solid #fbbf24;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px #ffffff;
 }
 
 /* ===== Print Styles ===== */

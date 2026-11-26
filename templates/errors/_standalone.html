@@ -1,0 +1,21 @@
+{% load static %}<!doctype html>
+{% comment %}
+Minimal layout for the 500 page and for 404 pages shown to people who are not
+signed in. No database access, no context processors, no navigation, no
+inline script. Uses Bootstrap and static/css/errors.css only.
+{% endcomment %}
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title>{% block title %}Error{% endblock %}</title>
+    <link href="{% static 'vendor/bootstrap/5.3.0/css/bootstrap.min.css' %}" rel="stylesheet">
+    <link href="{% static 'css/errors.css' %}" rel="stylesheet">
+</head>
+<body class="errorpage">
+    <main class="errorpage__panel" id="main-content">
+        {% block body %}{% endblock %}
+    </main>
+</body>
+</html>

@@ -116,7 +116,7 @@ Work being implemented now or approved as the next P0 task.
 | 1 | 94 — [Evidence integrity and routine backups](#phase-94) | P0\* | 🔵 In progress | External append-only audit shipping (94.1); protected-change approval for audit pruning (94.2); S3 destination (94.3) | — |
 | 2 | 51 — [Reliability and customer-boundary hardening](#phase-51) | P0\* | 🔵 In progress | Per-customer integration ownership (remaining part of the platform-integrations item) | — |
 | 3 | 112 — [Complete user documentation with annotated screenshots](#phase-112) | P1 | 🔵 In progress | 112.6 Security and monitoring; 112.7 Reports | 67 |
-| 4 | 113 — [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | 113.4 accessibility fixes; 113.5 tokens; 113.8 page headers | 67 |
+| 4 | 113 — [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | 113.5 tokens; 113.8 page headers | 67 |
 
 <!-- /generated:now -->
 
@@ -364,7 +364,7 @@ unchanged. Click a feature for its details.
 | 67 | [Interface, navigation and dashboard redesign](#phase-67) | — | 🔵 In progress | 64 | 67.8 validation and 67.16 follow-ups |
 | 96 | [First-install setup wizard and interactive onboarding](#phase-96) | P0 | 🔵 In progress | 59, 64, 67 | 96.5 sample data |
 | 112 | [Complete user documentation with annotated screenshots](#phase-112) | P1 | 🔵 In progress | 67 | 112.6 Security and monitoring; 112.7 Reports |
-| 113 | [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | 67 | 113.4 accessibility fixes; 113.5 tokens; 113.8 page headers |
+| 113 | [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | 67 | 113.5 tokens; 113.8 page headers |
 
 <details markdown="1">
 <summary>4 completed phases</summary>
@@ -4003,9 +4003,9 @@ annotated screenshot (numbered callouts matched by a numbered list) captured fro
 <a id="phase-113"></a>
 
 ## Phase 113 — One consistent interface, shared design system and standalone guarantees **(L · P1 · usability)** [in progress]
-<!-- phase: ws=I stage=7 view=now order=4 deps=67 next="113.4 accessibility fixes; 113.5 tokens; 113.8 page headers" -->
+<!-- phase: ws=I stage=7 view=now order=4 deps=67 next="113.5 tokens; 113.8 page headers" -->
 **Status:** 🔵 In progress · **Priority:** P1 · **Workstream:** I. Deployment, Updates & Reliability · **Depends on:** 67  
-**Next:** 113.4 accessibility fixes; 113.5 tokens; 113.8 page headers
+**Next:** 113.5 tokens; 113.8 page headers
 
 
 Builds on Phase 67 (navigation, settings center, palette, dashboard, workspaces — shipped) rather than replacing it.
@@ -4029,7 +4029,7 @@ increment is tested with no peer application and no RMM configured. Hiding a lin
   ([CROSS_APP_UX_CONTRACT](ux/CROSS_APP_UX_CONTRACT.md), [REM0TE_HANDOFF](ux/REM0TE_HANDOFF.md)). Fixed on the way: the
   ticket page no longer calls the RMM peer while rendering; RMM alert panels say "No RMM is connected" instead of
   showing healthy.
-- **113.4 Urgent accessibility fixes** *(in progress)* — styled error messages, readable skip link and current-page marker,
+- **113.4 Urgent accessibility fixes** *(shipped v3.17.789 — 418 label and name findings on 93 other pages listed in docs/ux/UX_AUDIT.md for later increments)* — styled error messages, readable skip link and current-page marker,
   focus ring and top-bar contrast, names for unlabelled fields and icon buttons, 404/500 pages inside the shell.
 - **113.5 Design tokens in CSS** *(in progress)* — one generated token stylesheet, existing themes mapped onto it, a
   system-following theme, self-hosted Inter, every CDN script and font bundled.

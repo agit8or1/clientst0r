@@ -219,6 +219,17 @@ except ImportError:
 
 ROOT_URLCONF = 'config.urls'
 
+# Flash message levels -> Bootstrap alert classes (Django's own tag for
+# messages.error() is "error", which no stylesheet defines).
+from django.contrib.messages import constants as _msg
+MESSAGE_TAGS = {
+    _msg.DEBUG: 'secondary',
+    _msg.INFO: 'info',
+    _msg.SUCCESS: 'success',
+    _msg.WARNING: 'warning',
+    _msg.ERROR: 'danger',
+}
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',

@@ -223,10 +223,10 @@
             <div class="card-body">
                 <form method="post" action="{% url 'psa:project_task_add' item.pk %}" class="row g-2 small mb-3">
                     {% csrf_token %}
-                    <div class="col-md-{% if can_assign and eligible_assignees %}4{% else %}6{% endif %}"><input type="text" name="title" class="form-control form-control-sm" required placeholder="Task title"></div>
+                    <div class="col-md-{% if can_assign and eligible_assignees %}4{% else %}6{% endif %}"><input type="text" name="title" aria-label="Task title" class="form-control form-control-sm" required placeholder="Task title"></div>
                     {% if can_assign and eligible_assignees %}
                     <div class="col-md-3">
-                        <select name="assigned_to" class="form-select form-select-sm">
+                        <select name="assigned_to" aria-label="Assignee" class="form-select form-select-sm">
                             <option value="">— Assignee —</option>
                             {% for u in eligible_assignees %}
                             <option value="{{ u.id }}">{{ u.username }}</option>
@@ -234,7 +234,7 @@
                         </select>
                     </div>
                     {% endif %}
-                    <div class="col-md-2"><input type="date" name="due_date" class="form-control form-control-sm"></div>
+                    <div class="col-md-2"><input type="date" name="due_date" aria-label="Due date" class="form-control form-control-sm"></div>
                     <div class="col-md-2 form-check ms-2 mt-2">
                         <input type="checkbox" id="is_milestone" name="is_milestone" class="form-check-input">
                         <label class="form-check-label small" for="is_milestone">Milestone</label>
@@ -256,7 +256,7 @@
                             {% if can_assign and eligible_assignees %}
                             <form method="post" action="{% url 'psa:project_task_update' t.pk %}" class="d-inline">
                                 {% csrf_token %}
-                                <select name="assigned_to" class="form-select form-select-sm" data-autosubmit style="width:auto;" title="Reassign task">
+                                <select name="assigned_to" class="form-select form-select-sm" data-autosubmit style="width:auto;" title="Reassign task" aria-label="Reassign {{ t.title }}">
                                     <option value="">— Unassigned —</option>
                                     {% for u in eligible_assignees %}
                                     <option value="{{ u.id }}" {% if t.assigned_to_id == u.id %}selected{% endif %}>{{ u.username }}</option>
@@ -266,7 +266,7 @@
                             {% endif %}
                             <form method="post" action="{% url 'psa:project_task_update' t.pk %}" class="d-inline">
                                 {% csrf_token %}
-                                <select name="status" class="form-select form-select-sm" data-autosubmit style="width:auto;">
+                                <select name="status" aria-label="Status of {{ t.title }}" class="form-select form-select-sm" data-autosubmit style="width:auto;">
                                     {% for code, label in task_status_choices %}
                                     <option value="{{ code }}" {% if t.status == code %}selected{% endif %}>{{ label }}</option>
                                     {% endfor %}
@@ -287,7 +287,7 @@
                             {% endif %}
                             <form method="post" action="{% url 'psa:project_task_delete' t.pk %}" class="d-inline">
                                 {% csrf_token %}
-                                <button class="btn btn-sm btn-outline-danger" data-confirm="Delete task?"><i class="fas fa-times"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" data-confirm="Delete task?" aria-label="Delete task {{ t.title }}"><i class="fas fa-times" aria-hidden="true"></i></button>
                             </form>
                         </span>
                     </li>

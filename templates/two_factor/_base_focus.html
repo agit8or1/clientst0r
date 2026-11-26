@@ -164,13 +164,7 @@
                 <p>Secure, Self-Hosted IT Documentation</p>
             </div>
 
-            {% if messages %}
-                {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">
-                    {{ message }}
-                </div>
-                {% endfor %}
-            {% endif %}
+            {% include "includes/_flash_messages.html" with dismissible=0 %}
 
             {% block content %}{% endblock %}
         </div>

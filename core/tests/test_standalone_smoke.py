@@ -27,7 +27,6 @@ User = get_user_model()
 # Known defects and known GitHub update checks, reported in docs/ux/STANDALONE_REQUIREMENTS.md.
 # Tolerated here by name so that anything NEW still fails the test.
 KNOWN_5XX = {
-    'assets:relationship_map': 'template assets/relationship_map.html does not exist (also in test_nav_reachability)',
 }
 # Pages that ask GitHub (the update source, not a peer) for releases. The answer is
 # cached and an unreachable GitHub is handled, but the request happens on GET.

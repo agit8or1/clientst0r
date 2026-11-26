@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Relationships - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Clientst0r" }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <h1 class="h3 mb-0"><i class="fas fa-project-diagram" aria-hidden="true"></i> Relationships</h1>
+    <a href="{% url 'assets:relationship_create' %}" class="btn btn-primary btn-sm">
+        <i class="fas fa-link" aria-hidden="true"></i> Link records
+    </a>
+</div>
+
+{% if not current_organization %}
+<div class="alert alert-info" role="status">Choose a customer to see how its records are linked.</div>
+{% elif object_id %}
+<div class="card">
+    <div class="card-header"><h2 class="h6 mb-0">Links for this {{ object_type }}</h2></div>
+    {% if links %}
+    <ul class="list-group list-group-flush">
+        {% for l in links %}
+        <li class="list-group-item">
+            <a href="{{ l.source.url }}">{{ l.source.label }}</a>
+            <span class="text-muted mx-1">{{ l.label }}</span>
+            <a href="{{ l.target.url }}">{{ l.target.label }}</a>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <div class="card-body text-muted">This record has no links you can see.</div>
+    {% endif %}
+</div>
+{% else %}
+<div class="card">
+    <div class="card-header"><h2 class="h6 mb-0">Latest links</h2></div>
+    {% if recent %}
+    <ul class="list-group list-group-flush">
+        {% for l in recent %}
+        <li class="list-group-item">
+            <a href="{{ l.source.url }}">{{ l.source.label }}</a>
+            <span class="text-muted mx-1">{{ l.label }}</span>
+            <a href="{{ l.target.url }}">{{ l.target.label }}</a>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <div class="card-body text-muted">No records are linked yet. Use <strong>Link records</strong> to connect an asset,
+        document, password or contact to another.</div>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

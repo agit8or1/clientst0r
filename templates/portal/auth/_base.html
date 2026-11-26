@@ -35,11 +35,7 @@
                     <p class="portal-auth-lead">{% block lead %}{{ msp_name }} support{% endblock %}</p>
                 </div>
             </div>
-            {% if messages %}
-                {% for message in messages %}
-                <div class="alert alert-{{ message.tags|default:'info' }}" role="status">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
+            {% include "includes/_flash_messages.html" with dismissible=0 %}
             {% block content %}{% endblock %}
         </div>
     </main>

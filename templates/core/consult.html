@@ -11,11 +11,7 @@
     <p class="lead text-muted">Tell us what's on your mind and we'll set up a call.</p>
 </div>
 
-{% if messages %}
-{% for msg in messages %}
-<div class="alert alert-{{ msg.tags|default:'info' }}">{{ msg }}</div>
-{% endfor %}
-{% endif %}
+{% include "includes/_flash_messages.html" %}
 
 <div class="card shadow-sm">
     <div class="card-body p-4">
