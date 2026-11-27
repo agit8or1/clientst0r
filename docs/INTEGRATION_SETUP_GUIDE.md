@@ -7,13 +7,28 @@ Complete guide for connecting PSA and RMM platforms to Clientst0r with exact con
 ## Who owns a connection
 
 Integrations belong to the platform owner (the MSP). Add them from **global
-view** (no customer selected) under **Integrations**: a new connection is
-**platform-owned** by default. Its data reaches customers only through the
+view** (no customer selected) under **Administration → Integrations**
+(`/integrations/`): a new connection is **platform-owned** by default. The
+page lists every connection (PSA, RMM, UniFi, M365, Omada, Grandstream,
+distributor and accounting) as tiles or a list, with its owner, status and last
+sync; the buttons at the top add one.
+
+<!-- guide-figure: guide-x3-integrations -->
+![Administration, Integrations in global view: add buttons, the platform note, the search and view toggle, and a table of connections with owner, status and last sync](images/guides/guide-x3-integrations.png "Administration, Integrations, in global view.")
+
+1. Add a connection: PSA, RMM, UniFi, M365, Omada, Grandstream, Distributor or Accounting.
+2. Global view: new connections are platform-owned, and what they bring in reaches customers only through each connection's mapping.
+3. Search by provider or connection name; Tile and List switch the layout.
+4. Owner: Platform, or the one customer whose own connection it is.
+5. Status of each connection (Off here: sync is switched off).
+6. Configure opens the connection; Make platform-owned (customer-owned rows only) moves it to the platform.
+<!-- /guide-figure -->
+ Its data reaches customers only through the
 connection's mapping:
 
 | Type | How data is assigned to a customer |
 |---|---|
-| PSA | Each PSA company is mapped to a customer (**Integrations → connection → Map organizations**); its contacts and tickets follow the company |
+| PSA | Each PSA company is mapped to a customer (**Administration → Integrations →** the connection **→ Map organizations**); its contacts and tickets follow the company |
 | RMM | Each RMM customer (client) is mapped or imported as a customer; devices whose customer is not settled wait in **Review** |
 | UniFi, Omada, Grandstream | Each controller site is mapped to a customer on the connection page; unmapped sites are skipped by imports |
 | Accounting | Invoices belong to the customer billed; a platform connection handles every customer without its own connection |
@@ -39,6 +54,13 @@ Who may manage what:
 | MSP technician without a global role | Nothing | As today |
 | A customer's Owner or Admin | Nothing: not listed, not reachable, no credentials | Their own customer's connections, as before |
 | Customer portal users | Nothing | Nothing beyond what they had before |
+
+The **Administration → Integrations → Integrations** tab is shown to exactly these people: in global
+view, superusers, Django staff and technicians whose global role grants `integrations_configure`,
+`integrations_sync` or `integrations_view` (the `/integrations/` pages also need `integrations_view`);
+inside a customer, MSP staff whose role there grants `integrations_view` (a technician with no global
+role holds it there by the legacy rule). Customer users are not offered the tab. What each can do on the
+page follows the table above.
 
 Inside a customer, the Integrations page lists only that customer's own
 connections, plus a read-only note naming the platform integrations that
@@ -243,6 +265,22 @@ https://yoursubdomain.zendesk.com
 
 ---
 
+### Alga PSA
+
+**Base URL Format:**
+```
+https://algapsa.com
+https://your-self-hosted-alga.example.com
+```
+
+**Required Credentials:**
+1. **API Key**: from the Alga PSA settings
+2. **Tenant ID**: your tenant's UUID
+
+Clientst0r sends them as the `x-api-key` and `x-tenant-id` headers. Alga PSA support is newly added and has not been checked against a live instance.
+
+---
+
 ### ITFlow
 
 **Base URL Format:**
@@ -303,7 +341,7 @@ the connection form. A platform-owned connection is always multiple customers.
 
 On a multiple-customer connection a device is only shown on a customer's assets,
 tickets, alerts and reports once its customer is settled: by an imported or mapped
-RMM customer ID, or by a technician in **Integrations → (connection) → Review**.
+RMM customer ID, or by a technician in **Administration → Integrations →** the connection **→ Review**.
 A device the RMM moves to another customer is hidden until a technician confirms
 the move. Devices are never filed under the connection owner as a fallback.
 Review for a platform-owned connection is in global view.
@@ -355,9 +393,9 @@ https://oc.ninjarmm.com
 2. Go to **Administration → Apps → API**
 3. Click **Add** to create new application
 4. Select **OAuth** authentication
-5. Set **Redirect URI** (use `https://your-clientst0r.com/integrations/callback`)
+5. Set the **Redirect URI** the NinjaOne application requires (Clientst0r has no sign-in callback for NinjaOne: it takes the token you paste in)
 6. Copy **Client ID** and **Client Secret**
-7. Complete OAuth flow to get **Refresh Token**
+7. Complete the OAuth flow in NinjaOne to get a **Refresh Token**; Clientst0r's connection form asks for exactly these three values
 8. Use region-specific URL (app/eu/oc based on your instance)
 
 **API Documentation:** https://ninjarmm.zendesk.com/hc/en-us/sections/360001438632-API
@@ -475,7 +513,7 @@ https://remote.yourdomain.com
 1. In Rem0te, go to **Administration → API Keys**
 2. Create a key for the customer's business with the `computers:read` scope
 3. Copy the key (shown only once)
-4. In Clientst0r, switch to that customer's organization and add an RMM integration with provider **Rem0te**
+4. In Clientst0r, switch to that customer's organization and add an RMM integration with provider **Rem0te** (superusers can also use the checklist at **Administration → Integrations → RMM · Rem0te**)
 5. Use your Rem0te address as the base URL
 
 A Rem0te key belongs to exactly one business, so each connection is single
@@ -583,7 +621,7 @@ happened?) in separate columns, each with an icon, a text label and a tooltip:
 
 **429 Rate Limited:**
 - Too many requests in time window
-- Increase sync_interval_minutes
+- Lengthen the connection's sync interval
 - Contact provider to increase rate limits
 
 **SSL/TLS Errors:**
@@ -631,10 +669,9 @@ happened?) in separate columns, each with an icon, a text label and a tooltip:
 4. **Access Control:**
    - Limit who can create/edit integrations
    - Use role-based access control
-   - Require superadmin for integration management
+   - Platform-owned connections are managed by superusers, Django staff and technicians whose global role grants `integrations_configure` (see the table at the top)
    - Document integration ownership
 
 ---
 
-**Last Updated:** 2026-01-16
-**Version:** 2.24.89
+See also: [Connected Applications](CONNECTED_APPLICATIONS.md) for Agit8or Connect and Quick Connect, which are separate from the provider integrations on this page.

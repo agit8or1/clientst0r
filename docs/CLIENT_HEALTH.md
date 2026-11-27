@@ -174,7 +174,7 @@ client's overview page, with a Details link.
 
 **Who may change weights.** Anyone with the *Customer health score: change the dimension / signal weights and
 thresholds* permission (`manage_health_score_settings`), who must also be MSP staff. Superusers have it. It is
-included in the Org Admin role template and can be added to any other role under Settings → Users & Access.
+included in the Org Admin role template and can be added to any other role under Administration → Users & Access.
 Without it the Weights tab and button are hidden and the page answers 403. For a client's own weights the
 permission is checked at that client; for the default it is checked install-wide.
 

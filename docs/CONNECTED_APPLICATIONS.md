@@ -24,7 +24,7 @@ Screenshots: [Connected Applications](images/github/connected-apps-dark.png) ·
 
 Set `AGIT8OR_CONNECT_ENABLED=True` and `AGIT8OR_CONNECT_PUBLIC_URL` (an https address in canonical form, for
 example `https://psa.example.com`: lower case, no path, no trailing slash) in `.env`, then restart. The page is
-**Settings → Integrations → Connected Applications**. Pairing and approval are refused until the public
+**Administration → Integrations → Connected Applications**. Pairing and approval are refused until the public
 address is set. The permission **Manage connected applications** is needed to change anything.
 
 ## Connecting

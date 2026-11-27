@@ -30,6 +30,17 @@ git clone https://github.com/agit8or1/clientst0r.git && cd clientst0r && bash in
 
 **That's it!** When complete, the server is running at `http://YOUR_IP:8000`
 
+After you sign in, **Administration → System → System Status** (superusers) shows the version, the database and whether the web service is running, which is the quickest check that the install is healthy.
+
+<!-- guide-figure: guide-x4-install -->
+![System Status page with callouts on the page title, the database card and the services](docs/images/guides/guide-x4-install.png "System Status, where you can confirm a fresh install is healthy.")
+
+1. System Status (Administration → System → System Status, superusers only): the page to open after an install to see that the app is healthy.
+2. The first overview card: the version and server basics.
+3. The database card: green when the app reaches its database.
+4. The Gunicorn service card: green when the web service is running.
+<!-- /guide-figure -->
+
 ---
 
 ## System Requirements
@@ -89,13 +100,15 @@ The installer performs these steps automatically:
 3. ✅ **Python Dependencies** - Installs 40+ Python packages (2-3 minutes)
 4. ✅ **Secure Secrets** - Generates encryption keys automatically
 5. ✅ **Environment Config** - Creates `.env` file with all settings
+   (step 5.5 then installs the root helper, `/usr/local/sbin/clientst0r-root-helper`, which the web UI uses for updates)
 6. ✅ **Database Setup** - Creates database and user
 7. ✅ **Log Directory** - Creates `/var/log/itdocs/`
 8. ✅ **Database Migrations** - Applies all schema migrations
 9. ✅ **Organization Setup** - Interactive prompt for your business name and demo data
 10. ✅ **Superuser Account** - Creates `admin` / `ChangeMe123!` non-interactively (change it at first login)
-11. ✅ **Static Files** - Collects CSS, JavaScript, images
-12. ✅ **Production Server** - Starts Gunicorn with systemd
+11. ✅ **Default Content** - On a fresh install only: document categories, document and diagram templates, and the MSP knowledge base
+12. ✅ **Static Files** - Collects CSS, JavaScript, images
+13. ✅ **Production Server** - Starts Gunicorn with systemd (4 workers on port 8000)
 
 During **Step 9 (Organization Setup)**, you will be asked:
 ```
@@ -175,7 +188,7 @@ Enter choice [1-4]:
 
 Update an existing installation to the latest version.
 
-The usual way is the web UI: **Settings → System → System Updates** (`/core/settings/updates/`),
+The usual way is the web UI: **Administration → System → System Updates** (`/core/settings/updates/`),
 *Check for Updates*, review what *Apply would install*, then *Apply*. The full
 guide, including release channels, backups and recovery, is
 [docs/UPGRADE_AND_RECOVERY.md](docs/UPGRADE_AND_RECOVERY.md).
@@ -284,7 +297,7 @@ You'll be asked to type "yes" to confirm.
 3. Removes virtual environment
 4. Deletes `.env` file
 5. Cleans log directory
-6. Proceeds with fresh installation (all 11 steps)
+6. Proceeds with fresh installation (all the steps above)
 
 ---
 

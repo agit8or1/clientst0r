@@ -25,7 +25,7 @@ for before switching.
 | IPAM, VLANs and rack elevations | Available |
 | Built-in service desk with SLAs, contracts and invoicing | Available (opt-in) |
 | PSA integrations | Available — ConnectWise Manage, Autotask, HaloPSA, Kaseya BMS, Syncro, Freshservice, Zendesk, ITFlow (companies, contacts, tickets); RangerMSP and Alga PSA Limited (newly added) |
-| RMM integrations | Available — 5 providers: Tactical RMM, NinjaOne, Datto RMM, Atera, ConnectWise Automate (devices, alerts, software) |
+| RMM integrations | Available — Tactical RMM, NinjaOne, Datto RMM, Atera, ConnectWise Automate and Rem0te (devices, alerts, software; Rem0te syncs computers and adds a Connect button) |
 | Multi-organization with customer logins | Available |
 | Sign-in | Azure AD / Entra ID SSO and LDAP / Active Directory sign-in available (LDAP needs optional packages); 2FA enforced by default |
 | Documentation readiness and lifecycle | Available — per-client readiness scores and a repair queue, document owners and review dates, drafts, version compare and restore |
@@ -36,7 +36,20 @@ Full list with limitations: [FEATURES.md](../FEATURES.md).
 
 ## What the Hudu importer brings over
 
-The importer (**Imports**, `/imports/`) connects to your Hudu instance's API with an API key.
+The importer is under **Administration → Maintenance → Data Import** (`/imports/`). It is open to
+superusers only. **New Import** takes the source type (Hudu), your Hudu address, an API key and an
+optional target organization. The API key is stored encrypted and is never shown again.
+
+<!-- guide-figure: guide-x3-hudu-job -->
+![A Hudu import job that completed with errors: status, configuration, statistics and rollback button](images/guides/guide-x3-hudu-job.png "Administration, Maintenance, Data Import: a real import that completed with errors.")
+
+1. Completed with errors: some records failed, and the page says how many.
+2. Source, the target organization and the data types.
+3. Imported, skipped and failed add up to the total.
+4. Rollback undoes what the job created; records edited since are kept.
+<!-- /guide-figure -->
+
+The page of an import job: a real Hudu import that completed with errors. The buttons at the top of the page are Run Actual Import (dry runs only) or Rollback (real imports), and Delete.
 
 | Hudu data | Imported today |
 | --- | --- |
@@ -44,13 +57,17 @@ The importer (**Imports**, `/imports/`) connects to your Hudu instance's API wit
 | Assets | Yes |
 | Asset passwords | Yes — encrypted on arrival |
 | Articles (as documents) | Yes |
-| Contacts | Not yet |
-| Locations | Not yet |
-| Networks | Not yet |
-| Attachments, relationships, permissions | Not yet |
+| Contacts | Yes — tick **Contacts** (off by default); taken from assets whose layout is a people or contact layout |
+| Locations | Yes — tick **Locations** (off by default); each company's address, plus assets with a location or site layout |
+| Networks | Yes — tick **Networks** (off by default) |
+| Other attachments, relationships, permissions | Not by this screen (see the one-customer rehearsal below) |
 
-- A **dry run** is on by default and reports counts without writing anything.
+- A **dry run** is on by default and reports counts without writing anything. On a finished dry run, **Run Actual Import** turns the same job into a real one and asks you to confirm.
+- **Skip Duplicates** (on by default) skips records already imported by an earlier completed job for the same organization.
 - Each job keeps a log and history, and imported records are tagged with their source.
+- **One or all organizations.** Import into a single target organization, or leave it blank to import
+  every Hudu company; **Enable Fuzzy Matching** then matches companies to existing organizations by
+  name similarity (threshold 85 by default).
 - Each record goes to the client its source record belongs to.
 - A job shows "Completed" only when nothing failed; otherwise "Completed with errors" or
   "Failed", with imported / skipped / failed counts that add up to the source total, and the
@@ -59,13 +76,24 @@ The importer (**Imports**, `/imports/`) connects to your Hudu instance's API wit
   and organizations the import created are removed only when nothing else uses them; if
   anything was kept the job shows "Partially rolled back".
 
+## One-customer rehearsal
+
+**One-customer rehearsal** on the Data Import page (`/imports/rehearsals/`, superusers only, like the rest of Data Import) moves one source organization
+into one Clientst0r customer in steps: create the rehearsal, **Fetch source data** (nothing is written to
+the customer), review **What will transfer** (create, update, unchanged, duplicate, conflict and
+unavailable counts per type, with broken links and the reasons for skips), **Mark reviewed (freeze)**,
+then **Apply reviewed plan**. It also covers IP addresses, processes, websites, relationships and
+attachments, can be rolled back, and exports reports as JSON or CSV. Applying needs the matching
+permission in the customer (for example Create passwords for passwords).
+
 ## Before you switch
 
 * Run a dry run, then a real import into a test organization, and compare record counts
   with Hudu.
-* Plan how you will bring over contacts, locations and networks (CSV import or by hand)
-  until those importers ship. CSV contact and password imports work, and re-running a CSV
-  import updates matching rows instead of duplicating them.
+* Tick Contacts, Locations and Networks if you want them (they are off by default), and plan
+  how you will bring over anything the importer does not read (CSV import or by hand). CSV
+  contact and password imports work, and re-running a CSV import updates matching rows
+  instead of duplicating them.
 * Check the integrations, sign-in method and exports you depend on against
   [FEATURES.md](../FEATURES.md).
 

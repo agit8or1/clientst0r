@@ -10,7 +10,8 @@ from audit.models import AuditLog
 class APIKeyAuthentication(authentication.BaseAuthentication):
     """
     API key authentication for DRF.
-    Expects header: Authorization: Bearer itdocs_live_<key>
+    Expects header: Authorization: Bearer cst_live_<key>
+    (older keys start itdocs_live_ and still work)
     """
     keyword = 'Bearer'
 

@@ -1879,6 +1879,46 @@ Acceptance: block deduction, partial overage split, unlimited coverage produces 
 and parts reach the invoice, concurrent approvals cannot deduct twice, existing contracts and invoices unchanged on
 upgrade.
 
+<a id="phase-112"></a>
+
+### Phase 112 — Complete user documentation with annotated screenshots
+
+Shipped v3.17.773 to v3.17.798 (112.1–112.10).
+
+Every area of the application has a guide in Clientst0r Docs, and every guide carries at least one
+annotated screenshot (numbered callouts matched by a numbered list) captured from the demo instance with
+`scripts/capture_screenshots.py`. Extends 67.27 (shipped v3.17.766).
+
+- **112.1 Coverage checks** *(shipped v3.17.773)* — a test maps every navigation section to the guide that documents it
+  and fails for a guide without an annotated figure; the list of guides and sections still waiting shrinks with
+  each release and may never grow. `core/guide_coverage.py` holds the map and both waiting lists;
+  `core.tests.test_guide_coverage` enforces them.
+- **112.2 Service Desk and My Work** *(shipped v3.17.773)* — new guides My Work, Tickets (with dispatch and
+  projects), Service Management and Workflows, with 19 annotated screenshots; Support Workflows gains its
+  figure. Pages the demo database has nothing to show on (AI Inbox, Routing Triage, Catalog Changes, Workflow
+  Dashboard, Templates, Suggestions, Location Sharing, Timeclock, My Billable Target, My Timesheet) are
+  described without a figure until the demo data covers them.
+- **112.3 Clients, assets and network** *(shipped v3.17.774)* — customers and onboarding, assets, hardware and ports,
+  network diagrams, infrastructure, backup monitoring, IPAM, inventory, vehicles.
+- **112.4 Business** *(shipped v3.17.776)* — CRM, contracts, licensing, quotes, invoices, billing review, procurement,
+  vendors, pulse checks, client health.
+- **112.5 Knowledge and vault** *(shipped v3.17.778)* — documents, knowledge base, diagrams, review and publishing,
+  documentation readiness, password vault, personal vault, secure notes.
+- **112.6 Security and monitoring** *(shipped v3.17.792 — events and monitoring reliability are documented with the coverage-gap release)* — security alerts, incidents, events, monitoring reliability,
+  website and WAN monitors, expirations, status pages, configuration backups.
+- **112.7 Reports** *(shipped v3.17.794)* — reports home, executive scorecard, dashboards, analytics, wallboards,
+  generated and scheduled reports, profitability reports, pricing advisor.
+- **112.8 Administration** *(shipped v3.17.796)* — every settings category: general, users and access, security,
+  integrations, AI configuration (**OPTIONAL AI**), automation, communications, modules, system, maintenance.
+- **112.9 Your account and the customer portal** *(shipped v3.17.797)* — profile, two-factor, work details, apps and
+  downloads; the portal as a customer sees it.
+- **112.10 Existing guides** *(shipped v3.17.798)* — the 35 guides without a figure gain annotated screenshots; guides
+  describing removed or renamed screens are corrected.
+
+  Acceptance: every navigation section is documented by a guide; every guide in Clientst0r Docs has an
+  annotated figure; `scripts/guide_figures.py --check` and the coverage test pass; screenshots are captured
+  against the demo data only.
+
 ## Original planning notes
 
 ### Phasing principle

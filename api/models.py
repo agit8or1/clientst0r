@@ -11,13 +11,21 @@ from core.models import Organization, BaseModel
 from accounts.models import Role
 
 
+# Prefix for newly issued keys. Older keys start with the
+# old product name (``itdocs_live_``) and keep working: a key is looked up by
+# the HMAC of the whole plaintext, never by its prefix, so the prefix carries
+# no meaning for verification.
+API_KEY_PREFIX = 'cst_live_'
+LEGACY_API_KEY_PREFIXES = ('itdocs_live_',)
+
+
 def generate_api_key():
     """
     Generate a random API key.
-    Format: itdocs_live_<32 random bytes hex>
+    Format: cst_live_<32 random bytes hex>
     """
     random_part = secrets.token_hex(32)
-    return f"itdocs_live_{random_part}"
+    return f"{API_KEY_PREFIX}{random_part}"
 
 
 def hash_api_key(api_key):

@@ -8,7 +8,7 @@ from core.navigation import SECTIONS
 # The size of each waiting list today. Lower these as guides land; never raise
 # them: a new navigation section or guide arrives documented, with a figure.
 PENDING_SECTIONS_CEILING = 0
-GUIDES_WITHOUT_FIGURE_CEILING = 31
+GUIDES_WITHOUT_FIGURE_CEILING = 1
 
 
 class SectionCoverageTests(SimpleTestCase):

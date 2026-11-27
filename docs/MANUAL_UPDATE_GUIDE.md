@@ -1,7 +1,7 @@
 # How to Manually Update Clientst0r from the CLI
 
-The normal way to update a native install is the web UI: **Settings → System → System Updates**
-(`/core/settings/updates/`), *Check for Updates*, then *Apply*. Use this guide when that
+The normal way to update a native install is the web UI: **Administration → System → System Updates**
+(`/core/settings/updates/`), *Check now*, then *Install*. Use this guide when that
 path is unavailable or fails, or when you need to pull specific commits.
 
 From the command line, prefer `venv/bin/python manage.py upgrade_apply`: it runs the same
@@ -55,7 +55,7 @@ python manage.py shell -c "from config.version import VERSION; print(f'Version: 
 
 > **Updating from a release older than 3.17.599?** Periodic jobs (recurring invoices,
 > email-to-ticket polling, recurring tickets, contract renewals and others) now run from the
-> built-in scheduler — **Settings → Automation → Task Scheduler** (`/core/settings/scheduler/`) — driven by
+> built-in scheduler — **Administration → Automation → Task Scheduler** (`/core/settings/scheduler/`) — driven by
 > `clientst0r-scheduler.timer`. The web and automatic updaters remove the old crontab lines
 > for these jobs. A manual update does not, so remove them yourself or each job runs twice:
 >
@@ -302,8 +302,15 @@ sudo systemctl status clientst0r-gunicorn.service | grep Active
 sudo systemctl list-timers 'clientst0r-*'
 ```
 
-In the web UI, **Settings → System → System Updates** shows the running version, and **Settings →
-Automation → Task Scheduler** shows each periodic job's last run and last error.
+In the web UI, **Administration → System → System Updates** shows the running version, and **Administration →
+Automation → Task Scheduler** shows each periodic job's last run, status and run count.
+
+<!-- guide-figure: guide-x4-manual-update -->
+![Task Scheduler page with callouts on the title, the task table and the scheduler status](images/guides/guide-x4-manual-update.png "Task Scheduler: check the periodic jobs after a manual update.")
+
+1. Task Scheduler (Administration → Automation → Task Scheduler): open it after updating to see each job's last run and status.
+2. One row per periodic job, with its interval, last run, next run, status and run count. After a manual update each job must run once, so remove any old crontab lines.
+<!-- /guide-figure -->
 
 After updating, test:
 - Login works
@@ -325,11 +332,11 @@ After updating, test:
 [ ] Collect static files: python manage.py collectstatic --noinput
 [ ] Reload Gunicorn: sudo systemctl reload clientst0r-gunicorn.service
 [ ] (Upgrading from before 3.17.599) remove legacy psa_* crontab lines
-[ ] (Upgrading from before 3.17.610) review Settings → Security → Security Settings first — saved values become live
+[ ] (Upgrading from before 3.17.610) review Administration → Security → Security Settings first — saved values become live
 [ ] (Using LDAP) pip install -r requirements-optional.txt
 [ ] Hard refresh browser
-[ ] Verify version in Settings → System → System Updates
-[ ] Check Settings → Automation → Task Scheduler for job errors
+[ ] Verify version in Administration → System → System Updates
+[ ] Check Administration → Automation → Task Scheduler for job errors
 [ ] Check logs for errors
 ```
 

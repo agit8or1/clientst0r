@@ -7,9 +7,24 @@ The OS Package Security Scanner monitors your system for outdated packages and s
 - **Security Update Detection**: Identifies packages with available security patches
 - **Multi-Package Manager Support**: Works with apt, yum, dnf, and pacman
 - **Web Dashboard**: View scan history and security status via web interface
-- **API Access**: RESTful API for integration with monitoring tools
-- **Automated Scheduling**: Run scans automatically using systemd timers
-- **Dashboard Widget**: Security overview on main security dashboard
+- **Optional updates from the page**: *Update Security* and *Update All* install the pending packages (see [Installing updates](#installing-updates-from-the-page))
+- **API Access**: a JSON endpoint with the latest result, for staff sessions
+- **Automated Scheduling**: Run scans automatically using a systemd user timer or cron
+- **Dashboard Widget**: The OS package card on the Security Dashboard
+- **Python dependency scanner**: a sibling page for known vulnerabilities in the app's own Python packages (see [Python Dependency Scanner](#python-dependency-scanner))
+
+The scanner is for staff only: a Django superuser, or a user with the staff flag. Anyone else is
+sent back to the dashboard with a permission message. It scans the server Clientst0r runs on, not
+your customers' machines.
+
+<!-- guide-figure: guide-x4-package-scanner -->
+![OS Package Security Scanner page with callouts on the title, the action buttons, the cards and the history](images/guides/guide-x4-package-scanner.png "The OS Package Security Scanner page.")
+
+1. Run Scan Now: refreshes the package lists if allowed, scans and saves the result. Staff and superusers only.
+2. The cards: security updates, total updates, total packages and number of scans.
+<!-- /guide-figure -->
+
+The screenshot shows the page before any scan has run: the cards read 0 and the history is empty until the first scan.
 
 ## Manual Scanning
 
@@ -32,20 +47,28 @@ python manage.py scan_system_packages --json
 
 ### Web Interface
 
-1. Navigate to **Settings** → **Security** → **Security Dashboard** → **Package Scanner** (`/core/security/package-scanner/`)
+1. Open **Administration → Security → Security Dashboard**, then *Details* on the OS package card
+   (`/core/security/package-scanner/`)
 2. Click **Run Scan Now**
 3. View results in the dashboard
+
+Before scanning, the page tries `sudo -n apt-get update` to refresh the package lists. If that is not
+permitted (or there is no network) the scan continues with the cached lists and the result says
+"using cached data".
 
 ## Automated Scheduling
 
 ### Setup (Systemd)
+
+The Task Scheduler (**Administration → Automation → Task Scheduler**) has a scheduled task for the
+Python dependency scan but none for the OS package scan, so schedule that one with a timer or cron.
 
 Enable daily automated scanning:
 ```bash
 python manage.py setup_package_scanner_schedule
 ```
 
-Custom interval (hourly, daily, weekly, monthly):
+Custom interval (`hourly`, `daily`, `weekly`, or a cron expression):
 ```bash
 python manage.py setup_package_scanner_schedule --interval weekly
 ```
@@ -59,6 +82,11 @@ Disable scheduled scanning:
 ```bash
 python manage.py setup_package_scanner_schedule --disable
 ```
+
+The command copies `systemd/package-scanner.service` and `.timer` into `~/.config/systemd/user/` and
+enables them as a **user** unit for the account that runs it. The unit file assumes the install is in
+`/home/administrator` and runs as `administrator`; edit `ExecStart`, `WorkingDirectory` and `User` in
+the copied file if yours differs.
 
 ### Setup (Cron - Alternative)
 
@@ -75,9 +103,11 @@ Add for daily scans at 2 AM:
 
 ## API Endpoints
 
+Both need a signed-in staff or superuser session (they are the page's own endpoints, not API-key endpoints).
+
 ### Get Widget Data
 ```http
-GET /api/security/package-scanner/widget/
+GET /core/api/security/package-scanner/widget/
 ```
 
 Response:
@@ -95,7 +125,7 @@ Response:
 
 ### Trigger Scan
 ```http
-POST /security/package-scanner/run/
+POST /core/security/package-scanner/run/
 ```
 
 Response:
@@ -111,24 +141,24 @@ Response:
 
 | Security Updates | Status | Risk Level |
 |-----------------|--------|------------|
-| 0 | Success (Green) | Secure |
-| 1-4 | Warning (Yellow) | Low Risk |
-| 5-19 | Warning (Yellow) | Medium Risk |
-| 20+ | Danger (Red) | High Risk |
+| 0 | Success (green) | Secure |
+| 1-4 | Warning (yellow) | Low Risk |
+| 5-19 | Danger (red) | Medium Risk |
+| 20+ | Danger (red) | High Risk |
 
 ## Dashboard Access
 
 ### Main Dashboard
-`/security/package-scanner/`
+`/core/security/package-scanner/`
 
 Shows:
-- Security status cards
-- Latest scan details with security package list
-- Full scan history table
-- Manual scan trigger
+- Four cards: security updates, total updates, total packages, number of scans in the history
+- Latest scan details with the security package list
+- Scan history (last 30 scans)
+- Buttons: *Run Scan Now*, *Update Security (n)* and *Update All (n)* (the last two only when updates are pending), and a link back to the Security Dashboard
 
 ### Individual Scan Details
-`/security/package-scanner/scan/<id>/`
+`/core/security/package-scanner/scan/<id>/`
 
 Shows:
 - Complete scan overview
@@ -137,7 +167,30 @@ Shows:
 - Full installed package list
 
 ### Security Dashboard Widget
-Integrated into `/security/` main security dashboard sidebar.
+The OS package card on the Security Dashboard (`/core/security/`) loads the same data.
+
+## Installing updates from the page
+
+*Update Security* and *Update All* are OPTIONAL: they ask you to confirm, then run
+`manage.py update_system_packages` on the server (`--security-only` for the first). Packages are installed
+through the root helper when it is installed (Administration → System → System Updates installs it),
+otherwise through `sudo -n`; if neither is permitted the page shows the error. Package names are checked
+before they are passed on. The command also supports `--dry-run` and `--package`. Nothing is installed
+unless you click, and there is no schedule for it.
+
+`manage.py setup_package_scanner_sudo` writes an older passwordless-sudo rule
+(`/etc/sudoers.d/clientst0r-package-scanner`) for `apt-get update` and `apt-get upgrade`; prefer the root
+helper, which allows less.
+
+## Python Dependency Scanner
+
+`/core/security/python-scanner/` (staff or superuser) runs `pip-audit` against the application's own
+virtual environment and lists vulnerable packages with the installed version, the fix versions and the
+advisories. *Run Scan Now* starts a scan; the CLI is `manage.py scan_python_packages --save`. Superusers
+also see a *Remediate* button per package that runs `pip install --upgrade` for one of the listed fix
+versions; restart the web service afterwards and update `requirements.txt` yourself. Status is
+Critical, High Risk, Medium Risk, Low Risk or Secure by the worst finding. The scheduled task
+*Python Dependency Vulnerability Scan* in the Task Scheduler runs it automatically.
 
 ## Troubleshooting
 
@@ -148,10 +201,7 @@ If you see permission denied for system logs:
 sudo chmod +r /var/log/unattended-upgrades/unattended-upgrades.log
 ```
 
-Or run scan with sudo (not recommended):
-```bash
-sudo venv/bin/python manage.py scan_system_packages --save
-```
+Do not run the scan with `sudo`: the saved scan and any files it creates would then belong to root.
 
 ### Systemd Timer Not Running
 
@@ -175,7 +225,7 @@ loginctl enable-linger $USER
 1. Check database connection
 2. Verify scan command runs successfully: `python manage.py scan_system_packages --save`
 3. Check Django logs for errors
-4. Verify user permissions (staff or superuser required)
+4. Verify the account is a superuser or has the staff flag
 
 ## Package Manager Support
 
@@ -204,35 +254,17 @@ loginctl enable-linger $USER
 
 ## Integration Examples
 
-### Webhook Notifications
-
-Create a webhook to notify on high-risk scans:
-
-1. Go to **Settings** → **Integrations** → **Webhooks** → **Create Webhook**
-2. Set event: `security.package_scan_completed`
-3. Add filter: `security_updates > 10`
-4. Configure notification endpoint (Slack, Discord, email, etc.)
-
 ### Monitoring Dashboard
 
-Add widget to custom monitoring dashboard:
+From a page in the same browser session (it needs a signed-in staff session):
 
 ```javascript
-fetch('/api/security/package-scanner/widget/')
+fetch('/core/api/security/package-scanner/widget/')
     .then(r => r.json())
     .then(data => {
         console.log(`Security Updates: ${data.security_updates}`);
         console.log(`Status: ${data.status_label}`);
     });
-```
-
-### Prometheus Metrics (Future)
-
-Export metrics for Prometheus monitoring:
-```
-package_security_updates{status="danger"} 23
-package_total_updates{} 45
-package_last_scan_timestamp{} 1708513800
 ```
 
 ## Limitations
@@ -241,22 +273,11 @@ package_last_scan_timestamp{} 1708513800
 - Security update detection accuracy depends on package manager metadata
 - Large package lists (5000+ packages) may take 30-60 seconds to scan
 - Arch Linux security detection is limited (no official security repository)
-- Cannot automatically apply updates (manual or external automation required)
-
-## Future Enhancements
-
-Planned features:
-- [ ] Email/webhook alerts for critical security updates
-- [ ] Update application integration (apply updates from web UI)
-- [ ] Prometheus metrics export
-- [ ] CVE database integration for vulnerability details
-- [ ] Package dependency graph visualization
-- [ ] Comparison between scans (diff view)
-- [ ] Export scan results (PDF, CSV, JSON)
+- Updates are installed only when you click *Update Security* or *Update All*; there are no automatic or scheduled installs
+- There are no alerts or webhooks for a bad scan result; look at the dashboard or poll the widget endpoint
 
 ## Support
 
 For issues or questions:
 - GitHub Issues: https://github.com/agit8or1/clientst0r/issues
 - Documentation: https://github.com/agit8or1/clientst0r
-- Version: 3.9.1+

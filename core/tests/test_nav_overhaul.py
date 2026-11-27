@@ -26,7 +26,11 @@ SECTION_KEYS = ['dashboard', 'my_work', 'service_desk', 'clients', 'assets', 'bu
 SUPERUSER_ONLY = ['core:settings_general', 'core:system_updates', 'core:system_status',
                   'accounts:access_management', 'accounts:user_list', 'core:settings_security',
                   'core:firewall_settings', 'core:maintenance', 'core:settings_ai',
-                  'integrations:integration_list', 'core:settings_features']
+                  'core:settings_features']
+# Integrations is MSP staff only: the page admits technicians whose role
+# grants integrations_view (a technician with no global role holds it by the
+# legacy rule inside a customer), never customer users.
+STAFF_SETTINGS_ONLY = ['integrations:integration_list']
 
 
 def frame(html):
@@ -269,7 +273,7 @@ class SettingsCenterTests(NavbarTestBase):
         self.client.get(reverse('accounts:switch_organization', args=[self.org.id]))
         html = self.client.get(reverse('core:settings_home')).content.decode()
         self.assertIn('data-settings-group="settings_access"', html)
-        for name in SUPERUSER_ONLY:
+        for name in SUPERUSER_ONLY + STAFF_SETTINGS_ONLY:
             self.assertNotIn(f'href="{reverse(name)}"', html.split('id="main-content"', 1)[1], name)
         reader = self.make_customer('readonly', 'sc_reader')
         self.client.force_login(reader)

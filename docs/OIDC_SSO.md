@@ -17,6 +17,17 @@ fake OP; it has not yet been verified against a live Keycloak (see
 - Users link their own account at **Profile → Single sign-on**
   (`/accounts/sso/oidc/account/`).
 
+The settings page, with no provider added yet (the numbers match the list under the screenshot; the screenshot is a capture of the application against a demo database):
+
+<!-- guide-figure: guide-x2-oidc-sso -->
+![Single sign-on (OIDC) settings with numbered callouts on the provider list and the add provider form](images/guides/guide-x2-oidc-sso.png "Administration → Security → Single sign-on (OIDC).")
+
+1. Providers sign people in with OpenID Connect; accounts are found by the provider's subject id, never by e-mail. Local, Microsoft and LDAP sign-in stay available.
+2. Name shown on the sign-in button.
+3. Short name used in the provider's URLs.
+4. Add provider: creates it disabled until it is configured and verified.
+<!-- /guide-figure -->
+
 ## What it does
 
 | | |

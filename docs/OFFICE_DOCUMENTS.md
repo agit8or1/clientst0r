@@ -3,13 +3,30 @@
 The `office` app opens Word, Excel and PowerPoint files that clientst0r stores in an
 external browser editor. It saves edits back as numbered revisions.
 
-This document covers the **provider-independent core**: storage, sessions, tokens,
-policy, the network guard, templates, the UI and the settings pages.
+This document covers the **provider-independent core**'s behaviour as a user and administrator sees it. The two
+editor connectors, **ONLYOFFICE Docs** and **Collabora Online**, are installed in this version (see
+[office/ONLYOFFICE.md](office/ONLYOFFICE.md) and [office/COLLABORA.md](office/COLLABORA.md)). No editor ships with
+the application: until an administrator connects an editor instance (or turns on the managed local editor), every
+Edit button is shown disabled with the reason, for example "No Office editor is configured for this organization".
+Neither connector has yet been verified against a real editor server in this repository's tests, so treat live
+editing as **Limited** (the same status [FEATURES.md](../FEATURES.md) gives it).
 
-The editor connectors are separate work. Both `onlyoffice` and `collabora` are
-registered **stubs**. Until a real connector replaces a stub, every Edit button
-is shown disabled with the reason "connector not installed". Diagnostics report
-the provider checks as *not run*.
+The numbers in each screenshot match the list under it. Every screenshot is a capture of the application against a
+demo database; the customers and people in it are invented.
+
+### The file page
+
+Opening an Office file (from a document, an asset or a ticket attachment, or a template) shows its file page at
+`/office/f/<code>/<id>/`.
+
+<!-- guide-figure: guide-x1-office-file -->
+![An Office file page: the Edit button, download, versions, copy, rename and the revision list](images/guides/guide-x1-office-file.png "A file page under /office/f/.")
+
+1. The file, with its customer, revision number, size and when it was saved.
+2. Edit in the browser editor. It is shown disabled, with the reason, when no editor is connected or you may not edit.
+3. Rename. The extension is kept.
+4. Recent revisions. Every save is a numbered revision; any of them can be downloaded, and restoring one adds a new revision.
+<!-- /guide-figure -->
 
 ## What can be edited
 
@@ -175,7 +192,7 @@ It runs from the scheduler task `office_purge_quarantine` (hourly) and from
 `manage.py office_purge_quarantine`.
 
 Superusers can review, download and restore quarantined saves at
-**Settings → Integrations → Office Documents → Quarantine**.
+**Administration → Integrations → Office Documents → Quarantine**.
 
 ## Policy (`office/policy.py`)
 
@@ -431,7 +448,16 @@ handler.
 
 ## Settings
 
-### Settings → Integrations → Office Documents (superuser)
+### Administration → Integrations → Office Documents (superuser)
+
+<!-- guide-figure: guide-x1-office-settings -->
+![Administration, Integrations, Office Documents: editor instances, managed local editor, policy and quarantine](images/guides/guide-x1-office-settings.png "Administration, Integrations, Office Documents.")
+
+1. Editor instances: the ONLYOFFICE or Collabora servers files open in. Add one, or start with Install guidance.
+2. A checklist and the installer commands for a same-server, separate-server or existing-service setup. Nothing runs from the page.
+3. Which providers are enabled, the default instance, and session and retention limits.
+4. Quarantine: saves the application refused to make current, kept for an administrator.
+<!-- /guide-figure -->
 
 - **Platform settings:** enabled providers, default instance, organization
   override, retention and session lifetimes.
@@ -447,7 +473,7 @@ handler.
   - Configuration, reachability (through the network guard) and provider
     checks, with remedies.
   - A round trip on a disposable file with no organization.
-  - The stubs report *not run*, never *pass*.
+  - A check the connector cannot run reports *not run*, never *pass*.
 - **Install guidance** for same-server, separate-server and existing-service
   setups:
   - a checklist plus shell-quoted commands that run on the server as root;
@@ -456,7 +482,7 @@ handler.
   - the commands run `scripts/office/install-editor.sh` (see [office/INSTALL.md](office/INSTALL.md)).
 - **Quarantine:** review, download and restore quarantined saves.
 
-### Settings → Integrations → Office Documents (organization)
+### Administration → Integrations → Office Documents (organization)
 
 For holders of `org_manage_settings`:
 
@@ -503,15 +529,11 @@ All `office.*` loggers carry `RedactSecretsFilter`, which redacts:
 
 ## Not implemented here
 
-**Editor connectors.** `office/providers/onlyoffice.py` and `collabora.py` are
-stubs; the ONLYOFFICE and Collabora connectors below replace them. A connector must:
-
-- register a provider;
-- add its callback / WOPI endpoints to `provider_urls.py`;
-- validate the callback JWT / WOPI proof and `access_token` with `tokens.validate`;
-- fetch the saved file with `net.fetch`;
-- store it with `storage.save_or_quarantine(..., source='editor_save', session=...)`;
-- fill `editor_page_context`, `health_check`, `diagnostics`, `round_trip` and `convert`.
+**Verification against real editors.** The ONLYOFFICE Docs and Collabora Online connectors are implemented
+(`office/providers/onlyoffice/`, `office/providers/collabora/`) and tested against fakes; the opt-in live suite has
+not been run. A connector registers a provider, serves its callback / WOPI endpoints, validates the callback JWT or
+WOPI proof and `access_token` with `tokens.validate`, fetches the saved file with `net.fetch`, and stores it with
+`storage.save_or_quarantine(..., source='editor_save', session=...)`.
 
 **Microsoft 365.** Linked SharePoint/OneDrive documents stay in Microsoft 365; see
 [office/MICROSOFT_365.md](office/MICROSOFT_365.md). Tested against a fake Graph only.

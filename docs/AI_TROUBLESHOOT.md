@@ -1,8 +1,20 @@
 # AI Troubleshoot: administrator guide
 
-**OPTIONAL AI.** AI Troubleshoot is off unless the installation's AI master switch (`psa_ai_enabled`, in Settings) is on **and** a customer's AI policy allows it. With AI off, every AI Troubleshoot page and endpoint answers 404, and tickets, devices, RMM panels and support workflows work exactly as they do without AI.
+**OPTIONAL AI.** AI Troubleshoot is off unless the installation's AI master switch (`psa_ai_enabled`, in Administration → General → PSA) is on **and** a customer's AI policy allows it. With AI off, every AI Troubleshoot page and endpoint answers 404, and tickets, devices, RMM panels and support workflows work exactly as they do without AI.
 
 AI Troubleshoot reads what a technician can already see on a ticket or an RMM device, sends a filtered and redacted summary to a model the customer's policy allows, and shows a structured answer: likely causes, read-only diagnostic steps, relevant runbooks and KB articles, suggested approved actions, risk, and a draft customer response. It never runs anything.
+
+The setup pages are described below. The numbers in the screenshot match the list under it. Every screenshot is a
+capture of the application against a demo database; the customers and people in it are invented.
+
+<!-- guide-figure: guide-x1-ai-profiles -->
+![Ticket AI Assist: installation-wide limits, model profiles and customer AI policies](images/guides/guide-x1-ai-profiles.png "Administration, AI Configuration, Ticket AI models.")
+
+1. Installation-wide limits: a monthly cap for all customers together and the read-only command allowlist.
+2. OPTIONAL AI. Superusers only; the pages answer 404 unless the AI master switch is on.
+3. Model profiles: one provider and model each, with prices and a credential owner. A profile is off until enabled.
+4. Customer AI policies. A customer without a policy allows no AI.
+<!-- /guide-figure -->
 
 ## What AI Troubleshoot can and cannot do
 
@@ -18,7 +30,7 @@ Each session page keeps four layers apart: **Observations** (what was sent, with
 
 ## Setup
 
-All of this lives under **Settings → AI Configuration → Ticket AI models** (`/psa/ai/profiles/`). Only superusers can open it.
+All of this lives under **Administration → AI Configuration → Ticket AI models** (`/psa/ai/profiles/`). Only superusers can open it.
 
 ### 1. Gateway keys
 

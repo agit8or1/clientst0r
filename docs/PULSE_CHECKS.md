@@ -15,7 +15,7 @@ whole and goes to the people you choose.
 
 Pulse checks are an optional module and are **off by default**.
 
-1. Go to **Settings → Modules → Optional Modules** (superusers).
+1. Go to **Administration → Modules → Optional Modules** (superusers).
 2. Turn on **Pulse checks**.
 
 While it is off, the menu entry is hidden, every pulse check page (staff and
@@ -159,7 +159,7 @@ clients, and cannot use *All clients*.
 
 | What | Where |
 |---|---|
-| Switch | `SystemSetting.pulse_enabled` (Settings → Modules → Optional Modules) |
+| Switch | `SystemSetting.pulse_enabled` (Administration → Modules → Optional Modules) |
 | Staff pages | `/pulse/` (MSP staff only) |
 | Portal pages | `/portal/feedback/` |
 | E-mailed answer link | `/portal/feedback/r/<token>/` |

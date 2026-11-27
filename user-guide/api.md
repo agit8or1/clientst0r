@@ -27,7 +27,7 @@ Send it in the `Authorization` header:
 ```http
 GET /api/assets/ HTTP/1.1
 Host: your-server.example.com
-Authorization: Bearer itdocs_live_xK9mPL3t8n...
+Authorization: Bearer cst_live_xK9mPL3t8n...
 ```
 
 Each key has two settings:

@@ -5,9 +5,22 @@ collects; the accounting system records. No invoices, subscriptions, prices
 or products are ever created at the provider, so a payment can never be
 billed twice by two systems.
 
+## The Payments page
+
+The page lists the gateway connections (name, provider, whether collection is live, whether autopay is on) and every payment attempt, which can be filtered by status. It is for MSP staff only. The numbers in the screenshot match the list under it. The screenshot is a capture of the application against a demo database; the demo has no gateway connection, so the connections table does not show.
+
+<!-- guide-figure: guide-x2-payments -->
+![Payments page with numbered callouts on New payment connection, the connections table, the status filter and the payment attempts table](images/guides/guide-x2-payments.png "Business → Money → Payments.")
+
+1. New payment connection: add Stripe or GoCardless. Needs the manage_payment_providers permission.
+2. The provider only collects: invoices and their schedule stay in Clientst0r. Connections (none in this demo) are listed below this line.
+3. Filter the attempts by status.
+4. Payment attempts: every collection attempt with amount, fee, status and the accounting hand-off state.
+<!-- /guide-figure -->
+
 ## Setup (MSP staff)
 
-Payments → New payment connection (`/payments/`). One install serves one
+**Business → Billing → Payments** (`/payments/`), then **New payment connection**. One install serves one
 MSP and every Organization is a customer of it, so gateway connections and
 autopay settings are MSP-wide: always platform-owned (no organization), and
 managing them needs `manage_payment_providers` on the technician's global
@@ -70,7 +83,7 @@ customer's administrators) once.
 
 ## Staff refunds
 
-Payments → attempt → Refund (full or partial), requires `process_refunds` at
+Business → Billing → Business → Billing → Payments → the attempt → Refund (full or partial), requires `process_refunds` at
 the customer. Every financial operation is written to the audit log.
 
 ## Known limits

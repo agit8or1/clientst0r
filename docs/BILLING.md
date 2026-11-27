@@ -122,7 +122,7 @@ Before relying on it, run `manage.py billing_preview` to compare old and new tic
 
 ## Settings → Billing
 
-**Settings → General → Billing** (superusers and staff who can approve invoices). One page for: invoice
+**Administration → General → Billing** (superusers and staff who can approve invoices). One page for: invoice
 approval threshold, agreement-usage approval percentage, late fee percentage and days overdue, automatic
 accounting push for recurring invoices, quote approval threshold, default tax rate and default currency, and
 whether month-to-month contracts are exempt from the e-signature rule (exempt by default).
@@ -153,7 +153,7 @@ The service report is written for the customer: it never shows ticket comments, 
 marked internal, and a ticket the customer may not see is listed by number and hours only.
 
 Invoices carry your letterhead: the name, address, phone, e-mail and logo of your organization, falling back to
-the company name and logo under Settings → General (Whitelabeling / Branding), and the footer text (payment instructions, thanks,
+the company name and logo under Administration → General (Whitelabeling / Branding), and the footer text (payment instructions, thanks,
 registration numbers) at the foot of each invoice. Footer text is plain text.
 
 ## Contracts: samples, terms and e-signature

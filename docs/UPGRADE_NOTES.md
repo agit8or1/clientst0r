@@ -1,5 +1,22 @@
 # Clientst0r Upgrade Notes
 
+These are the per-release notes from the 2.24 and 2.25 series, kept as a record. They describe those
+releases as they were: the commands and screens named in them may not exist any more. For upgrading
+today, read [UPGRADE_AND_RECOVERY.md](UPGRADE_AND_RECOVERY.md) (**Administration → System → System
+Updates**, or `manage.py upgrade_apply`); for what changed in each current release, read `CHANGELOG.md`.
+In the commands below, `/home/administrator` stands for your install directory (the one holding `manage.py`).
+
+The Feature Toggles page that the v2.24.123 notes describe is today under **Administration → Modules → Feature Toggles**:
+
+<!-- guide-figure: guide-x4-upgrade-notes -->
+![Feature Toggles page with callouts on the page title and the toggle cards](images/guides/guide-x4-upgrade-notes.png "Feature Toggles, introduced in v2.24.123 and now under Administration → Modules.")
+
+1. Feature Toggles (Administration → Modules → Feature Toggles): the page the v2.24.123 notes describe, which used to be under the Admin dropdown.
+2. Monitoring on or off.
+3. Workflows on or off.
+4. Global Knowledge Base on or off.
+<!-- /guide-figure -->
+
 ## 💡 v2.25.1 - User-Configurable Tooltips
 
 ### What's New:
@@ -220,7 +237,7 @@ Added Feature Toggles in Admin Settings to enable or disable major system featur
 - **Workflows & Automation** - Process definitions and automated execution
 
 ### How to Use:
-1. **Admin dropdown → System Settings → Feature Toggles**
+1. **Administration → Modules → Feature Toggles** (it was under the Admin dropdown then)
 2. Toggle features on/off with simple switches
 3. Changes apply immediately after saving
 
@@ -291,7 +308,7 @@ The Gunicorn fix script was using `sudo sed` and `sudo cp` commands that weren't
 ### Update Now:
 ```bash
 # From web UI:
-Admin → System Updates → Click "Apply Update"
+Administration → System → System Updates (then: Check now, Install)
 
 # The fix script will NOW work correctly!
 ```
@@ -316,18 +333,18 @@ This is a test release to verify the complete one-click update system works end-
 ### What to Test:
 
 **On Systems WITHOUT Sudo Configured:**
-1. Go to **Admin → System Updates**
+1. Go to **Administration → System → System Updates**
 2. You should see a **RED ALERT** with the exact sudo command
 3. Copy and run the command shown
 4. Refresh the page - alert should disappear
-5. Click "Check for Updates" - should show v2.24.120 available
-6. Click "Apply Update" - should update automatically
+5. Click "Check now" - should show v2.24.120 available
+6. Click "Install" - should update automatically
 
 **On Systems WITH Sudo Already Configured:**
-1. Go to **Admin → System Updates**
+1. Go to **Administration → System → System Updates**
 2. No red alert (sudo already configured)
-3. Click "Check for Updates" - should show v2.24.120 available
-4. Click "Apply Update" - should update automatically
+3. Click "Check now" - should show v2.24.120 available
+4. Click "Install" - should update automatically
 
 **What Happens Automatically:**
 - ✅ Pulls v2.24.120 code
@@ -351,11 +368,11 @@ The System Updates page now shows a PROMINENT ALERT if passwordless sudo is not 
 ### Update Process (Same as v2.24.118):
 
 **Web UI (Easiest):**
-1. **Admin dropdown → System Updates**
+1. **Administration → System → System Updates**
 2. If you see a red alert, **copy and run the command shown** (one-time setup)
 3. **Refresh the page**
-4. **Click "Check for Updates"**
-5. **Click "Apply Update"**
+4. **Click "Check now"**
+5. **Click "Install"**
 6. **Done!**
 
 ### What Changed in v2.24.119:
@@ -379,8 +396,8 @@ Click the **Update** button in the web UI and EVERYTHING happens automatically -
 
 ### Update Process (Web UI - EASIEST):
 
-1. **Admin dropdown → System Updates**
-2. **Click "Check for Updates"**
+1. **Administration → System → System Updates**
+2. **Click "Check now"**
 3. **Click "Update Now"**
 4. **Done!** The update automatically:
    - ✅ Pulls latest code
@@ -397,7 +414,7 @@ Click the **Update** button in the web UI and EVERYTHING happens automatically -
 > one lets anything running as the app user become root. Don't install that rule;
 > if you did, the root helper disables it.
 
-Install the root helper once, from **Settings → System → System Updates → Install root helper**,
+Install the root helper once, from **Administration → System → System Updates → Install root helper**,
 or on the server:
 
 ```bash
@@ -594,8 +611,8 @@ sudo systemctl restart clientst0r-gunicorn.service
 
 After applying the fix:
 
-1. Go to **Settings → General Settings**
-2. Click **"Import Demo Data"**
+1. (The *Import Demo Data* button that this release added no longer exists. Demo data is loaded with `manage.py seed_demo_data`; see [SEEDING_DATA.md](SEEDING_DATA.md).)
+2. Click **"Import Demo Data"** (historical)
 3. You should see: "✓ Demo data imported successfully!"
 4. Refresh the page
 5. Switch to "Acme Corporation" organization

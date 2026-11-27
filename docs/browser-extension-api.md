@@ -3,6 +3,24 @@
 This document describes the server-side API under `/vault/api/extension/` that a browser
 extension can call. The API shipped server-side in Phase 28 (v3.17.327 through v3.17.331).
 
+## The install page
+
+The extension's download and setup instructions are in the app at `/core/download-browser-extension/`
+(account menu → **Apps & Downloads → Browser Extension**). It gives the ZIP, the Chrome / Edge and Firefox install steps and the
+setup steps, which use a regular API key from the API Keys page (`/api/keys/`), not the tokens described below.
+API keys start with `cst_live_` (keys made before the prefix change start with `itdocs_live_` and keep
+working). The extension tokens below have no prefix.
+
+<!-- guide-figure: guide-x3-extension -->
+![Browser Extension page with the download button, install steps and setup steps](images/guides/guide-x3-extension.png "Account menu, Apps & Downloads, Browser Extension.")
+
+1. Download Extension ZIP.
+2. What the extension does.
+3. Install in Chrome or Edge: developer mode, Load unpacked.
+4. Setup: server URL and an Editor-level API key from the API Keys page.
+5. Security notes.
+<!-- /guide-figure -->
+
 ## Current status
 
 | Piece | Status |

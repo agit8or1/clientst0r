@@ -6099,6 +6099,882 @@
       "selector": "#portal-customers",
       "extend_up": 330,
       "pad": 170
+    },
+    {
+      "name": "guide-x1-what-dashboard",
+      "guide": "docs/what-is-clientst0r.md",
+      "route": "/core/dashboard/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The dashboard with callouts on the sidebar sections, the client switcher, the ticket queue and the Clientst0r Docs link",
+      "annotate": [
+        {
+          "selector": "#appNavList",
+          "note": "The sidebar: Dashboard, My Work, Service Desk, Clients, Assets & Network, Business, Knowledge & Vault, Security & Monitoring and Reports, with Administration at the foot. You see only what your role allows."
+        },
+        {
+          "selector": "#orgDropdown",
+          "note": "The client switcher. Every customer is an organization; pages show the selected customer's records."
+        },
+        {
+          "selector": "#dash-w-my_queue",
+          "note": "Your ticket queue: the service desk is built in, with SLA due times."
+        },
+        {
+          "selector": "#cmdkOpen",
+          "note": "Go to (Ctrl+K): open any page or record by name."
+        },
+        {
+          "selector": ".app-nav__docs",
+          "note": "Clientst0r Docs: the guides, searchable, inside the application."
+        }
+      ],
+      "caption": "The dashboard: where the parts of Clientst0r are reached."
+    },
+    {
+      "name": "guide-x1-features-modules",
+      "guide": "FEATURES.md",
+      "route": "/core/settings/modules/",
+      "theme": "light",
+      "max_h": 3000,
+      "alt": "Administration, Modules, Optional Modules: each optional module with its state and a Turn on or Turn off button",
+      "annotate": [
+        {
+          "selector": "h2:has-text('Service desk')",
+          "note": "Modules are grouped (Service desk, Sales, Operations, and so on)."
+        },
+        {
+          "selector": "[data-module] >> nth=0",
+          "note": "One module: its name, what it does and its current state."
+        },
+        {
+          "selector": "[data-module] button:has-text('Turn off') >> nth=0",
+          "note": "Turn off: the module's pages leave the menus, and modules that need it stop working until it is back on."
+        },
+        {
+          "selector": "[data-module]:has(button:has-text('Turn on')) >> nth=0",
+          "note": "A module that is off. Turn it on to use it."
+        }
+      ],
+      "caption": "Administration, Modules, Optional Modules."
+    },
+    {
+      "name": "guide-x1-admin-settings",
+      "guide": "docs/ADMIN_GUIDE.md",
+      "route": "/core/settings/",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "The Administration page: install readiness check, a search box and one card per settings category",
+      "annotate": [
+        {
+          "selector": "#settingsCenterSearch",
+          "note": "Find a setting by name; the cards filter as you type (press / to jump here)."
+        },
+        {
+          "selector": "[data-readiness-card]",
+          "note": "Install readiness: sign-in security, site address, e-mail, backups, scheduler, migrations and disk space."
+        },
+        {
+          "selector": "[data-settings-group=settings_ai]",
+          "note": "AI Configuration (OPTIONAL AI): provider and ticket AI model settings. The switch itself is in General, PSA."
+        },
+        {
+          "selector": "[data-settings-group=settings_features]",
+          "note": "Modules: Feature Toggles and Optional Modules."
+        },
+        {
+          "selector": "[data-settings-group=settings_system]",
+          "note": "System: System Status, System Updates and Mobile Apps."
+        }
+      ],
+      "caption": "Administration: the settings center."
+    },
+    {
+      "name": "guide-x1-faq-updates",
+      "guide": "docs/faq.md",
+      "route": "/core/settings/updates/",
+      "theme": "light",
+      "max_h": 900,
+      "alt": "System Updates: the installed version, the release channel, Check now and the list of available versions",
+      "annotate": [
+        {
+          "selector": "#updChannel",
+          "note": "The release channel: Official release (signed, published releases) or Preview / testing (newest commit on main). Saving never installs anything."
+        },
+        {
+          "selector": "#updStatus",
+          "note": "Whether you are up to date, when it last checked, and Check now."
+        },
+        {
+          "selector": "#updVersions",
+          "note": "Available Versions: expand Show all versions to review and install any release or the head of main."
+        }
+      ],
+      "caption": "Administration, System, System Updates."
+    },
+    {
+      "name": "guide-x1-msp-readiness",
+      "guide": "docs/msp-documentation.md",
+      "route": "/readiness/",
+      "theme": "light",
+      "max_h": 800,
+      "alt": "Documentation readiness: a score per customer, the standards in scope and the number of unmet requirements",
+      "annotate": [
+        {
+          "selector": "select[name=standard]",
+          "note": "Show the score against one standard, or all standards in force."
+        },
+        {
+          "selector": "table >> th:has-text('Score')",
+          "note": "The customer's documentation score. Open a customer for the reason behind each gap and a link to fix it."
+        },
+        {
+          "selector": "table >> th:has-text('Unmet requirements')",
+          "note": "How many requirements are not met. The number opens the repair queue for that customer."
+        }
+      ],
+      "caption": "Knowledge & Vault, Documentation Readiness."
+    },
+    {
+      "name": "guide-x1-office-file",
+      "guide": "docs/OFFICE_DOCUMENTS.md",
+      "route": "/office/f/ofi/1/",
+      "theme": "light",
+      "max_h": 900,
+      "alt": "An Office file page: the Edit button, download, versions, copy, rename and the revision list",
+      "annotate": [
+        {
+          "selector": "h1",
+          "note": "The file, with its customer, revision number, size and when it was saved."
+        },
+        {
+          "selector": "button.btn-primary[disabled]",
+          "note": "Edit in the browser editor. It is shown disabled, with the reason, when no editor is connected or you may not edit."
+        },
+        {
+          "selector": "#office-rename",
+          "note": "Rename. The extension is kept."
+        },
+        {
+          "selector": "table",
+          "note": "Recent revisions. Every save is a numbered revision; any of them can be downloaded, and restoring one adds a new revision."
+        }
+      ],
+      "caption": "A file page under /office/f/."
+    },
+    {
+      "name": "guide-x1-office-settings",
+      "guide": "docs/OFFICE_DOCUMENTS.md",
+      "route": "/office/settings/",
+      "theme": "light",
+      "max_h": 1600,
+      "alt": "Administration, Integrations, Office Documents: editor instances, managed local editor, policy and quarantine",
+      "annotate": [
+        {
+          "selector": "h1:has-text('Editor instances')",
+          "note": "Editor instances: the ONLYOFFICE or Collabora servers files open in. Add one, or start with Install guidance."
+        },
+        {
+          "selector": "a:has-text('Install guidance')",
+          "note": "A checklist and the installer commands for a same-server, separate-server or existing-service setup. Nothing runs from the page."
+        },
+        {
+          "selector": "h2:has-text('Policy')",
+          "note": "Which providers are enabled, the default instance, and session and retention limits."
+        },
+        {
+          "selector": "a[href$='/office/settings/quarantine/']",
+          "note": "Quarantine: saves the application refused to make current, kept for an administrator."
+        }
+      ],
+      "caption": "Administration, Integrations, Office Documents."
+    },
+    {
+      "name": "guide-x1-routing-overview",
+      "guide": "docs/TICKET_ROUTING.md",
+      "route": "/psa/routing/",
+      "theme": "light",
+      "max_h": 1300,
+      "alt": "Ticket Routing: the MSP-wide default mode, reroute options, rules and customer overrides",
+      "annotate": [
+        {
+          "selector": "form.card >> .card-header >> nth=0",
+          "note": "The MSP-wide default: Off, Suggest only or Automatic. Every customer inherits it unless overridden."
+        },
+        {
+          "selector": "#cust-pick",
+          "note": "Customers: pick one to set Inherit, Off, Suggest only or Automatic, or to limit routing to a list of technicians."
+        },
+        {
+          "selector": "button:has-text('Save settings')",
+          "note": "Saving changes the default only. Existing tickets are never reassigned."
+        }
+      ],
+      "caption": "Service Desk, Dispatch Board, Configure, Ticket Routing."
+    },
+    {
+      "name": "guide-x1-ai-profiles",
+      "guide": "docs/AI_TROUBLESHOOT.md",
+      "route": "/psa/ai/profiles/",
+      "theme": "light",
+      "max_h": 4000,
+      "alt": "Ticket AI Assist: installation-wide limits, model profiles and customer AI policies",
+      "annotate": [
+        {
+          "selector": "#ai-installation-settings",
+          "note": "Installation-wide limits: a monthly cap for all customers together and the read-only command allowlist."
+        },
+        {
+          "selector": "h4:has-text('Ticket AI Assist')",
+          "note": "OPTIONAL AI. Superusers only; the pages answer 404 unless the AI master switch is on."
+        },
+        {
+          "selector": ".card:has(.card-header:has-text('Model profiles'))",
+          "note": "Model profiles: one provider and model each, with prices and a credential owner. A profile is off until enabled."
+        },
+        {
+          "selector": ".card:has(.card-header:has-text('Customer AI policies'))",
+          "note": "Customer AI policies. A customer without a policy allows no AI."
+        }
+      ],
+      "caption": "Administration, AI Configuration, Ticket AI models."
+    },
+    {
+      "name": "guide-x2-payments",
+      "guide": "docs/PAYMENTS.md",
+      "route": "/payments/",
+      "theme": "light",
+      "max_h": 1400,
+      "alt": "Payments page with numbered callouts on New payment connection, the connections table, the status filter and the payment attempts table",
+      "annotate": [
+        {
+          "selector": "main a:has-text(\"New payment connection\")",
+          "note": "New payment connection: add Stripe or GoCardless. Needs the manage_payment_providers permission."
+        },
+        {
+          "selector": "p.text-body-secondary",
+          "note": "The provider only collects: invoices and their schedule stay in Clientst0r. Connections (none in this demo) are listed below this line."
+        },
+        {
+          "selector": "select[name=\"status\"]",
+          "note": "Filter the attempts by status."
+        },
+        {
+          "selector": "h3:text-is(\"Payment attempts\")",
+          "note": "Payment attempts: every collection attempt with amount, fee, status and the accounting hand-off state."
+        }
+      ],
+      "caption": "Business → Money → Payments."
+    },
+    {
+      "name": "guide-x2-tax",
+      "guide": "docs/TAX.md",
+      "route": "/tax/settings/",
+      "theme": "light",
+      "max_h": 3000,
+      "alt": "Sales tax settings with numbered callouts on the mode, authoritative system, provider credentials, rates and recent calculations",
+      "annotate": [
+        {
+          "selector": "#mode",
+          "note": "Mode: none, flat rate, manual jurisdiction rates, Avalara or TaxJar."
+        },
+        {
+          "selector": "#authoritative_system",
+          "note": "Authoritative system: which system calculates and reports the tax."
+        },
+        {
+          "selector": "h2:text-is(\"Provider credentials\")",
+          "note": "Provider credentials: write-only; the secret fields stay empty after saving."
+        },
+        {
+          "selector": "h2:text-is(\"Manual jurisdiction rates\")",
+          "note": "Manual jurisdiction rates, used in manual mode."
+        },
+        {
+          "selector": "h2:text-is(\"Recent tax calculations\")",
+          "note": "Recent tax calculations: the audit trail of every preview, finalize and override."
+        }
+      ],
+      "caption": "Administration → Integrations → Sales Tax."
+    },
+    {
+      "name": "guide-x2-technician-access",
+      "guide": "docs/TECHNICIAN_ACCESS.md",
+      "route": "/settings/security/technician-access/",
+      "theme": "light",
+      "max_h": 3200,
+      "alt": "Technician Access page with numbered callouts on protected changes, the preview, assignments and presets",
+      "annotate": [
+        {
+          "selector": "#changes",
+          "note": "Protected changes: widening changes wait here for confirmation or approval."
+        },
+        {
+          "selector": "#preview",
+          "note": "Preview: what a technician can do at a customer."
+        },
+        {
+          "selector": "#assignments",
+          "note": "Assignments: which preset each technician has, and where."
+        },
+        {
+          "selector": "#presets",
+          "note": "Presets: the L1, L2, L3 and other permission sets."
+        }
+      ],
+      "caption": "Administration → Security → Technician Access."
+    },
+    {
+      "name": "guide-x2-client-data-protection",
+      "guide": "docs/CLIENT_DATA_PROTECTION.md",
+      "route": "/core/security/features/",
+      "theme": "light",
+      "max_h": 1400,
+      "alt": "Security Features page with numbered callouts on the customer picker and the safeguard tables",
+      "annotate": [
+        {
+          "selector": "#securityFeaturesOrg",
+          "note": "Effective state at: pick the customer whose real settings are shown."
+        },
+        {
+          "selector": ".card:has(.card-header) >> nth=0",
+          "note": "One table per group of safeguards: what it protects, its default and prerequisites."
+        },
+        {
+          "selector": "th:has-text(\"Shipped\") >> nth=0",
+          "note": "Shipped: whether the safeguard is enforced, on by default, partial or optional."
+        },
+        {
+          "selector": "table th:last-child >> nth=0",
+          "note": "The last column is the effective state at the chosen customer."
+        }
+      ],
+      "caption": "Administration → Security → Security Features."
+    },
+    {
+      "name": "guide-x2-azure-sso",
+      "guide": "docs/AZURE_SSO_SETUP.md",
+      "route": "/core/settings/directory/",
+      "theme": "light",
+      "max_h": 2600,
+      "alt": "Directory Services with the Microsoft Entra ID section opened and numbered callouts on the enable switch, tenant, client ID, secret, redirect URI and auto-create",
+      "annotate": [
+        {
+          "selector": "#azure_ad_enabled",
+          "note": "Enable Azure AD: shows the fields below."
+        },
+        {
+          "selector": "#azure_ad_tenant_id",
+          "note": "Tenant ID of the Microsoft tenant."
+        },
+        {
+          "selector": "#azure_ad_client_id",
+          "note": "Application (client) ID of the app registration."
+        },
+        {
+          "selector": "#azure_ad_client_secret",
+          "note": "Client secret: write-only, stored encrypted."
+        },
+        {
+          "selector": "#azure_ad_redirect_uri",
+          "note": "Redirect URI: must match the app registration exactly."
+        },
+        {
+          "selector": "#azure_ad_auto_create_users",
+          "note": "Auto-create users: off by default; new accounts get no access."
+        }
+      ],
+      "caption": "Administration → Users & Access → Directory Services (the switch is ticked in the capture only to show the fields; nothing is saved).",
+      "actions": [
+        {
+          "check": "#azure_ad_enabled"
+        }
+      ]
+    },
+    {
+      "name": "guide-x2-oidc-sso",
+      "guide": "docs/OIDC_SSO.md",
+      "route": "/accounts/sso/oidc/settings/",
+      "theme": "light",
+      "max_h": 1400,
+      "alt": "Single sign-on (OIDC) settings with numbered callouts on the provider list and the add provider form",
+      "annotate": [
+        {
+          "selector": "p.text-muted",
+          "note": "Providers sign people in with OpenID Connect; accounts are found by the provider's subject id, never by e-mail. Local, Microsoft and LDAP sign-in stay available."
+        },
+        {
+          "selector": "#name",
+          "note": "Name shown on the sign-in button."
+        },
+        {
+          "selector": "#slug",
+          "note": "Short name used in the provider's URLs."
+        },
+        {
+          "selector": "button:has-text(\"Add provider\")",
+          "note": "Add provider: creates it disabled until it is configured and verified."
+        }
+      ],
+      "caption": "Administration → Security → Single sign-on (OIDC)."
+    },
+    {
+      "name": "guide-x2-security-policy",
+      "guide": "SECURITY.md",
+      "route": "/core/security/",
+      "theme": "light",
+      "max_h": 1400,
+      "alt": "Security Dashboard with numbered callouts on Run Full Scan, History, Configure and the scan results",
+      "annotate": [
+        {
+          "selector": "#runFullScanBtn",
+          "note": "Run Full Scan: dependency, code, infrastructure and OS package scans."
+        },
+        {
+          "selector": "text=System Warnings >> nth=0",
+          "note": "System Warnings: backups, vulnerable dependencies, connection health and expiring domains."
+        },
+        {
+          "selector": "text=Vulnerability Status >> nth=0",
+          "note": "Vulnerability Status: results of the latest dependency scan."
+        }
+      ],
+      "caption": "Administration → Security → Security Dashboard."
+    },
+    {
+      "name": "guide-x3-integrations",
+      "guide": "docs/INTEGRATION_SETUP_GUIDE.md",
+      "route": "/integrations/?view=list",
+      "organization": "GLOBAL",
+      "theme": "light",
+      "max_h": 900,
+      "alt": "Administration, Integrations in global view: add buttons, the platform note, the search and view toggle, and a table of connections with owner, status and last sync",
+      "annotate": [
+        {
+          "selector": ".btn-group[aria-label=\"Add integration\"]",
+          "note": "Add a connection: PSA, RMM, UniFi, M365, Omada, Grandstream, Distributor or Accounting."
+        },
+        {
+          "selector": "[data-testid=\"platform-integrations-note\"]",
+          "note": "Global view: new connections are platform-owned, and what they bring in reaches customers only through each connection's mapping."
+        },
+        {
+          "selector": "#integrations-filter-form",
+          "note": "Search by provider or connection name; Tile and List switch the layout."
+        },
+        {
+          "selector": "table.table td:nth-child(5)",
+          "note": "Owner: Platform, or the one customer whose own connection it is."
+        },
+        {
+          "selector": "table.table td:nth-child(6)",
+          "note": "Status of each connection (Off here: sync is switched off)."
+        },
+        {
+          "selector": "table.table td:nth-child(8)",
+          "note": "Configure opens the connection; Make platform-owned (customer-owned rows only) moves it to the platform."
+        }
+      ],
+      "caption": "Administration, Integrations, in global view."
+    },
+    {
+      "name": "guide-x3-api-access",
+      "guide": "docs/API_ACCESS_CONTROL.md",
+      "route": "/settings/security/api-access/",
+      "theme": "light",
+      "max_h": 1800,
+      "alt": "API Access Control: global mode for the API and webhooks, last 24 hours, limits per address and the rules table",
+      "annotate": [
+        {
+          "selector": ".d-flex.flex-wrap.align-items-center.gap-2.mb-3",
+          "note": "Rules, Test an address, Refused requests, Client address, Import and Export."
+        },
+        {
+          "selector": ".card:has(h6:has-text(\"Global mode\"))",
+          "note": "Global mode, one for the inbound API and one for inbound webhooks. New installs start Unrestricted."
+        },
+        {
+          "selector": ".card:has(h6:has-text(\"Last 24 hours\"))",
+          "note": "Requests refused in the last 24 hours and the address this server sees for you."
+        },
+        {
+          "selector": ".card:has(h6:has-text(\"Limits per source address\"))",
+          "note": "Per-address request and body-size limits; 0 turns a limit off."
+        },
+        {
+          "selector": ".card:has(h6:has-text(\"Rules\"))",
+          "note": "The rules: address or range, allow or deny, what it applies to, scope, status, expiry and match count."
+        }
+      ],
+      "caption": "Administration, Security, API Access Control."
+    },
+    {
+      "name": "guide-x3-api-keys",
+      "guide": "docs/api-multi-org.md",
+      "route": "/api/keys/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "API Keys list with owner, role, organization scope, status, expiry and last used",
+      "annotate": [
+        {
+          "selector": "a:has-text(\"Create API Key\")",
+          "note": "Create API Key: choose the permission level and organization scope."
+        },
+        {
+          "selector": "#apiKeyTable th:has-text(\"Role\")",
+          "note": "Role: Read-Only, Editor, Admin or Owner. A key never does more than its owner may."
+        },
+        {
+          "selector": "#apiKeyTable th:has-text(\"Org Scope\")",
+          "note": "Org Scope: single organization, organization plus sub-locations, or all accessible organizations."
+        },
+        {
+          "selector": "#apiKeyTable th:has-text(\"Status\")",
+          "note": "Active or inactive; the switch turns a key off without deleting it."
+        },
+        {
+          "selector": "#apiKeyTable th:has-text(\"Expires\")",
+          "note": "Expiry, if one was set."
+        },
+        {
+          "selector": "#apiKeyTable th:has-text(\"Last Used\")",
+          "note": "When and from which address the key last called the API."
+        }
+      ],
+      "caption": "API keys for the current customer. Only the key prefix is shown; the secret is shown once, when the key is created."
+    },
+    {
+      "name": "guide-x3-api-key-new",
+      "guide": "docs/api-multi-org.md",
+      "route": "/api/keys/create/",
+      "theme": "light",
+      "max_h": 1200,
+      "alt": "Create API Key form with permission level, organization scope, expiry, rate limit, client certificate and allowed sources",
+      "annotate": [
+        {
+          "selector": "select[name=\"role\"]",
+          "note": "Permission level: no higher than your own role in this customer."
+        },
+        {
+          "selector": "select[name=\"scope\"]",
+          "note": "Organization Scope: Single, Organization + sub-locations, or All accessible organizations."
+        },
+        {
+          "selector": "select[name=\"expiry\"]",
+          "note": "Expires: never, or a date after which the key is refused."
+        },
+        {
+          "selector": "textarea[name=\"allowed_sources\"]",
+          "note": "Allowed sources: one address or range per line; other addresses are refused."
+        }
+      ],
+      "caption": "Create API Key, with the Organization Scope selector."
+    },
+    {
+      "name": "guide-x3-graphql-access",
+      "guide": "docs/API_V2_GRAPHQL.md",
+      "route": "/settings/security/api-access/test/?ip=198.51.100.7&group=graphql",
+      "theme": "light",
+      "max_h": 700,
+      "alt": "Test an address for the GraphQL API endpoint group, showing the decision and the rules that apply",
+      "annotate": [
+        {
+          "selector": "input[name=\"ip\"]",
+          "note": "The address to test."
+        },
+        {
+          "selector": "select[name=\"group\"]",
+          "note": "Endpoint group: GraphQL API (/api/v2/graphql/) is one of the groups network rules cover."
+        },
+        {
+          "selector": ".card:has(.badge:has-text(\"Allowed\")), .card:has(.badge:has-text(\"Refused\"))",
+          "note": "The decision for that address, with the global mode and the rules that matched."
+        }
+      ],
+      "caption": "Test an address: how the API network rules treat a GraphQL request."
+    },
+    {
+      "name": "guide-x3-extension",
+      "guide": "docs/browser-extension-api.md",
+      "route": "/core/download-browser-extension/",
+      "theme": "light",
+      "max_h": 1300,
+      "alt": "Browser Extension page with the download button, install steps and setup steps",
+      "annotate": [
+        {
+          "selector": "h1 + a, a:has-text(\"Download Extension ZIP\")",
+          "note": "Download Extension ZIP."
+        },
+        {
+          "selector": ".card:has(h5:has-text(\"What the Extension Does\"))",
+          "note": "What the extension does."
+        },
+        {
+          "selector": ".card:has(h5:has-text(\"Install in Chrome\"))",
+          "note": "Install in Chrome or Edge: developer mode, Load unpacked."
+        },
+        {
+          "selector": ".card:has(h5:has-text(\"Setup\"))",
+          "note": "Setup: server URL and an Editor-level API key from the API Keys page."
+        },
+        {
+          "selector": ".card:has(h5:has-text(\"Security Notes\"))",
+          "note": "Security notes."
+        }
+      ],
+      "caption": "Account menu, Apps & Downloads, Browser Extension."
+    },
+    {
+      "name": "guide-x3-itglue-job",
+      "guide": "docs/importing-from-it-glue.md",
+      "route": "/imports/1/",
+      "organization": "GLOBAL",
+      "theme": "light",
+      "max_h": 1400,
+      "alt": "An IT Glue import job that was a dry run: status, configuration, statistics and log",
+      "annotate": [
+        {
+          "selector": ".card:has(h5:text-is(\"Status\"))",
+          "note": "Status, and whether this was a dry run."
+        },
+        {
+          "selector": ".card:has(h5:text-is(\"Configuration\"))",
+          "note": "Source, target organization (All Organizations here) and the data types chosen."
+        },
+        {
+          "selector": ".card:has(h5:text-is(\"Import Statistics\"))",
+          "note": "Total, imported, skipped and failed items."
+        },
+        {
+          "selector": ".card:has(h5:text-is(\"Import Log\"))",
+          "note": "The log of the run; View Full Log shows all of it."
+        }
+      ],
+      "caption": "Administration, Maintenance, Data Import: a finished dry run."
+    },
+    {
+      "name": "guide-x3-hudu-job",
+      "guide": "docs/importing-from-hudu.md",
+      "route": "/imports/2/",
+      "organization": "GLOBAL",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "A Hudu import job that completed with errors: status, configuration, statistics and rollback button",
+      "annotate": [
+        {
+          "selector": ".card:has(h5:text-is(\"Status\"))",
+          "note": "Completed with errors: some records failed, and the page says how many."
+        },
+        {
+          "selector": ".card:has(h5:text-is(\"Configuration\"))",
+          "note": "Source, the target organization and the data types."
+        },
+        {
+          "selector": ".card:has(h5:text-is(\"Import Statistics\"))",
+          "note": "Imported, skipped and failed add up to the total."
+        },
+        {
+          "selector": "a:has-text(\"Rollback\")",
+          "note": "Rollback undoes what the job created; records edited since are kept."
+        }
+      ],
+      "caption": "Administration, Maintenance, Data Import: a real import that completed with errors."
+    },
+    {
+      "name": "guide-x4-install",
+      "guide": "INSTALL.md",
+      "route": "/core/settings/system-status/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "System Status page with callouts on the page title, the database card and the services",
+      "annotate": [
+        {
+          "selector": "main h5:has-text('System Status')",
+          "note": "System Status (Administration → System → System Status, superusers only): the page to open after an install to see that the app is healthy."
+        },
+        {
+          "selector": "main .card.border-start >> nth=0",
+          "note": "The first overview card: the version and server basics."
+        },
+        {
+          "selector": "main .card.border-start >> nth=1",
+          "note": "The database card: green when the app reaches its database."
+        },
+        {
+          "selector": "main .card.border-start >> nth=2",
+          "note": "The Gunicorn service card: green when the web service is running."
+        }
+      ],
+      "caption": "System Status, where you can confirm a fresh install is healthy."
+    },
+    {
+      "name": "guide-x4-docker",
+      "guide": "docs/docker.md",
+      "route": "/core/settings/updates/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "System Updates page with callouts on the installed version, the channel and the available versions",
+      "annotate": [
+        {
+          "selector": "#updSummary",
+          "note": "The installed version, branch and commit, the channel, and the update status. This page is for native installs: the image has no git checkout, so upgrade a container with docker compose pull."
+        },
+        {
+          "selector": "#updChannel",
+          "note": "The release channel. Official release is the default."
+        },
+        {
+          "selector": "#updVersions",
+          "note": "Available Versions: published releases and the newest commit on main."
+        },
+        {
+          "selector": "#preUpgradeBackups",
+          "note": "Backups and rollback: verified pre-upgrade backups (on Docker they sit in the clientst0r-backups volume)."
+        }
+      ],
+      "caption": "System Updates on a native install. In Docker, upgrade with docker compose instead."
+    },
+    {
+      "name": "guide-x4-upgrade-and-recovery",
+      "guide": "docs/UPGRADE_AND_RECOVERY.md",
+      "route": "/core/settings/updates/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "System Updates page with callouts on the status strip, channel select, version list and backups section",
+      "annotate": [
+        {
+          "selector": "#updSummary",
+          "note": "Status strip: installed version, channel, latest official release, update status and Check now."
+        },
+        {
+          "selector": "#updChannelSelect",
+          "note": "The channel select: Official release or Preview / testing. Saving it installs nothing."
+        },
+        {
+          "selector": "#updVersions",
+          "note": "Available Versions: collapsed to what is newer than the installed build; Show all versions opens every release. Each version has one status (Installed, Older version, Newer, Recommended update, Unavailable, Incompatible)."
+        },
+        {
+          "selector": "#preUpgradeBackups",
+          "note": "Backups and rollback: the verified pre-upgrade backups, retention settings and Rollback."
+        }
+      ],
+      "caption": "System Updates: status strip, channel, versions and backups."
+    },
+    {
+      "name": "guide-x4-manual-update",
+      "guide": "docs/MANUAL_UPDATE_GUIDE.md",
+      "route": "/core/settings/scheduler/",
+      "theme": "light",
+      "max_h": 1400,
+      "alt": "Task Scheduler page with callouts on the title, the task table and the scheduler status",
+      "annotate": [
+        {
+          "selector": "main h5:has-text('Task Scheduler')",
+          "note": "Task Scheduler (Administration → Automation → Task Scheduler): open it after updating to see each job's last run and status."
+        },
+        {
+          "selector": "main table.table-bordered thead",
+          "note": "One row per periodic job, with its interval, last run, next run, status and run count. After a manual update each job must run once, so remove any old crontab lines."
+        }
+      ],
+      "caption": "Task Scheduler: check the periodic jobs after a manual update."
+    },
+    {
+      "name": "guide-x4-upgrade-notes",
+      "guide": "docs/UPGRADE_NOTES.md",
+      "route": "/core/settings/features/",
+      "theme": "light",
+      "max_h": 2600,
+      "alt": "Feature Toggles page with callouts on the page title and the toggle cards",
+      "annotate": [
+        {
+          "selector": "main h5:has-text('Feature Toggles')",
+          "note": "Feature Toggles (Administration → Modules → Feature Toggles): the page the v2.24.123 notes describe, which used to be under the Admin dropdown."
+        },
+        {
+          "selector": "#monitoring_enabled",
+          "note": "Monitoring on or off."
+        },
+        {
+          "selector": "#workflows_enabled",
+          "note": "Workflows on or off."
+        },
+        {
+          "selector": "#global_kb_enabled",
+          "note": "Global Knowledge Base on or off."
+        }
+      ],
+      "caption": "Feature Toggles, introduced in v2.24.123 and now under Administration → Modules."
+    },
+    {
+      "name": "guide-x4-seeding-data",
+      "guide": "docs/SEEDING_DATA.md",
+      "route": "/assets/vendors/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "Equipment Catalog page with callouts on the title, the vendor table and the model counts",
+      "annotate": [
+        {
+          "selector": "main h1:has-text('Equipment Catalog')",
+          "note": "Equipment Catalog (Administration → General → Equipment Catalog): vendors and models, shared by every customer. The seed commands fill it."
+        },
+        {
+          "selector": "main table.table-hover thead th:has-text('Equipment Models')",
+          "note": "How many models each vendor has. Delete vendors or models you do not need; this does not touch customer data."
+        },
+        {
+          "selector": "main table.table-hover",
+          "note": "One row per vendor."
+        }
+      ],
+      "caption": "The Equipment Catalog that seed_all and seed_equipment_catalog fill."
+    },
+    {
+      "name": "guide-x4-package-scanner",
+      "guide": "docs/PACKAGE_SCANNER.md",
+      "route": "/core/security/package-scanner/",
+      "theme": "light",
+      "max_h": 1300,
+      "alt": "OS Package Security Scanner page with callouts on the title, the action buttons, the cards and the history",
+      "annotate": [
+        {
+          "selector": "#runScanBtn",
+          "note": "Run Scan Now: refreshes the package lists if allowed, scans and saves the result. Staff and superusers only."
+        },
+        {
+          "selector": "main .row .card >> nth=0",
+          "note": "The cards: security updates, total updates, total packages and number of scans."
+        }
+      ],
+      "caption": "The OS Package Security Scanner page."
+    },
+    {
+      "name": "guide-x4-install-app",
+      "guide": "docs/INSTALL_APP.md",
+      "route": "/core/install/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "Install page with callouts on the title, the QR code, the address field and the step by step accordion",
+      "annotate": [
+        {
+          "selector": "main h2:has-text('Install Clientst0r')",
+          "note": "Install Clientst0r: the shareable page (Account menu → Install app)."
+        },
+        {
+          "selector": "img[alt^='QR code']",
+          "note": "QR code for the server's address, to open it on a phone."
+        },
+        {
+          "selector": "#siteUrl",
+          "note": "The address the QR code points to, with a copy button."
+        },
+        {
+          "selector": "#installAccordion",
+          "note": "Step-by-step instructions for Android Chrome, iPhone and iPad Safari, and desktop Chrome or Edge."
+        }
+      ],
+      "caption": "The Install page (no sign-in needed)."
     }
   ]
 }

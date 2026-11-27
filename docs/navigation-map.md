@@ -193,7 +193,7 @@ open, and a warning before leaving a settings form with unsaved changes
 | Security → Security, Security Dashboard, Technician Access, RMM Permissions, Firewall, Fail2ban, Snyk | Security (+ Security Features, Vault Visibility, Superuser Approval, Vulnerability Scans) | su; RMM Permissions: its policy readers |
 | Organizations & Access → Access Management, Directory, Office org policy | Organizations & Access (+ Users, Members, Roles, Audit Log, LDAP Group Mappings) | Access Management su (the old menu showed it to every signed-in user; the view redirects them); Members/Roles: org admins and roles readers; Office policy: org managers |
 | Organizations & Access → Organizations | moved to **Clients & Assets → Clients** | auth |
-| Integrations → Webhooks, Integrations, RMM · Rem0te, AI, Ticket AI models, Office Documents | Integrations (+ Accounting, Distributors) | Webhooks: Owner/Admin (`require_admin`, new on the list); the rest su; Accounting / Distributors: Django staff or su |
+| Integrations → Webhooks, Integrations, RMM · Rem0te, AI, Ticket AI models, Office Documents | Integrations (+ Accounting, Distributors) | Webhooks: Owner/Admin (`require_admin`, new on the list); Integrations: whoever the page admits (su, Django staff, or a technician whose global role grants `integrations_configure`, `_sync` or `_view` together with `integrations_view`; inside a customer, MSP staff with `integrations_view` there); the rest su; Accounting / Distributors: Django staff or su |
 | Integrations → SMS; System → SMTP | Email & Communications (+ Consultation Requests) | su |
 | System → Scheduler | Automation (+ Workflow Templates, Workflow Suggestions — OPTIONAL AI) | su; templates/suggestions: psa + MSP staff (+ `psa_ai_enabled`) |
 | System → Features, Modules | Features & Modules (+ Field Ops settings) | su; Field Ops: org admins |
@@ -329,7 +329,7 @@ entry rather than a tab strip.
 | KB analytics (`docs:kb_analytics`) | Clients → Review & Publishing → KB Analytics (already a tab; unchanged) | staff/su |
 | Security digest (`security_alerts:digest_subscriptions`) | Alerts → Security Alerts → Weekly Digest | staff + psa + `security_alerts_view` |
 | LDAP group mappings (`accounts:ldap_group_mappings`) | Settings → LDAP Group Mappings | su |
-| Rem0te setup wizard (`integrations:rem0te_setup`) | Settings → Integrations → Rem0te Setup (also still in the Settings page menu) | su |
+| Rem0te setup wizard (`integrations:rem0te_setup`) | Administration → Integrations → Rem0te Setup (also still in the Settings page menu) | su |
 
 ### Saved views and default filters
 
@@ -521,7 +521,7 @@ Help Us Grow, Global KB, search, theme, clock, client switcher, account menu).
 | Organizations | Admin → Organizations & Access (landing, tab) | su (page also reached by All clients) |
 | Access Management | Admin → Organizations & Access → tab | su |
 | Webhooks | Admin → Integrations → tab | su |
-| *(Integrations — previously only in the Settings sidebar)* | Admin → Integrations (landing, tab) | su |
+| *(Integrations — previously only in the Settings sidebar)* | Admin → Integrations (landing, tab) | su, Django staff, and technicians the Integrations page admits (see the Integrations setup guide's table) |
 | Mobile Apps | Admin → Mobile (landing, tab) | su |
 
 ## Account menu (gate: auth)

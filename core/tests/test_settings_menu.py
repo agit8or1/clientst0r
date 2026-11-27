@@ -200,9 +200,12 @@ class SettingsWorkspaceOnPagesTests(TestCase):
         self.login(staff, org=False)
         hrefs = index_hrefs(self.get('core:mobile_apps_admin'))
         self.assertIn(reverse('core:mobile_apps_admin'), hrefs)
-        for name in ('core:settings_general', 'accounts:access_management',
-                     'integrations:integration_list'):
+        for name in ('core:settings_general', 'accounts:access_management'):
             self.assertNotIn(reverse(name), hrefs, name)
+        # Integrations follows integrations.ownership.can_view_platform, which
+        # admits Django staff in global view (3.17.798); the loop below checks
+        # the page really opens for them.
+        self.assertIn(reverse('integrations:integration_list'), hrefs)
         for href in hrefs:
             with self.subTest(href=href):
                 self.assertNotEqual(self.client.get(href).status_code, 403, href)

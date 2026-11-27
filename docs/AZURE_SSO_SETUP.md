@@ -51,11 +51,9 @@ After registration, note the following values (you'll need them later):
 
 ### 5. Configure Clientst0r
 
-#### Option A: Via Admin UI (Recommended)
-
 1. Log in to Clientst0r as superuser
-2. Go to **Settings** → **Users & Access** → **Directory Services**
-3. Under **Azure AD / Microsoft Entra ID**, configure:
+2. Go to **Administration** → **Users & Access** → **Directory Services**
+3. Tick **Enable Azure AD / Microsoft Entra ID**, which opens the fields (the capture below ticks it only to show them; nothing was saved). Configure:
    - **Enable Azure AD**: ✓ (checked)
    - **Tenant ID**: Paste your Directory (tenant) ID
    - **Client ID**: Paste your Application (client) ID
@@ -63,45 +61,26 @@ After registration, note the following values (you'll need them later):
    - **Redirect URI**: `https://your-domain.com/accounts/auth/azure/callback/`
    - **Additional allowed tenant IDs**: leave empty for a single-tenant app. Only the configured tenant's tokens are accepted; with a multi-tenant app (`common` / `organizations`) list every tenant to accept, or none is.
    - **Auto-create users**: off by default. When on, a Microsoft account no account here is linked to gets a new account with **no client access and no staff rights**.
-   - **Sync groups**: Optional (not yet implemented)
-4. Click **Save**
+   - **Sync Azure AD groups to roles**: not implemented. The switch is saved but nothing reads it; leave it off.
+4. Click **Save Changes**
 
-#### Option B: Via Database
+The numbers in the screenshot match the list under it. The screenshot is a capture of the application against a demo database.
 
-Run SQL to configure settings:
+<!-- guide-figure: guide-x2-azure-sso -->
+![Directory Services with the Microsoft Entra ID section opened and numbered callouts on the enable switch, tenant, client ID, secret, redirect URI and auto-create](images/guides/guide-x2-azure-sso.png "Administration → Users & Access → Directory Services (the switch is ticked in the capture only to show the fields; nothing is saved).")
 
-```sql
--- Enable Azure AD
-INSERT INTO core_systemsetting (key, value, value_type, category, description, is_public, created_at, updated_at)
-VALUES ('azure_ad_enabled', 'true', 'boolean', 'authentication', 'Enable Azure AD authentication', 0, NOW(), NOW());
+1. Enable Azure AD: shows the fields below.
+2. Tenant ID of the Microsoft tenant.
+3. Application (client) ID of the app registration.
+4. Client secret: write-only, stored encrypted.
+5. Redirect URI: must match the app registration exactly.
+6. Auto-create users: off by default; new accounts get no access.
+<!-- /guide-figure -->
 
--- Tenant ID
-INSERT INTO core_systemsetting (key, value, value_type, category, description, is_public, created_at, updated_at)
-VALUES ('azure_ad_tenant_id', 'YOUR-TENANT-ID-HERE', 'string', 'authentication', 'Azure AD Tenant ID', 0, NOW(), NOW());
 
--- Client ID
-INSERT INTO core_systemsetting (key, value, value_type, category, description, is_public, created_at, updated_at)
-VALUES ('azure_ad_client_id', 'YOUR-CLIENT-ID-HERE', 'string', 'authentication', 'Azure AD Client ID', 0, NOW(), NOW());
+The settings are only changed in the page; there is no supported way to set them by SQL. The client secret is stored encrypted and is never shown again; leave the field blank to keep the saved one.
 
--- Client Secret
-INSERT INTO core_systemsetting (key, value, value_type, category, description, is_public, created_at, updated_at)
-VALUES ('azure_ad_client_secret', 'YOUR-CLIENT-SECRET-HERE', 'string', 'authentication', 'Azure AD Client Secret', 0, NOW(), NOW());
-
--- Redirect URI
-INSERT INTO core_systemsetting (key, value, value_type, category, description, is_public, created_at, updated_at)
-VALUES ('azure_ad_redirect_uri', 'https://your-domain.com/accounts/auth/azure/callback/', 'string', 'authentication', 'Azure AD Redirect URI', 0, NOW(), NOW());
-
-```
-
-### 6. Run Migrations
-
-Apply database migrations:
-
-```bash
-python manage.py migrate accounts
-```
-
-### 7. Test Login
+### 6. Test Login
 
 1. Go to the login page: `https://your-domain.com/`
 2. You should see a **"Sign in with Microsoft"** button
@@ -131,7 +110,7 @@ An existing account is linked to Microsoft sign-in in one of two ways:
 2. **By an administrator**: when someone signs in with Microsoft using the
    e-mail address of an account that isn't linked, the sign-in is refused, a
    security event is logged, and a *link request* appears on that user's page
-   (Settings → Users). A superuser may approve it after confirming with the
+   (Administration → Users & Access → Users). A superuser may approve it after confirming with the
    person, by entering their own password (and code). Nobody can approve a
    request for their own account. The account matches if its e-mail address
    is the person's Microsoft mailbox address *or* their Microsoft sign-in name
@@ -171,7 +150,7 @@ user enters their Clientst0r authenticator code (v3.17.660).
   once more (method 1 or 2 above).
 - Accounts with no stored object ID must be linked once.
 - Auto-create is switched **off** by the upgrade. Turn it back on in
-  Settings → Directory services if you want it.
+  Administration → Users & Access → Directory Services if you want it.
 - Because the old matching trusted e-mail addresses, review the linked
   identity (tenant and object ID) shown on each administrator's user page,
   and the audit log for Microsoft sign-ins you don't recognise. Unlink
@@ -204,7 +183,7 @@ user enters their Clientst0r authenticator code (v3.17.660).
 
 - "already uses this e-mail address, but it is not linked": link the account (see *Linking an existing account*)
 - "No account here is linked … You signed in as *address*": no account here is linked to that
-  Microsoft identity and no account uses that address. In **Settings → Users**, set the person's
+  Microsoft identity and no account uses that address. In **Administration → Users & Access → Users**, set the person's
   e-mail address to the one shown (or create the account with it), have them sign in with
   Microsoft once more, then approve the link request on their user page. The audit log entry
   `azure_sso_no_account` lists every address Microsoft sent. Upgrading to v3.17.688 or later

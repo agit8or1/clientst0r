@@ -846,11 +846,11 @@ Encrypted copies of the database and uploads go to an SFTP server or a mounted d
 
 One status for the installed build, with the selected channel explained: Official release installs signed releases only and is recommended for production; Preview installs the newest commit on main, including unreleased changes.
 
-### Settings → Billing
+### Administration → General → Billing
 
 **Light theme**
 
-[![Settings Billing page in light theme listing invoice approval threshold, agreement usage approval percentage, late fee terms, automatic accounting push, quote approval threshold, default tax rate and currency, and the month-to-month e-signature exemption](images/github/settings-billing-light.png)](images/github/settings-billing-light.png)
+[![Administration General Billing settings page in light theme listing invoice approval threshold, agreement usage approval percentage, late fee terms, automatic accounting push, quote approval threshold, default tax rate and currency, and the month-to-month e-signature exemption](images/github/settings-billing-light.png)](images/github/settings-billing-light.png)
 
 The billing thresholds in one place: invoice and quote approval, agreement-usage approval, late fees, the default tax rate and currency, and whether month-to-month contracts need an e-signature. Each value shows which level it comes from; every change is audit-logged.
 

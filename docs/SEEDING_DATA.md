@@ -12,13 +12,25 @@ Clientst0r includes comprehensive seed data to help you get started immediately:
 ```bash
 cd /path/to/clientst0r
 source venv/bin/activate
-python manage.py seed_all --from-github
+python manage.py seed_all
 ```
 
 This will:
-- Create 3,000+ equipment models with specs
-- Fetch 1,000+ KB articles from GitHub
-- Take approximately 2-5 minutes
+- Create the equipment catalog (3,000+ models with specs)
+- Generate the 1,000+ KB articles locally (no network access needed)
+- Take a few minutes
+
+The seeded equipment shows under **Administration → General → Equipment Catalog**
+(`/assets/vendors/`) and the articles under **Knowledge & Vault → Knowledge Base**.
+The commands run on the server, not from the web UI.
+
+<!-- guide-figure: guide-x4-seeding-data -->
+![Equipment Catalog page with callouts on the title, the vendor table and the model counts](images/guides/guide-x4-seeding-data.png "The Equipment Catalog that seed_all and seed_equipment_catalog fill.")
+
+1. Equipment Catalog (Administration → General → Equipment Catalog): vendors and models, shared by every customer. The seed commands fill it.
+2. How many models each vendor has. Delete vendors or models you do not need; this does not touch customer data.
+3. One row per vendor.
+<!-- /guide-figure -->
 
 ### Seed Specific Data
 
@@ -37,26 +49,30 @@ This is separate from the Equipment Catalog above. See
 [HARDWARE_INVENTORY.md](HARDWARE_INVENTORY.md#updating-the-catalog), including
 the note about running it on SQLite.
 
-#### KB Articles from GitHub (Recommended)
-```bash
-python manage.py fetch_kb_from_github
-```
-
-This fetches curated KB articles from the Clientst0r GitHub repository.
-
-#### KB Articles Locally Generated
+#### KB Articles (1,000+, generated locally)
 ```bash
 python manage.py seed_kb_articles
 ```
 
-Generates articles locally (slower, use GitHub fetch instead).
+Creates the 20 categories and the full article set. `--limit N` creates at most N articles
+per category; `--delete` removes the existing global articles first.
+
+#### KB Articles: a short professional set
+```bash
+python manage.py fetch_kb_from_github
+```
+
+Despite its name this command does not download anything today: it runs
+`seed_professional_kb`, which generates a small set (about a dozen) of articles locally.
+`seed_all --from-github` does the same, so it gives you far fewer articles than plain
+`seed_all`.
 
 ### Quick Seed (For Testing)
 ```bash
 python manage.py seed_all --quick
 ```
 
-Creates limited data for testing (5 articles per category).
+Creates 5 articles per category for testing. The equipment catalog is still seeded in full.
 
 ### Demo and evaluation samples
 
@@ -284,7 +300,7 @@ python manage.py seed_kb_articles --delete
 All seed data can be safely deleted by users:
 
 **Equipment Models:**
-- Navigate to Settings → General → Equipment Catalog
+- Navigate to Administration → General → Equipment Catalog
 - Delete vendors or individual models not needed
 
 **KB Articles:**
@@ -317,9 +333,6 @@ Make sure you're in the correct directory and virtual environment is activated.
 ### Seeding Takes Too Long
 - Use `--quick` for testing
 - Run during off-hours for production
-- Equipment catalog: ~2-3 minutes
-- KB articles: ~3-5 minutes
-- Total: ~5-10 minutes
 
 ### Out of Memory
 Increase available RAM or use `--quick` mode.
@@ -338,8 +351,4 @@ For issues with seed data:
 
 ## Version Information
 
-Seed data is updated regularly. Check `CHANGELOG.md` for what's new in each release.
-
-Current seed data versions:
-- Equipment Catalog: v1.5 (3,000+ models)
-- KB Articles: v1.0 (1,000+ articles)
+The seed content ships with the release. Check `CHANGELOG.md` for changes to it.

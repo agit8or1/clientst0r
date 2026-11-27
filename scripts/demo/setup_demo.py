@@ -96,7 +96,7 @@ for step in (seed_demo.seed_named_approvers, seed_demo.seed_readiness_custom_fie
 # answers (the health computation below then has satisfaction data), documents
 # and diagrams, knowledge base review states, and vault requests and notes.
 for script in ('seed_proc.py', 'seed_guide_health.py', 'seed_kdoc.py', 'seed_kb.py', 'seed_vault.py', 'seed_sec.py', 'seed_mon.py', 'seed_stat.py', 'seed_rep.py', 'seed_exec.py',
-               'seed_coverage.py', 'seed_setsec.py', 'seed_setx.py', 'seed_portal.py'):
+               'seed_coverage.py', 'seed_setsec.py', 'seed_setx.py', 'seed_portal.py', 'seed_x3.py'):
     print(script)
     runpy.run_path(str(ROOT / 'scripts' / 'demo' / script), run_name='__main__')
 # Derived data: the app's own commands project the seeded rows into the pages

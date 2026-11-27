@@ -7,12 +7,24 @@ assignment and workflow rules behave exactly as they did before.
 
 ## Turning it on
 
-1. **Settings → General → Service Desk** (`/psa/settings/`, superusers) shows a *Ticket Routing* card: pick the MSP-wide default
+1. **Administration → General → Service Desk** (`/psa/settings/`, superusers) shows a *Ticket Routing* card: pick the MSP-wide default
    (**Off**, **Suggest only** or **Automatic**) and save. The card links to the full page.
 2. **Service Desk → Dispatch Board → Configure → Ticket Routing** (`/psa/routing/`) holds everything else: reroute options, business hours, customer
    overrides, rules, on-call shifts, Test routing and Triage.
 3. Each customer **inherits** the MSP default unless you override it under *Customers* (Inherit / Off / Suggest only /
    Automatic). A customer can also be limited to a list of technicians routing may choose.
+
+The routing page has tabs for Settings & rules, On call, Test routing, Triage, Alert policy, Maintenance and
+Support workflows. The numbers in the screenshot match the list under it. Every screenshot is a capture of the
+application against a demo database; the customers and people in it are invented.
+
+<!-- guide-figure: guide-x1-routing-overview -->
+![Ticket Routing: the MSP-wide default mode, reroute options, rules and customer overrides](images/guides/guide-x1-routing-overview.png "Service Desk, Dispatch Board, Configure, Ticket Routing.")
+
+1. The MSP-wide default: Off, Suggest only or Automatic. Every customer inherits it unless overridden.
+2. Customers: pick one to set Inherit, Off, Suggest only or Automatic, or to limit routing to a list of technicians.
+3. Saving changes the default only. Existing tickets are never reassigned.
+<!-- /guide-figure -->
 
 | Mode | What happens |
 |---|---|
@@ -148,7 +160,7 @@ superusers hold all three:
 
 | Flag | Allows |
 |---|---|
-| Manage routing settings, rules and on-call | `/psa/routing/` settings, customers, rules, on-call shifts, the Settings → General → Service Desk card |
+| Manage routing settings, rules and on-call | `/psa/routing/` settings, customers, rules, on-call shifts, the Administration → General → Service Desk card |
 | Test routing | the Test routing page |
 | Accept / reject routing suggestions | Accept and Dismiss on tickets |
 

@@ -10,6 +10,15 @@ Or navigate directly to: `https://YOUR-SERVER/core/install/`
 
 The install page is shareable — it works without logging in, so you can send the link to staff.
 
+<!-- guide-figure: guide-x4-install-app -->
+![Install page with callouts on the title, the QR code, the address field and the step by step accordion](images/guides/guide-x4-install-app.png "The Install page (no sign-in needed).")
+
+1. Install Clientst0r: the shareable page (Account menu → Install app).
+2. QR code for the server's address, to open it on a phone.
+3. The address the QR code points to, with a copy button.
+4. Step-by-step instructions for Android Chrome, iPhone and iPad Safari, and desktop Chrome or Edge.
+<!-- /guide-figure -->
+
 ---
 
 ## Android — Chrome
@@ -53,7 +62,7 @@ After installing, **long-press** the Clientst0r icon on your home screen to see 
 
 Each vehicle has a **per-vehicle QR code** that links directly to the Add Receipt page. To set it up:
 
-1. Go to **Assets & Network → Vehicles → [your vehicle]**
+1. Go to **Assets & Network → Vehicles → [your vehicle]** (MSP staff only, and only while the Vehicles feature is on)
 2. Click the **Receipts** tab
 3. Click **Phone Shortcut**
 4. Scan the QR code with your phone — opens Add Receipt for that vehicle

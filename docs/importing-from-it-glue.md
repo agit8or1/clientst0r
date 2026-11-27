@@ -25,7 +25,7 @@ for before switching.
 | IPAM, VLANs and rack elevations | Available |
 | Built-in service desk with SLAs, contracts and invoicing | Available (opt-in) |
 | PSA integrations | Available — ConnectWise Manage, Autotask, HaloPSA, Kaseya BMS, Syncro, Freshservice, Zendesk, ITFlow (companies, contacts, tickets); RangerMSP and Alga PSA Limited (newly added) |
-| RMM integrations | Available — 5 providers: Tactical RMM, NinjaOne, Datto RMM, Atera, ConnectWise Automate (devices, alerts, software) |
+| RMM integrations | Available — Tactical RMM, NinjaOne, Datto RMM, Atera, ConnectWise Automate and Rem0te (devices, alerts, software; Rem0te syncs computers and adds a Connect button) |
 | Multi-organization with customer logins | Available |
 | Sign-in | Azure AD / Entra ID SSO and LDAP / Active Directory sign-in available (LDAP needs optional packages); 2FA enforced by default |
 | Documentation readiness and lifecycle | Available — per-client readiness scores and a repair queue, document owners and review dates, drafts, version compare and restore |
@@ -36,7 +36,20 @@ Full list with limitations: [FEATURES.md](../FEATURES.md).
 
 ## What the IT Glue importer brings over
 
-The importer (**Imports**, `/imports/`) connects to the IT Glue API with an API key.
+The importer is under **Administration → Maintenance → Data Import** (`/imports/`). It is open to
+superusers only. **New Import** takes the source type (IT Glue), the API address, an API key and an
+optional target organization. The API key is stored encrypted and is never shown again.
+
+<!-- guide-figure: guide-x3-itglue-job -->
+![An IT Glue import job that was a dry run: status, configuration, statistics and log](images/guides/guide-x3-itglue-job.png "Administration, Maintenance, Data Import: a finished dry run.")
+
+1. Status, and whether this was a dry run.
+2. Source, target organization (All Organizations here) and the data types chosen.
+3. Total, imported, skipped and failed items.
+4. The log of the run; View Full Log shows all of it.
+<!-- /guide-figure -->
+
+The page of an import job: a finished dry run of an IT Glue import. The buttons at the top of the page are Run Actual Import (dry runs only) or Rollback (real imports), and Delete.
 
 | IT Glue data | Imported today |
 | --- | --- |
@@ -44,15 +57,17 @@ The importer (**Imports**, `/imports/`) connects to the IT Glue API with an API 
 | Configurations (as assets) | Yes |
 | Passwords | Yes — encrypted on arrival |
 | Documents | Yes |
-| Contacts | Not yet |
-| Locations | Not yet |
-| Networks | Not yet |
-| Flexible assets, attachments, relationships, permissions | Not yet |
+| Contacts | Yes — tick **Contacts** (off by default) |
+| Locations | Yes — tick **Locations** (off by default) |
+| Networks | Yes — tick **Networks** (off by default); IT Glue has no networks list, so these come from flexible assets whose type is a network type |
+| Other flexible assets, attachments, relationships, permissions | Not by this screen (see the one-customer rehearsal below) |
 
-- A **dry run** is on by default and reports counts without writing anything.
+- A **dry run** is on by default and reports counts without writing anything. On a finished dry run, **Run Actual Import** turns the same job into a real one and asks you to confirm.
+- **Skip Duplicates** (on by default) skips records already imported by an earlier completed job for the same organization.
 - Each job keeps a log and history, and imported records are tagged with their source.
 - **One or all organizations.** Import into a single target organization, or import every
-  IT Glue organization at once.
+  IT Glue organization at once; with the target left blank, **Enable Fuzzy Matching** matches IT Glue
+  organizations to existing ones by name similarity (threshold 85 by default).
 - Each record goes to the client its source record belongs to.
 - A job shows "Completed" only when nothing failed; otherwise "Completed with errors" or
   "Failed", with imported / skipped / failed counts that add up to the source total, and the
@@ -61,13 +76,24 @@ The importer (**Imports**, `/imports/`) connects to the IT Glue API with an API 
   and organizations the import created are removed only when nothing else uses them; if
   anything was kept the job shows "Partially rolled back".
 
+## One-customer rehearsal
+
+**One-customer rehearsal** on the Data Import page (`/imports/rehearsals/`, superusers only, like the rest of Data Import) moves one source organization
+into one Clientst0r customer in steps: create the rehearsal, **Fetch source data** (nothing is written to
+the customer), review **What will transfer** (create, update, unchanged, duplicate, conflict and
+unavailable counts per type, with broken links and the reasons for skips), **Mark reviewed (freeze)**,
+then **Apply reviewed plan**. It also covers IP addresses, processes, websites, relationships and
+attachments, can be rolled back, and exports reports as JSON or CSV. Applying needs the matching
+permission in the customer (for example Create passwords for passwords).
+
 ## Before you switch
 
 * Run a dry run, then a real import into a test organization, and compare record counts
   with IT Glue.
-* Plan how you will bring over contacts, locations and networks (CSV import or by hand)
-  until those importers ship. CSV contact and password imports work, and re-running a CSV
-  import updates matching rows instead of duplicating them.
+* Tick Contacts, Locations and Networks if you want them (they are off by default), and plan
+  how you will bring over anything the importer does not read (CSV import or by hand). CSV
+  contact and password imports work, and re-running a CSV import updates matching rows
+  instead of duplicating them.
 * Check the integrations, sign-in method and exports you depend on against
   [FEATURES.md](../FEATURES.md).
 

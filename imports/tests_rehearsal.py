@@ -855,6 +855,36 @@ class RehearsalViewTests(RehearsalTestBase):
         plan.refresh_from_db()
         self.assertEqual((plan.status, plan.task_state), ('draft', 'idle'))
 
+    def test_msp_staff_cannot_reach_rehearsals(self):
+        """Rehearsals follow the Data Import tab and the legacy import
+        screens: superuser only. MSP staff (user type Staff, Django is_staff)
+        are refused server-side and cannot change a plan."""
+        from accounts.models import UserProfile, UserType
+        tech = User.objects.create_user('rh-tech', 'rt@example.com', 'pw', is_staff=True)
+        try:
+            profile = tech.profile
+        except UserProfile.DoesNotExist:
+            profile = UserProfile.objects.create(user=tech)
+        profile.user_type = UserType.STAFF
+        profile.save()
+        c = Client()
+        c.force_login(tech)
+        plan = self.make_plan(self.org_a)
+        for name in ('rehearsal_list', 'rehearsal_create'):
+            self.assertNotEqual(c.get(reverse(f'imports:{name}')).status_code, 200, name)
+        for name in ('rehearsal_detail', 'rehearsal_items', 'rehearsal_report'):
+            self.assertNotEqual(c.get(reverse(f'imports:{name}', args=[plan.pk])).status_code, 200, name)
+        for name in ('rehearsal_stage', 'rehearsal_build', 'rehearsal_freeze',
+                     'rehearsal_apply', 'rehearsal_rollback'):
+            c.post(reverse(f'imports:{name}', args=[plan.pk]))
+        plan.refresh_from_db()
+        self.assertEqual((plan.status, plan.task_state), ('draft', 'idle'))
+        self.assertFalse(MigrationPlan.objects.exclude(pk=plan.pk).exists())
+
+    def test_superuser_reaches_rehearsals(self):
+        self.assertEqual(self.client.get(reverse('imports:rehearsal_list')).status_code, 200)
+        self.assertEqual(self.client.get(reverse('imports:rehearsal_create')).status_code, 200)
+
     def test_double_post_queues_once_and_edits_wait(self):
         plan = self.make_plan(self.org_a)
         self.stage(plan, itglue_routes())

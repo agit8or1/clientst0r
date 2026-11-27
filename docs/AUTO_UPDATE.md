@@ -5,7 +5,7 @@ Optional unattended updates for native (`install.sh`) installs. Docker installs 
 
 The auto-update timer is **installed but turned off** by `install.sh`, because applying
 releases to a live system unattended is a decision you should make deliberately. The
-**Apply** button in **Settings → System → System Updates** (`/core/settings/updates/`) runs exactly the same
+**Apply** button in **Administration → System → System Updates** (`/core/settings/updates/`) runs exactly the same
 update steps on demand, and is the recommended way to update.
 
 <!-- guide-figure: guide-system-updates -->
@@ -94,7 +94,7 @@ This installs and enables:
   as soon as possible after a missed run (`Persistent=true`)
 
 On installs that have the root helper (`/usr/local/sbin/clientst0r-root-helper`, set up
-from **Settings → System → System Updates**), the app's root actions — including the graceful reload — go
+from **Administration → System → System Updates**), the app's root actions — including the graceful reload — go
 through that one program, and each update refreshes the helper's managed configuration.
 Installs without the helper fall back to the narrower `sudo` rules written by the
 installer.
@@ -157,7 +157,7 @@ sudo systemctl restart clientst0r-auto-update.timer
 sudo systemctl disable --now clientst0r-auto-update.timer
 ```
 
-The **Apply** button in Settings → System → System Updates keeps working.
+The **Apply** button in Administration → System → System Updates keeps working.
 
 ## Backups and recovery
 

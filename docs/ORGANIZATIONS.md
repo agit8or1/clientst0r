@@ -123,7 +123,7 @@ Automatic: Admin-level access to all organizations
 ```
 
 **How to Make a User a Staff User:**
-1. Navigate to Settings → Users & Access → Users
+1. Navigate to Administration → Users & Access → Users
 2. Edit user profile
 3. Change "User Type" from "Organization User" to "Staff User"
 4. Save
@@ -288,7 +288,7 @@ For fine-grained control beyond simple roles, use **Role Templates**.
 **Use Case:** Need a "Help Desk" role that can view passwords but not export them, and create tickets but not delete anything.
 
 **Steps:**
-1. Navigate to **Settings → Users & Access → Roles** (customer administrators: account menu → **Organization settings** → Roles)
+1. Navigate to **Administration → Users & Access → Roles** (customer administrators: account menu → **Organization settings** → Roles)
 2. Click **"Create Role Template"**
 3. Name it (e.g., "Help Desk Technician")
 4. Select specific permissions:
@@ -298,7 +298,7 @@ For fine-grained control beyond simple roles, use **Role Templates**.
    - ❌ `assets_delete`
    - etc.
 5. Save template
-6. Assign to members via **Settings → Users & Access → Members → Edit → Role Template**
+6. Assign to members via **Administration → Users & Access → Members → Edit → Role Template**
 
 **Templates are organization-specific** - Each organization can define their own role templates.
 
@@ -328,14 +328,14 @@ For fine-grained control beyond simple roles, use **Role Templates**.
 
 **Steps:**
 1. Switch to the organization
-2. Navigate to **Settings → Users & Access → Members** (customer administrators: account menu → **Organization settings** → Members)
+2. Navigate to **Administration → Users & Access → Members** (customer administrators: account menu → **Organization settings** → Members)
 3. Click **"Invite Member"**
 4. Enter username or email
 5. Select role (Owner/Admin/Editor/Read-Only)
 6. Optional: Select custom role template
 7. Click **"Send Invite"**
 
-**Note:** If the user doesn't exist, you'll need to create them first via **Settings → Users & Access → Users** (superuser only).
+**Note:** If the user doesn't exist, you'll need to create them first via **Administration → Users & Access → Users** (superuser only).
 
 ### Switching Organizations
 
@@ -355,7 +355,7 @@ For fine-grained control beyond simple roles, use **Role Templates**.
 - Owners only
 
 **Steps:**
-1. Navigate to **Settings → Users & Access → Members**
+1. Navigate to **Administration → Users & Access → Members**
 2. Find member in list
 3. Click **"Remove"** button
 4. Confirm removal
@@ -486,7 +486,7 @@ Staff Users (your MSP techs):
    - Invite contractor@vendor.com with this template
 
 3. **After Contract Ends:**
-   - Navigate to **Settings → Users & Access → Members**
+   - Navigate to **Administration → Users & Access → Members**
    - Remove contractor@vendor.com
    - Access immediately revoked
 
@@ -600,7 +600,7 @@ Quick reference for simple roles:
 
 **Solutions:**
 1. Verify Membership exists:
-   - Navigate to **Settings → Users & Access → Members** in that organization
+   - Navigate to **Administration → Users & Access → Members** in that organization
    - Check if user is listed
 
 2. Check if membership is active:

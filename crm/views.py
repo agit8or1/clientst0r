@@ -914,7 +914,7 @@ def lead_capture_web(request):
 def lead_capture_api(request):
     """Authenticated REST endpoint for inbound leads.
 
-    Auth: `Authorization: Bearer itdocs_live_<key>` against the existing
+    Auth: `Authorization: Bearer cst_live_<key>` against the existing
     `api.APIKey` model (mirrors `api/authentication.py`). The API key's
     organization becomes the MSP tenant.
     """

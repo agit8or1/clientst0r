@@ -19,8 +19,17 @@ command line is the fallback.
 
 ## Versions and channels
 
-Settings → System → System Updates (`/core/settings/updates/`) keeps three
+Administration → System → System Updates (`/core/settings/updates/`) keeps three
 questions apart:
+
+<!-- guide-figure: guide-x4-upgrade-and-recovery -->
+![System Updates page with callouts on the status strip, channel select, version list and backups section](images/guides/guide-x4-upgrade-and-recovery.png "System Updates: status strip, channel, versions and backups.")
+
+1. Status strip: installed version, channel, latest official release, update status and Check now.
+2. The channel select: Official release or Preview / testing. Saving it installs nothing.
+3. Available Versions: collapsed to what is newer than the installed build; Show all versions opens every release. Each version has one status (Installed, Older version, Newer, Recommended update, Unavailable, Incompatible).
+4. Backups and rollback: the verified pre-upgrade backups, retention settings and Rollback.
+<!-- /guide-figure -->
 
 - **Which versions exist.** *Available Versions* lists every published
   GitHub release and the head of `main`, whatever your channel, in two tabs:
@@ -108,7 +117,7 @@ moment, Apply refuses and changes nothing; try again later.
 
 ## Upgrade from the web UI
 
-1. **Settings → System → System Updates** → *Check now*.
+1. **Administration → System → System Updates** → *Check now*.
 2. *Install* in the status strip installs what your channel recommends. To install any other
    version, pick it under *Available Versions* and click *Install…*.
 3. The review dialog shows from → to, whether it is an upgrade, an older
@@ -222,7 +231,7 @@ before migrating.
 
 ## Docker
 
-A container has no git checkout, so **Settings → System → System Updates** cannot apply an
+A container has no git checkout, so **Administration → System → System Updates** cannot apply an
 upgrade in Docker. To upgrade:
 
 ```bash
@@ -322,7 +331,7 @@ venv/bin/python manage.py upgrade_backup --verify backups/upgrades/snapshot-...
 
 A backup is a full copy of the database and the uploads, often hundreds of
 megabytes, so old ones are removed automatically. Set the rules in
-**Settings → System → System Updates → Pre-upgrade backups** (superusers):
+**Administration → System → System Updates → Pre-upgrade backups** (superusers):
 
 - **Backups to keep**: the newest N verified backups are kept (at least 1).
   Blank uses `UPGRADE_BACKUPS_KEEP` from `.env` (default 5).
@@ -351,7 +360,7 @@ When the cleanup runs:
 - **every backup taken with `upgrade_backup`**, including the Docker
   entrypoint's (skip it with `--no-groom`)
 - **daily**, through the scheduled task *Pre-upgrade Backup Cleanup*
-  (Settings → Automation → Task Scheduler), for installs that rarely update
+  (Administration → Automation → Task Scheduler), for installs that rarely update
 - **on request**: *Clean up now* on the Updates page, or
   `upgrade_backup --prune`
 
@@ -382,7 +391,7 @@ venv/bin/python manage.py upgrade_status
 
 It reads the journal and says what happened: the stage, the backup, and
 whether the database was touched. It exits with 2 when something needs doing.
-While an upgrade needs recovery, Apply is disabled, and **Settings → System → System Updates**
+While an upgrade needs recovery, Apply is disabled, and **Administration → System → System Updates**
 shows a recovery panel with the same information.
 
 | Stopped at | Database | What to do |

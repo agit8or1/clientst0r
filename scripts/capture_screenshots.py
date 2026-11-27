@@ -164,7 +164,9 @@ def make_session(username: str, org_name: str | None) -> str:
     store['_auth_user_id'] = str(user.pk)
     store['_auth_user_backend'] = 'django.contrib.auth.backends.ModelBackend'
     store['_auth_user_hash'] = user.get_session_auth_hash()
-    if org_name:
+    if org_name == 'GLOBAL':
+        store['global_view_mode'] = True
+    elif org_name:
         org = Organization.objects.get(name=org_name)
         store['current_organization_id'] = org.pk
         store['organization_id'] = org.pk

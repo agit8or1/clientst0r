@@ -1,7 +1,17 @@
 # API access control
 
-**Settings → Security → API Access Control** (superusers). Network rules for the inbound API and inbound
-webhooks — roadmap Phase 81.
+**Administration → Security → API Access Control** (`/settings/security/api-access/`, superusers).
+Network rules for the inbound API and inbound webhooks — roadmap Phase 81.
+
+<!-- guide-figure: guide-x3-api-access -->
+![API Access Control: global mode for the API and webhooks, last 24 hours, limits per address and the rules table](images/guides/guide-x3-api-access.png "Administration, Security, API Access Control.")
+
+1. Rules, Test an address, Refused requests, Client address, Import and Export.
+2. Global mode, one for the inbound API and one for inbound webhooks. New installs start Unrestricted.
+3. Requests refused in the last 24 hours and the address this server sees for you.
+4. Per-address request and body-size limits; 0 turns a limit off.
+5. The rules: address or range, allow or deny, what it applies to, scope, status, expiry and match count.
+<!-- /guide-figure -->
 
 Rules are an extra check. They never grant access: a request that passes them still needs a valid credential,
 the right permissions, its rate limits and customer isolation. Web pages (the app you sign in to) are not
@@ -35,7 +45,7 @@ New API or webhook routes are added to `api_access/groups.py`; a test fails if a
 The Agit8or Connect endpoints are classified as their own surface (`connect`). The REST API mode, limits and
 rules above **never** apply to them, whatever the mode (an API rule that targets the Connect endpoint group or
 integration is inert, and the rule form no longer offers them). Instead Connect enforces a **default-deny**
-allowlist of its own, managed under **Settings → Integrations → Connected Applications → Network**
+allowlist of its own, managed under **Administration → Integrations → Connected Applications → Network**
 (`connect/source_policy.py`, rules in `connect.SourceRule`):
 
 - two layers, both required: an installation-wide list, and a list per connection; a deny in either wins; an
@@ -160,11 +170,12 @@ default): until you click **Keep changes** at the top of the page, every API acc
 window — modes, limits and rules, including rules added or deleted — is undone when it ends, on the next API
 request or by the scheduler (every minute), whichever comes first. **Undo now** reverts at once, and **Start
 trial window** opens a window before a change. A second change inside the window keeps the original restore
-point. Trusted proxies are not included. High-impact changes Every change bumps the **policy version**, is applied on
+point. Trusted proxies are not included. Every change bumps the **policy version**, is applied on
 the next request in every worker, and is written to the audit log.
 
 **Test an address** evaluates any address against the saved policy for any endpoint group and API key, and
-lists the rules that applied.
+lists the rules that applied. The same page answers "would a GraphQL call from this address get through?"
+by choosing the *GraphQL API* group.
 
 ## Refused requests
 
@@ -206,7 +217,9 @@ The settings pages themselves are web pages, so API rules never lock an administ
 
 ## API keys
 
-Each key (Settings → API keys, or the customer's API keys page) can carry:
+Each key (the API Keys page, `/api/keys/`, under **Administration → Users & Access → Access Management**; it lists the current customer's keys) is sent as `Authorization: Bearer cst_live_…`. Keys created
+before the prefix change start with `itdocs_live_` and keep working unchanged; a key is matched by a hash of
+the whole key, never by its prefix, so rules and rotation treat both alike. Each key can carry:
 
 - **Expiry.** An expired key is refused with `401 API key expired` and is not marked as used. Keys made
   before v3.17.714 never expire until you set a date.
@@ -303,9 +316,9 @@ page shows the certificate your own connection presents.
 
 ## Not included
 
-- **Concurrency limits.** The server runs four single-request workers with a per-process cache, so it never
-  has more than four requests in flight and a per-key count could not be shared between workers. Per-key and
+- **Concurrency limits.** The server runs a fixed number of single-request workers (four in the default install) with a
+  per-process cache, so it never has more requests in flight than it has workers and a per-key count could not be shared between workers. Per-key and
   per-address rate limits cover abuse; revisit with a shared cache.
 - **Payment webhooks** keep their own verification (signed timestamps for Stripe) and de-duplicate by provider
   event id permanently, so a replay is never processed twice.
-- Sending these events to the shared event layer comes with Phase 82.
+- Refusals are not yet sent to the shared event layer (Events); they are listed under **Refused requests** only.

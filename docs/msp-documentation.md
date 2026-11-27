@@ -40,6 +40,18 @@ Effective MSP operations rely on accurate, accessible documentation. Clientst0r 
 - A per-client score with a plain explanation and a fix link for every gap
 - A repair queue across clients, audited exceptions, and a broken-relationships report
 
+It is under **Knowledge & Vault → Documentation Readiness** (`/readiness/`). The numbers in the screenshot
+match the list under it. Every screenshot is a capture of the application against a demo database; the
+customers and people in it are invented.
+
+<!-- guide-figure: guide-x1-msp-readiness -->
+![Documentation readiness: a score per customer, the standards in scope and the number of unmet requirements](images/guides/guide-x1-msp-readiness.png "Knowledge & Vault, Documentation Readiness.")
+
+1. Show the score against one standard, or all standards in force.
+2. The customer's documentation score. Open a customer for the reason behind each gap and a link to fix it.
+3. How many requirements are not met. The number opens the repair queue for that customer.
+<!-- /guide-figure -->
+
 ### Monitoring & Expiration Tracking
 - Website uptime and SSL certificate checks, with email alerts when a site goes down and recovers
 - Email alerts for expiring SSL certificates, domains (dates you enter) and credentials
@@ -52,7 +64,7 @@ Effective MSP operations rely on accurate, accessible documentation. Clientst0r 
 
 ### Integrations
 - PSA providers (ConnectWise Manage, Autotask, HaloPSA, Kaseya BMS, Syncro, Freshservice, Zendesk, ITFlow) — companies, contacts and tickets; RangerMSP and Alga PSA newly added (Limited)
-- 5 RMM providers (Tactical RMM, NinjaOne, Datto RMM, Atera, ConnectWise Automate) — devices, alerts and software
+- 6 RMM providers (Tactical RMM, NinjaOne, Datto RMM, Atera, ConnectWise Automate, Rem0te) — devices, alerts and software
 - REST API v1 and GraphQL API v2
 
 For how to use documents, categories, templates and diagrams, read [Documents and diagrams](DOCUMENTS_AND_DIAGRAMS.md).

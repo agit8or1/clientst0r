@@ -1,6 +1,7 @@
 # GraphQL API
 
-An optional, mostly read-only GraphQL endpoint next to the [REST API](../user-guide/api.md).
+An optional, mostly read-only GraphQL endpoint next to the REST API (`/api/`; see
+[Multi-Organization REST API Access](api-multi-org.md) for API keys and scopes).
 
 ## Endpoint
 
@@ -12,6 +13,19 @@ It is only mounted when the optional dependencies are installed
 (`pip install -r requirements-graphql.txt`). `update.sh` installs them on native
 installs; the Docker image does not include them. The in-browser GraphiQL IDE is
 served at the same URL only when `DEBUG=True`.
+
+There is no page for GraphQL in the application: a production install serves only the `POST` endpoint,
+and the GraphiQL explorer appears only when `DEBUG=True`. What an administrator can see in the app is how the
+network rules treat it: **Administration → Security → API Access Control** lists *GraphQL API*
+(`/api/v2/graphql/`) as one of its endpoint groups, and **Test an address** checks a source address against it.
+
+<!-- guide-figure: guide-x3-graphql-access -->
+![Test an address for the GraphQL API endpoint group, showing the decision and the rules that apply](images/guides/guide-x3-graphql-access.png "Test an address: how the API network rules treat a GraphQL request.")
+
+1. The address to test.
+2. Endpoint group: GraphQL API (/api/v2/graphql/) is one of the groups network rules cover.
+3. The decision for that address, with the global mode and the rules that matched.
+<!-- /guide-figure -->
 
 ## Authentication and scoping
 
@@ -33,7 +47,8 @@ pending review are included only where you can edit them: **Edit documents**
 (`docs_edit`) in their organization, or **Edit KB articles** for global KB
 articles. Use `isPublished`, `isDraft` and `isArchived` to tell them apart.
 
-Unlike the REST API, GraphQL requests are not rate-limited.
+Unlike the REST API, GraphQL has no rate limit of its own. The network rules and per-address limits of
+[API Access Control](API_ACCESS_CONTROL.md) do apply to it, because it is one of the covered endpoint groups.
 
 ## Queries
 

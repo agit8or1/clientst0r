@@ -2,7 +2,7 @@
 
 This guide covers the **Docker / Docker Compose** install path. It's
 the fastest way to stand up Clientst0r on a fresh host — one command
-brings up the app, MariaDB, and (optionally) an Nginx TLS proxy. The
+brings up the app, the scheduler, MariaDB, and (optionally) an Nginx TLS proxy. The
 classic `bash install.sh` path still works and is documented in
 `INSTALL.md`; Docker is a peer option, not a replacement.
 
@@ -32,6 +32,17 @@ Tail the logs while it warms up:
 docker compose logs -f app
 ```
 
+Once it is up, sign in and open **Administration → System → System Updates**. On a native install that page applies upgrades; in Docker it is informational and you upgrade with the commands under [Upgrading](#upgrading).
+
+<!-- guide-figure: guide-x4-docker -->
+![System Updates page with callouts on the installed version, the channel and the available versions](images/guides/guide-x4-docker.png "System Updates on a native install. In Docker, upgrade with docker compose instead.")
+
+1. The installed version, branch and commit, the channel, and the update status. This page is for native installs: the image has no git checkout, so upgrade a container with docker compose pull.
+2. The release channel. Official release is the default.
+3. Available Versions: published releases and the newest commit on main.
+4. Backups and rollback: verified pre-upgrade backups (on Docker they sit in the clientst0r-backups volume).
+<!-- /guide-figure -->
+
 ---
 
 ## Requirements
@@ -60,10 +71,11 @@ docker compose version
 | File                       | Purpose                                               |
 |----------------------------|-------------------------------------------------------|
 | `Dockerfile`               | Multi-stage production image. Runs as non-root.       |
-| `docker-compose.yml`       | Production stack: `app` + `db`. Optional proxy/cache. |
+| `docker-compose.yml`       | Production stack: `app`, `scheduler`, `db`. Optional proxy, cache, AI gateway. |
 | `docker-compose.dev.yml`   | Dev override — source-mount + `--reload`.             |
 | `docker-entrypoint.sh`     | DB wait, migrations, collectstatic, optional superuser. |
 | `.env.example`             | Every supported env var, commented.                   |
+| `docker/`                  | MariaDB settings, and the Nginx config used by the `proxy` profile. |
 | `.dockerignore`            | Keeps secrets / mobile / build artifacts out of context. |
 | `Makefile`                 | Shortcuts: `make docker-up`, `docker-logs`, `backup`. |
 | `.github/workflows/docker-image.yml` | Builds & pushes `ghcr.io/agit8or1/clientst0r`. |
@@ -95,7 +107,7 @@ CSRF_TRUSTED_ORIGINS=https://clientst0r.example.com
 EMAIL_HOST=smtp.example.com
 EMAIL_HOST_USER=...
 EMAIL_HOST_PASSWORD=...
-GITHUB_TOKEN=ghp_...         # raises the /settings/updates/ poll limit
+GITHUB_TOKEN=ghp_...         # raises the GitHub rate limit for update checks
 ```
 
 See `.env.example` for the full list, including SMTP, the Anthropic key
@@ -162,7 +174,8 @@ docker compose pull && docker compose up -d
 
 ## Profiles — Nginx and Redis
 
-The default stack is **app + db**, deliberately minimal. Two optional
+The default stack is **app + scheduler + db** (the scheduler container runs
+`manage.py run_scheduler` once a minute for the background jobs). Optional
 services are gated behind compose profiles so they only start when you
 ask for them:
 
@@ -173,10 +186,10 @@ docker compose --profile proxy up -d
 ```
 
 This adds an `nginx` container that listens on `80` / `443` and
-reverse-proxies the app. Drop your TLS cert into `./deploy/nginx/certs/`
-and adjust `./deploy/nginx/clientst0r.conf` to point at your hostname.
+reverse-proxies the app. Put your TLS certificate files in `./docker/nginx/ssl/`
+and adjust `./docker/nginx/conf.d/clientst0r.conf` to point at your hostname.
 For Let's Encrypt, point your `certbot` deploy hook at the same
-`certs/` directory.
+`ssl/` directory.
 
 If you already run a reverse proxy on the host (Caddy, Traefik,
 existing Nginx), **don't enable this profile** — just point your
@@ -192,13 +205,16 @@ Clientst0r runs fine without Redis (the default cache backend is
 in-process `locmem`). The Redis service is provided for installs that
 already plumb `CACHES['default']` to Redis in `config/settings.py`.
 
-You can combine profiles: `--profile proxy --profile cache`.
+A third profile, `ai-gateway`, runs the OPTIONAL AI gateway worker (a
+separate container that holds the AI provider keys; the one-time setup steps
+are in the comments of `docker-compose.yml`). You can combine profiles:
+`--profile proxy --profile cache`.
 
 ---
 
 ## Persistent data
 
-Four named volumes outlive container rebuilds:
+These named volumes outlive container rebuilds:
 
 | Volume                     | Mounted at                | What it holds                              |
 |----------------------------|---------------------------|--------------------------------------------|
@@ -206,6 +222,9 @@ Four named volumes outlive container rebuilds:
 | `clientst0r-media`         | `/app/media` (app)        | User uploads, branding, generated PDFs     |
 | `clientst0r-uploads`       | `/var/lib/itdocs/uploads` (app) | Document & vault attachments         |
 | `clientst0r-static`        | `/app/static_collected` (app, nginx) | collectstatic output            |
+| `clientst0r-backups`       | `/app/backups` (app)      | Verified backups taken before an upgrade   |
+| `clientst0r-ai-gateway-keys` | `/var/lib/clientst0r/ai-gateway` | AI gateway key pair (only used with the `ai-gateway` profile) |
+| `clientst0r-redis-data`    | `/data` (redis)           | Redis data (only with the `cache` profile) |
 
 To wipe everything (DESTRUCTIVE):
 
@@ -258,8 +277,8 @@ backup (database, uploads, keys) in the `clientst0r-backups` volume, and
 does not migrate without one. Restoring, the restore-test database grant
 for stacks created before this, and the rest of the recovery steps are in
 [UPGRADE_AND_RECOVERY.md](UPGRADE_AND_RECOVERY.md#docker). The web update
-path (`Settings → System → System Updates`) **does not apply upgrades in a container**
-(there is no git checkout), so use the commands above.
+path (**Administration → System → System Updates**) is for native installs: the image has no git checkout, so
+upgrade a container with the commands above.
 
 ---
 
@@ -300,9 +319,10 @@ must be cleared — there's no recovery path for the keys themselves.
 missing".** That's the `:?` enforcement in `docker-compose.yml`. Copy
 `.env.example` to `.env` and fill in the required values.
 
-**Healthcheck stuck at `starting`.** The app needs ~15s to finish
-migrations + collectstatic on the first boot. Watch the logs:
-`docker compose logs -f app`. If it doesn't go healthy after 90s,
+**Healthcheck stuck at `starting`.** The app runs
+migrations + collectstatic on the first boot, and the healthcheck allows a
+15-minute start period before failures count. Watch the logs:
+`docker compose logs -f app`. If it stays unhealthy after that,
 something's wrong — usually a missing env var.
 
 **Image is huge.** It's ~600 MB on `linux/amd64`. Most of that is the

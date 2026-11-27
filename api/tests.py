@@ -471,3 +471,54 @@ class GraphQLExpiryLocalDayTests(TestCase):
         exp = Expiration(name='Cert', expires_at=(evening + timedelta(minutes=30)).astimezone(ZoneInfo('UTC')))
         with mock.patch('django.utils.timezone.now', return_value=evening.astimezone(ZoneInfo('UTC'))):
             self.assertEqual(ExpirationType.resolve_days_until_expiry(exp, None), 0)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class APIKeyPrefixTests(TestCase):
+    """New keys carry the `cst_live_` prefix; keys issued under the old
+    product name (`itdocs_live_`) keep authenticating, because a key is
+    looked up by the HMAC of the whole plaintext, never by its prefix."""
+
+    def setUp(self):
+        self.org = Organization.objects.create(name='PrefixCust', slug='prefix-cust')
+        Asset.objects.create(organization=self.org, name='px-asset', asset_type='server')
+        self.user = User.objects.create_user('px-user', password='pw', email='px@x.com')
+        Membership.objects.create(user=self.user, organization=self.org,
+                                  role=Role.OWNER, is_active=True)
+
+    def _get(self, key):
+        return Client().get('/api/assets/', HTTP_AUTHORIZATION=f'Bearer {key}')
+
+    def test_new_key_uses_cst_live_prefix(self):
+        from api.models import API_KEY_PREFIX
+        api_key, plaintext = APIKey.create_key(
+            organization=self.org, user=self.user, name='new', role=Role.OWNER)
+        self.assertEqual(API_KEY_PREFIX, 'cst_live_')
+        self.assertTrue(plaintext.startswith('cst_live_'))
+        self.assertNotIn('itdocs', plaintext)
+        self.assertTrue(api_key.key_prefix.startswith('cst_live_'))
+        self.assertEqual(self._get(plaintext).status_code, 200)
+
+    def test_legacy_itdocs_key_still_authenticates(self):
+        from api.models import LEGACY_API_KEY_PREFIXES, get_key_prefix, hash_api_key
+        legacy = LEGACY_API_KEY_PREFIXES[0] + 'ab' * 32
+        self.assertTrue(legacy.startswith('itdocs_live_'))
+        APIKey.objects.create(
+            organization=self.org, user=self.user, name='legacy',
+            key_hash=hash_api_key(legacy), key_prefix=get_key_prefix(legacy),
+            role=Role.OWNER)
+        self.assertIsNotNone(APIKey.verify_key(legacy))
+        self.assertEqual(self._get(legacy).status_code, 200)
+
+    def test_rotated_legacy_key_gets_new_prefix(self):
+        from api.key_lifecycle import rotate
+        from api.models import get_key_prefix, hash_api_key
+        legacy = 'itdocs_live_' + 'cd' * 32
+        old = APIKey.objects.create(
+            organization=self.org, user=self.user, name='legacy-rot',
+            key_hash=hash_api_key(legacy), key_prefix=get_key_prefix(legacy),
+            role=Role.OWNER)
+        _, plaintext = rotate(old, self.user, grace_hours=1)
+        self.assertTrue(plaintext.startswith('cst_live_'))
+        self.assertEqual(self._get(plaintext).status_code, 200)
+        self.assertEqual(self._get(legacy).status_code, 200)  # grace period

@@ -51,7 +51,7 @@ Custom roles with granular permissions are also supported. The **View passwords*
 ## API Authentication
 
 ```http
-Authorization: Bearer itdocs_live_<your_api_key>
+Authorization: Bearer cst_live_<your_api_key>
 ```
 
 Generate keys at **Profile → API Keys** (`/api/keys/`). Keys inherit your organization membership and role permissions, and stop working when the user is deactivated.

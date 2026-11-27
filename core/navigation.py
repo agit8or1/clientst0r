@@ -265,6 +265,29 @@ def _msp_wide(name, legacy='membership'):
     return _view_check(check)
 
 
+def _check_integrations(u, ctx):
+    """integrations.views.integration_list, as integrations.ownership rules
+    it: in global view the platform viewers (superuser, Django staff, or an
+    MSP technician whose global role grants integrations_configure, _sync or
+    _view); inside a customer, integrations_view for that customer. Both
+    also pass the /integrations/ section rule (SectionPermissionMiddleware,
+    integrations_view). Rows and actions keep their own checks. The
+    Administration link stays with MSP staff (superuser, Django staff or
+    technician), as before; customer users are not offered it."""
+    from types import SimpleNamespace
+    from accounts.middleware import SectionPermissionMiddleware
+    from integrations.ownership import _org_flag_allowed, can_view_platform
+    if not (u.is_superuser or u.is_staff or _is_msp_staff(u)):
+        return False
+    org = _current_org(ctx)
+    if SectionPermissionMiddleware.denial(SimpleNamespace(current_organization=org), u,
+                                          'integrations_view') is not None:
+        return False
+    if org is None:
+        return can_view_platform(u)
+    return _org_flag_allowed(u, org, 'integrations_view')
+
+
 def _check_rmm_policy_reader(u, ctx):
     """rmm_permissions.views._gate: policy.manage or audit.review."""
     from rmm_permissions.views import _reader
@@ -947,7 +970,8 @@ SECTIONS = (
             keywords='snyk scan configuration', also=('core:settings_snyk',)),
     )),
     Section('settings_integrations', 'settings', _('Integrations'), icon='fa-plug', render_tabs=False, tabs=(
-        Tab(_('Integrations'), 'integrations:integration_list', 'fa-plug', gate=_superuser,
+        Tab(_('Integrations'), 'integrations:integration_list', 'fa-plug',
+            gate=_view_check(_check_integrations),
             keywords='psa rmm m365 unifi connections overview'),
         Tab(_('RMM · Rem0te'), 'integrations:rem0te_setup', 'fa-desktop', gate=_superuser,
             keywords='remote access rmm'),

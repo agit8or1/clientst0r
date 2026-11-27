@@ -22,8 +22,8 @@ IT documentation and assets, a password vault, monitoring, a customer portal and
 | Last roadmap audit | 2026-11-20 |
 | Active stage | Stage 1 — core completion (P0) |
 | Phases | **110** in total |
-| ✅ Complete | 52 (of which 2 marked for verification) |
-| 🔵 In progress | 30 |
+| ✅ Complete | 53 (of which 2 marked for verification) |
+| 🔵 In progress | 29 |
 | 🟡 Partial | 4 |
 | ⬜ Planned | 23 |
 | 🔴 Blocked | 0 (plus blocked items inside other phases — see [Blockers](#blockers)) |
@@ -115,8 +115,7 @@ Work being implemented now or approved as the next P0 task.
 |---|---|---|---|---|---|
 | 1 | 94 — [Evidence integrity and routine backups](#phase-94) | P0\* | 🔵 In progress | External append-only audit shipping (94.1); protected-change approval for audit pruning (94.2); S3 destination (94.3) | — |
 | 2 | 51 — [Reliability and customer-boundary hardening](#phase-51) | P0\* | 🔵 In progress | Per-customer integration ownership (remaining part of the platform-integrations item) | — |
-| 3 | 112 — [Complete user documentation with annotated screenshots](#phase-112) | P1 | 🔵 In progress | 112.10 Existing guides | 67 |
-| 4 | 113 — [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | guide screenshots after 113.8 | 67 |
+| 3 | 113 — [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | guide screenshots after 113.8 | 67 |
 
 <!-- /generated:now -->
 
@@ -363,11 +362,10 @@ unchanged. Click a feature for its details.
 | 59 | [Verified installs and upgrades](#phase-59) | — | 🔵 In progress | updater, root helper | 59.7 LTS channel |
 | 67 | [Interface, navigation and dashboard redesign](#phase-67) | — | 🔵 In progress | 64 | 67.8 validation and 67.16 follow-ups |
 | 96 | [First-install setup wizard and interactive onboarding](#phase-96) | P0 | 🔵 In progress | 59, 64, 67 | 96.5 sample data |
-| 112 | [Complete user documentation with annotated screenshots](#phase-112) | P1 | 🔵 In progress | 67 | 112.10 Existing guides |
 | 113 | [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | 67 | guide screenshots after 113.8 |
 
 <details markdown="1">
-<summary>4 completed phases</summary>
+<summary>5 completed phases</summary>
 
 | ID | Feature | Status | Released | Note |
 |---|---|---|---|---|
@@ -375,6 +373,7 @@ unchanged. Click a feature for its details.
 | 45 | [System-wide Appearance Controls](#phase-45) | ✅ Complete | v3.17.527 | — |
 | 50 | ["Help Us Grow" call to action](#phase-50) | ✅ Complete | v3.17.586 | — |
 | 58 | [Condensed navigation](#phase-58) | ✅ Complete | v3.17.647 | — |
+| 112 | [Complete user documentation with annotated screenshots](#phase-112) | ✅ Complete | v3.17.798 | — |
 
 </details>
 
@@ -3990,50 +3989,13 @@ Today: read-only tenant inventory with manual sync, not verified against a real 
 
 <a id="phase-112"></a>
 
-## Phase 112 — Complete user documentation with annotated screenshots **(L · P1 · docs)** [in progress]
-<!-- phase: ws=I stage=7 view=now order=3 deps=67 next="112.10 Existing guides" -->
-**Status:** 🔵 In progress · **Priority:** P1 · **Workstream:** I. Deployment, Updates & Reliability · **Depends on:** 67  
-**Next:** 112.10 Existing guides
+## Phase 112 — Complete user documentation with annotated screenshots **(L · P1 · docs)** [shipped — v3.17.798]
+<!-- phase: ws=I stage=7 deps=67 -->
+**Status:** ✅ Complete · **Priority:** P1 · **Workstream:** I. Deployment, Updates & Reliability · **Depends on:** 67
 
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 112](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-112).
 
-Every area of the application has a guide in Clientst0r Docs, and every guide carries at least one
-annotated screenshot (numbered callouts matched by a numbered list) captured from the demo instance with
-`scripts/capture_screenshots.py`. Extends 67.27 (shipped v3.17.766).
-
-<details markdown="1">
-<summary>Details, completed work and acceptance criteria</summary>
-
-- **112.1 Coverage checks** *(shipped v3.17.773)* — a test maps every navigation section to the guide that documents it
-  and fails for a guide without an annotated figure; the list of guides and sections still waiting shrinks with
-  each release and may never grow. `core/guide_coverage.py` holds the map and both waiting lists;
-  `core.tests.test_guide_coverage` enforces them.
-- **112.2 Service Desk and My Work** *(shipped v3.17.773)* — new guides My Work, Tickets (with dispatch and
-  projects), Service Management and Workflows, with 19 annotated screenshots; Support Workflows gains its
-  figure. Pages the demo database has nothing to show on (AI Inbox, Routing Triage, Catalog Changes, Workflow
-  Dashboard, Templates, Suggestions, Location Sharing, Timeclock, My Billable Target, My Timesheet) are
-  described without a figure until the demo data covers them.
-- **112.3 Clients, assets and network** *(shipped v3.17.774)* — customers and onboarding, assets, hardware and ports,
-  network diagrams, infrastructure, backup monitoring, IPAM, inventory, vehicles.
-- **112.4 Business** *(shipped v3.17.776)* — CRM, contracts, licensing, quotes, invoices, billing review, procurement,
-  vendors, pulse checks, client health.
-- **112.5 Knowledge and vault** *(shipped v3.17.778)* — documents, knowledge base, diagrams, review and publishing,
-  documentation readiness, password vault, personal vault, secure notes.
-- **112.6 Security and monitoring** *(shipped v3.17.792 — events and monitoring reliability are documented with the coverage-gap release)* — security alerts, incidents, events, monitoring reliability,
-  website and WAN monitors, expirations, status pages, configuration backups.
-- **112.7 Reports** *(shipped v3.17.794)* — reports home, executive scorecard, dashboards, analytics, wallboards,
-  generated and scheduled reports, profitability reports, pricing advisor.
-- **112.8 Administration** *(shipped v3.17.796)* — every settings category: general, users and access, security,
-  integrations, AI configuration (**OPTIONAL AI**), automation, communications, modules, system, maintenance.
-- **112.9 Your account and the customer portal** *(shipped v3.17.797)* — profile, two-factor, work details, apps and
-  downloads; the portal as a customer sees it.
-- **112.10 Existing guides** *(in progress — written, in testing)* — the 35 guides without a figure gain annotated screenshots; guides
-  describing removed or renamed screens are corrected.
-
-  Acceptance: every navigation section is documented by a guide; every guide in Clientst0r Docs has an
-  annotated figure; `scripts/guide_figures.py --check` and the coverage test pass; screenshots are captured
-  against the demo data only.
-
-</details>
+---
 
 <a id="phase-113"></a>
 

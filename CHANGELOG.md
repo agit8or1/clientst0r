@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.798] - 2026-11-27
+
+### Added
+- **Every guide now has an annotated screenshot** (roadmap 112.10, which completes Phase 112). The 30 guides that
+  had none gain one, among them What is Clientst0r, Features, the Admin guide, FAQ, Ticket Routing, Office
+  documents, Payments, Tax, Technician access, the SSO guides, the API guides, the import guides, Install, Docker,
+  Upgrade and recovery, and Package scanner. The screenshot gallery is the only page without one, since it is
+  made of screenshots.
+- **Guides at the top of the repository** (Features, Install and Security) carry figures too. The figure tool now
+  places them there as well as in docs/.
+
+### Changed
+- **New API keys start `cst_live_`.** Keys created earlier start `itdocs_live_` and keep working; a key is checked
+  as a whole, never by its prefix. Rotating an old key gives it the new prefix. The help pages, the API key page and
+  the browser extension show the new form.
+- **Guides use the current menu names**: *Administration → …* instead of *Settings → …*, *Service Desk* instead of
+  PSA, and the module switches under Administration → Modules → Feature Toggles. Guides that described removed or
+  renamed screens are corrected. The Reports module description says *Service Desk and billing reports*.
+- Roadmap: Phase 112 complete; its details moved to ROADMAP_HISTORY.md.
+
+### Fixed
+- **Integrations in the Administration menu** follow the same rule as the page: in global view the people who may
+  see platform integrations, inside a customer those with integrations access there. A technician without an
+  integrations role is no longer offered a link that answers 403, and customer users are never offered it.
+- **Migration rehearsal is for superusers**, like Data Import and the other import screens; MSP staff without
+  superuser rights can no longer open rehearsal plans.
+- **Screenshot gallery** headings use the navigation path (for example Administration → General → Billing).
+
+
 ## [3.17.797] - 2026-11-27
 
 ### Added

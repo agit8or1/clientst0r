@@ -1,8 +1,10 @@
 """Views for the one-customer IT Glue / Hudu migration rehearsal and the
 per-customer inventory export.
 
-Rehearsal views are staff/superuser only (like every import view) and only
-reach plans whose target customer the request may access. Apply and
+Rehearsal views are superuser-only, like the Data Import tab and the legacy
+import screens (`imports.views.is_import_admin`), and only reach plans whose
+target customer the request may access. The per-customer inventory export
+stays open to MSP staff (its sections are gated by each permission). Apply and
 rollback are POST-only and audit-logged.
 """
 from __future__ import annotations
@@ -43,6 +45,16 @@ def is_msp_staff(user):
 
 
 staff_required = user_passes_test(is_msp_staff)
+
+
+def is_rehearsal_admin(user):
+    """Who may use the migration rehearsal: superusers only, the same rule
+    as the Data Import tab and the legacy import screens."""
+    from .views import is_import_admin
+    return is_import_admin(user) and user.is_active
+
+
+superuser_required = user_passes_test(is_rehearsal_admin)
 
 
 def _orgs(request):
@@ -97,13 +109,13 @@ class RehearsalForm(forms.Form):
 
 
 @login_required
-@staff_required
+@superuser_required
 def rehearsal_list(request):
     return render(request, 'imports/rehearsal_list.html', {'plans': _plans(request)})
 
 
 @login_required
-@staff_required
+@superuser_required
 def rehearsal_create(request):
     form = RehearsalForm(request.POST or None, orgs=_orgs(request))
     if request.method == 'POST' and form.is_valid():
@@ -147,7 +159,7 @@ def _type_choices(plan):
 
 
 @login_required
-@staff_required
+@superuser_required
 def rehearsal_detail(request, pk):
     plan = _plan(request, pk)
     summary = planner.summary(plan) if plan.planned_at else None
@@ -186,7 +198,7 @@ def _busy(request, plan):
 
 
 @login_required
-@staff_required
+@superuser_required
 @require_POST
 def rehearsal_stage(request, pk):
     plan = _plan(request, pk)
@@ -197,7 +209,7 @@ def rehearsal_stage(request, pk):
 
 
 @login_required
-@staff_required
+@superuser_required
 @require_POST
 def rehearsal_build(request, pk):
     plan = _plan(request, pk)
@@ -208,7 +220,7 @@ def rehearsal_build(request, pk):
 
 
 @login_required
-@staff_required
+@superuser_required
 @require_POST
 def rehearsal_type_override(request, pk):
     plan = _plan(request, pk)
@@ -224,7 +236,7 @@ def rehearsal_type_override(request, pk):
 
 
 @login_required
-@staff_required
+@superuser_required
 def rehearsal_items(request, pk):
     plan = _plan(request, pk)
     kind = request.GET.get('kind') or ''
@@ -248,7 +260,7 @@ def rehearsal_items(request, pk):
 
 
 @login_required
-@staff_required
+@superuser_required
 def rehearsal_item(request, pk, item_id):
     plan = _plan(request, pk)
     item = get_object_or_404(PlanItem, plan=plan, pk=item_id)
@@ -297,7 +309,7 @@ def rehearsal_item(request, pk, item_id):
 
 
 @login_required
-@staff_required
+@superuser_required
 @require_POST
 def rehearsal_freeze(request, pk):
     plan = _plan(request, pk)
@@ -324,7 +336,7 @@ def _check_apply_permissions(request, plan):
 
 
 @login_required
-@staff_required
+@superuser_required
 @require_POST
 def rehearsal_apply(request, pk):
     plan = _plan(request, pk)
@@ -346,7 +358,7 @@ def rehearsal_apply(request, pk):
 
 
 @login_required
-@staff_required
+@superuser_required
 @require_POST
 def rehearsal_rollback(request, pk):
     plan = _plan(request, pk)
@@ -357,7 +369,7 @@ def rehearsal_rollback(request, pk):
 
 
 @login_required
-@staff_required
+@superuser_required
 def rehearsal_report(request, pk):
     plan = _plan(request, pk)
     from .migration.report import build_report, records_csv, summary_csv

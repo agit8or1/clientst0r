@@ -57,7 +57,8 @@ def main() -> int:
     errors: list[str] = []
     stale: list[str] = []
     used: set[str] = set()
-    for md in sorted(list((ROOT / 'docs').glob('*.md')) + [ROOT / 'README.md']):
+    # Guides live in docs/ and, for README, FEATURES, INSTALL and SECURITY, at the repo root.
+    for md in sorted(list((ROOT / 'docs').glob('*.md')) + list(ROOT.glob('*.md'))):
         if not md.is_file():
             continue
         text = md.read_text(encoding='utf-8')

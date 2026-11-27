@@ -1,11 +1,31 @@
 # Administrator guide
 
-Where to switch on the optional features added in v3.17.664. After upgrading, every feature below
+Where to switch on the optional features (routing, AI, support workflows, technician access and the rest). After upgrading, every feature below
 is in its default state until an administrator changes it. Feature guides:
 [TICKET_ROUTING.md](TICKET_ROUTING.md), [AI_TROUBLESHOOT.md](AI_TROUBLESHOOT.md),
 [SUPPORT_WORKFLOWS.md](SUPPORT_WORKFLOWS.md),
 [TECHNICIAN_ACCESS.md](TECHNICIAN_ACCESS.md),
 [UPGRADE_AND_RECOVERY.md](UPGRADE_AND_RECOVERY.md).
+
+## The Administration page
+
+Administration is the last item in the sidebar (and the gear in the top bar). It opens the settings center: one
+card per category (General, Users & Access, Security, Integrations, AI Configuration, Automation, Communications,
+Modules, System, Maintenance), each listing the pages you may open. Type in the search box to filter the cards.
+The Install readiness card at the top runs a check of sign-in security, site address, e-mail, backups, the
+scheduler, migrations and disk space; run it after a first install and after changes. Only administrators see
+the group; a page you may not open is not listed. The numbers in the screenshot match the list under it. Every
+screenshot is a capture of the application against a demo database; the customers and people in it are invented.
+
+<!-- guide-figure: guide-x1-admin-settings -->
+![The Administration page: install readiness check, a search box and one card per settings category](images/guides/guide-x1-admin-settings.png "Administration: the settings center.")
+
+1. Find a setting by name; the cards filter as you type (press / to jump here).
+2. Install readiness: sign-in security, site address, e-mail, backups, scheduler, migrations and disk space.
+3. AI Configuration (OPTIONAL AI): provider and ticket AI model settings. The switch itself is in General, PSA.
+4. Modules: Feature Toggles and Optional Modules.
+5. System: System Status, System Updates and Mobile Apps.
+<!-- /guide-figure -->
 
 ## Where to switch things on
 
@@ -13,32 +33,32 @@ is in its default state until an administrator changes it. Feature guides:
 
 | Feature | Setting location | Default | Who can change it |
 |---|---|---|---|
-| Integration owner (platform or one customer) | Settings → Integrations → Integrations, in global view → Add (Owner); existing connections: "Make platform-owned" or `manage.py integrations_ownership` | New connections in global view are platform-owned; existing ones keep their customer | su, Django staff, or MSP staff whose global role grants `integrations_configure` |
-| Rem0te pairing (Ed25519) | Settings → Integrations → RMM · Rem0te (`/integrations/rmm/rem0te/setup/`) | Not paired: no identity keys until created | su |
-| RMM service lists (Tactical RMM only) | Settings → Integrations → Integrations → the RMM connection → Edit → "Collect services" | Off | MSP staff who are administrators of the selected customer |
+| Integration owner (platform or one customer) | Administration → Integrations → Integrations, in global view → Add (Owner); existing connections: "Make platform-owned" or `manage.py integrations_ownership` | New connections in global view are platform-owned; existing ones keep their customer | su, Django staff, or MSP staff whose global role grants `integrations_configure` |
+| Rem0te pairing (Ed25519) | Administration → Integrations → RMM · Rem0te (`/integrations/rmm/rem0te/setup/`) | Not paired: no identity keys until created | su |
+| RMM service lists (Tactical RMM only) | Administration → Integrations → Integrations → the RMM connection → Edit → "Collect services" | Off | MSP staff who are administrators of the selected customer |
 | Refresh from RMM (one device) | Assets & Network → Device Workspace → Refresh from RMM | Available; once per device every 5 minutes | MSP technicians allowed `device.view` for that device |
-| RMM permission levels (L1 / L2 / L3) | Settings → Security → RMM Permissions (`/settings/security/rmm-permissions/`); levels are set on the user's global role | No level assigned | `policy.manage`; giving or changing a level also needs a second administrator to approve |
+| RMM permission levels (L1 / L2 / L3) | Administration → Security → RMM Permissions (`/settings/security/rmm-permissions/`); levels are set on the user's global role | No level assigned | `policy.manage`; giving or changing a level also needs a second administrator to approve |
 | Ticket routing | Service Desk → Dispatch Board → Configure → Ticket Routing (`/psa/routing/`; MSP default), per customer under Customers | Off; customers inherit the MSP default | PSA on + `routing_manage_rules` |
 | Alert-to-ticket policy | Security & Monitoring → Alert Policies (`/psa/routing/alerts/`) | Legacy: one ticket per Rem0te alert, no policy; synced RMM alerts not included | PSA on + `routing_manage_rules` |
 | Support workflows | Service Desk → Workflows → Support Workflows (`/psa/workflows/`) | Twelve built-in workflows, active | PSA on + `routing_manage_rules` |
-| AI features (master switch) **OPTIONAL AI** | Settings → General → Service Desk (`/psa/settings/`) → `psa_ai_enabled` | Off | su |
-| AI Troubleshoot per customer **OPTIONAL AI** | Settings → AI Configuration → Ticket AI models (`/psa/ai/profiles/`) → the customer's policy | Off; 50 runs a day per customer, 20 per technician; network identifiers and contact names not shared | su |
-| Installation-wide AI cap and command allowlist **OPTIONAL AI** | Settings → AI Configuration → Ticket AI models (`/psa/ai/profiles/`) → Installation-wide limits | No cap; no allowlist (built-in denylist always applies) | su |
+| AI features (master switch) **OPTIONAL AI** | Administration → General → Service Desk (`/psa/settings/`) → `psa_ai_enabled` | Off | su |
+| AI Troubleshoot per customer **OPTIONAL AI** | Administration → AI Configuration → Ticket AI models (`/psa/ai/profiles/`) → the customer's policy | Off; 50 runs a day per customer, 20 per technician; network identifiers and contact names not shared | su |
+| Installation-wide AI cap and command allowlist **OPTIONAL AI** | Administration → AI Configuration → Ticket AI models (`/psa/ai/profiles/`) → Installation-wide limits | No cap; no allowlist (built-in denylist always applies) | su |
 | Geo-aware dispatch | Service Desk → Shifts & Locations → Configure → Dispatch Locations | Off | su who is MSP staff |
 | Sharing my position with dispatch | Service Desk → Shifts & Locations → Location Sharing | Not shared | Each technician, for themselves |
 | Shift templates | Service Desk → Shifts & Locations → Configure → Shift Templates | None | Staff with `resourcing_approve_leave` or `routing_manage_rules`, or su |
-| LDAP group mappings | Settings → Users & Access → LDAP Group Mappings (`/accounts/ldap/group-mappings/`) | None | su |
-| LDAP background sync | Settings → Automation → Task Scheduler → LDAP Group Mapping Sync | On, every 15 minutes; does nothing without LDAP sign-in and mappings | su |
+| LDAP group mappings | Administration → Users & Access → LDAP Group Mappings (`/accounts/ldap/group-mappings/`) | None | su |
+| LDAP background sync | Administration → Automation → Task Scheduler → LDAP Group Mapping Sync | On, every 15 minutes; does nothing without LDAP sign-in and mappings | su |
 | Weekly security digest | Security & Monitoring → Security Alerts → Configure → Weekly Digest (`/security/digest/`) | No contacts subscribed | `security_alerts_view` to view; `security_alerts_manage_connections` to change |
 | "All clear" digest e-mail | Same page, per customer | Off | `security_alerts_manage_connections` for that customer |
 | Agreement reminders | Each agreement's settings | On, every 7 days | Staff who manage agreements |
-| Portal for a customer | Settings → General → Service Desk → per-customer settings (`/psa/settings/client/`) | As before | su |
+| Portal for a customer | Administration → General → Service Desk → per-customer settings (`/psa/settings/client/`) | As before | su |
 | Requesters' default sites | `/psa/requester-sites/` | None | Staff with `tickets_edit` for that customer |
-| Release channel | Settings → System → System Updates | New installs: Stable. Existing installs: Preview (keep following `main`) | su |
+| Release channel | Administration → System → System Updates | New installs: Stable. Existing installs: Preview (keep following `main`) | su |
 | Setup Assistant | Administration → General → Setup assistant (`/core/settings/setup/`) | New installs: opens by itself after the first administrator's sign-in. Upgraded installs: never opens by itself. See [Setup assistant](#setup-assistant) | su |
-| Module switches | Settings → Modules → Feature Toggles (`/core/settings/features/`); overview on Optional Modules (`/core/settings/modules/`) | Every module on for a new install; upgrades keep each module as it was. See [Modules](#modules-turning-features-on-and-off) | su |
-| File upload and delete | Settings → Users & Access → Roles → `files_upload`, `files_delete` | Custom roles with `files_view` get both on upgrade; built-in Editor has no delete, Read-Only neither | Administrators who manage roles |
-| Invoice editing and payments | Settings → Users & Access → Roles → `billing_send_invoices`, `billing_record_payments` | Owner and Admin roles | Administrators who manage roles |
+| Module switches | Administration → Modules → Feature Toggles (`/core/settings/features/`); overview on Optional Modules (`/core/settings/modules/`) | Every module on for a new install; upgrades keep each module as it was. See [Modules](#modules-turning-features-on-and-off) | su |
+| File upload and delete | Administration → Users & Access → Roles → `files_upload`, `files_delete` | Custom roles with `files_view` get both on upgrade; built-in Editor has no delete, Read-Only neither | Administrators who manage roles |
+| Invoice editing and payments | Administration → Users & Access → Roles → `billing_send_invoices`, `billing_record_payments` | Owner and Admin roles | Administrators who manage roles |
 | Knowledge base in customer portals | Global KB (`/docs/kb/`): the Portal column and the bulk actions Show in all portals / Make staff only | New global articles default to shown in every customer portal; existing live global articles were switched on once by migration. Customer-scoped documents default to staff only and show only in their own customer's portal when ticked (the document form's "Show in this customer's portal"). | Staff with `kb_edit_articles` and publish rights |
 
 ## Setup assistant
@@ -101,8 +121,8 @@ showing its current state.
 
 ## Modules: turning features on and off
 
-**Settings → Modules → Feature Toggles** (`/core/settings/features/`, superusers only) has one
-switch per module. **Settings → Modules → Optional Modules** (`/core/settings/modules/`) shows the
+**Administration → Modules → Feature Toggles** (`/core/settings/features/`, superusers only) has one
+switch per module. **Administration → Modules → Optional Modules** (`/core/settings/modules/`) shows the
 same modules with what each one needs, what people see when it is on and where its settings are,
 and can switch them one at a time.
 

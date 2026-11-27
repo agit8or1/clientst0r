@@ -543,7 +543,7 @@ def help_getting_started(request):
     <p>API keys authenticate programmatic access to the REST API and the browser extension.</p>
     <ul>
         <li><strong>Generate:</strong> Open <em>API Keys</em> (<code>/api/keys/</code>, linked from <em>Apps &amp; Downloads → Browser Extension</em> in the account menu; superusers also from <em>Settings → Users &amp; Access → Access Management</em>) → <em>Create API Key</em></li>
-        <li><strong>Format:</strong> Keys are prefixed <code>itdocs_live_…</code></li>
+        <li><strong>Format:</strong> Keys are prefixed <code>cst_live_…</code> (keys created before the prefix change start <code>itdocs_live_…</code> and keep working)</li>
         <li><strong>Usage:</strong> Pass as <code>Authorization: Bearer YOUR_KEY</code></li>
         <li><strong>Scope:</strong> Keys are tied to your user and inherit your organization access</li>
         <li><strong>Revoke:</strong> Delete a key instantly to invalidate all uses</li>
@@ -609,7 +609,7 @@ def help_getting_started(request):
           <rect x="12" y="52" width="676" height="42" rx="4" fill="#0d1117" stroke="#30363d"/>
           <text x="28" y="70" fill="#e6edf3" font-size="11" font-family="sans-serif">Browser Extension Key</text>
           <rect x="28" y="76" width="340" height="14" rx="3" fill="#161b22" stroke="#30363d"/>
-          <text x="36" y="87" fill="#3fb950" font-size="10" font-family="monospace">itdocs_live_xK9mP…Qr7v</text>
+          <text x="36" y="87" fill="#3fb950" font-size="10" font-family="monospace">cst_live_xK9mP…Qr7v</text>
           <rect x="380" y="73" width="66" height="18" rx="4" fill="#21262d" stroke="#30363d"/>
           <text x="413" y="85" fill="#8b949e" font-size="10" font-family="sans-serif" text-anchor="middle">Copy</text>
           <rect x="460" y="73" width="60" height="18" rx="4" fill="#21262d" stroke="#30363d"/>
@@ -619,7 +619,7 @@ def help_getting_started(request):
           <rect x="12" y="104" width="676" height="44" rx="4" fill="#3fb95022" stroke="#3fb95055"/>
           <text x="28" y="122" fill="#3fb950" font-size="11" font-family="sans-serif">✓ Key created! Copy it now — it will only be shown once.</text>
           <rect x="28" y="128" width="440" height="14" rx="3" fill="#161b22" stroke="#30363d"/>
-          <text x="36" y="139" fill="#79c0ff" font-size="10" font-family="monospace">itdocs_live_xK9mPL3t8nQjR2sYfBdWcAeZuHvMoTgNiXkCpDwF4yEq0Qr7v</text>
+          <text x="36" y="139" fill="#79c0ff" font-size="10" font-family="monospace">cst_live_xK9mPL3t8nQjR2sYfBdWcAeZuHvMoTgNiXkCpDwF4yEq0Qr7v</text>
           <!-- Annotations -->
           <line x1="200" y1="87" x2="200" y2="106" stroke="#f0b429" stroke-width="1.5" stroke-dasharray="3,2"/>
           <rect x="120" y="106" width="160" height="0" rx="8" fill="#f0b42944"/>
@@ -1982,7 +1982,7 @@ def help_api(request):
     <p>Create keys at <strong>Settings &rarr; Users &amp; Access &rarr; Access Management &rarr; API Keys</strong> (superusers), or go to <code>/api/keys/</code>. The key is shown once. Send it in every request:</p>
     <div class="card mt-2 mb-3">
         <div class="card-body bg-dark">
-            <code class="text-info">Authorization: Bearer itdocs_live_YOUR_KEY_HERE</code>
+            <code class="text-info">Authorization: Bearer cst_live_YOUR_KEY_HERE</code>
         </div>
     </div>
     <p>The <strong>permission level</strong> caps what a key can do, and a key never does more than your own role allows:</p>
@@ -2008,7 +2008,7 @@ def help_api(request):
     <p>Other modules (monitors, WAN connections, locations, tickets) have no REST endpoints.</p>
 
     <pre class="bg-dark p-3 rounded mt-3"><code class="text-light">curl -s https://your-server/api/assets/ \\
-  -H "Authorization: Bearer itdocs_live_xxxxx" \\
+  -H "Authorization: Bearer cst_live_xxxxx" \\
   | python3 -m json.tool</code></pre>
 
     <h5 class="mt-4" id="graphql"><i class="fas fa-diagram-project"></i> GraphQL</h5>

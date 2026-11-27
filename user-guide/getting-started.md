@@ -54,7 +54,7 @@ If you use LDAP sign-in, the optional MSP staff group in Settings → Directory 
 
 ## Service desk at a glance
 
-Once the service desk is on (`psa_enabled` in *Settings → Feature Toggles* or *Settings → Optional Modules*):
+Once the service desk is on (`psa_enabled` in *Administration → Modules → Feature Toggles*):
 
 - **My Work** (`/psa/my-work/`, first item in the PSA menu, and a button on the dashboard) is
   each technician's starting point: open tickets in SLA order, running timers with a stop
@@ -95,7 +95,7 @@ switches you to it, so the links open the right records; Global View stays as it
 
 ## Optional modules (administrators)
 
-**Settings → System → Optional Modules** (`/core/settings/modules/`, superusers) lists
+**Administration → Modules → Optional Modules** (`/core/settings/modules/`, superusers) lists
 every optional module: whether it is on, what it needs, what people see once it is on, its
 default and where its settings are.
 
@@ -140,7 +140,7 @@ API keys authenticate programmatic access to the REST API and the browser extens
 | Action | Details |
 |--------|---------|
 | Generate | Click your username → *API Keys* → *Create New Key* (`/api/keys/`) |
-| Format | Keys are prefixed `itdocs_live_…` |
+| Format | Keys are prefixed `cst_live_…`; keys created before the prefix change start `itdocs_live_…` and keep working |
 | Usage | `Authorization: Bearer YOUR_KEY` header |
 | Scope | Keys inherit your user's organization access and role permissions |
 | Revoke | Delete a key instantly to invalidate all current uses |
@@ -148,7 +148,7 @@ API keys authenticate programmatic access to the REST API and the browser extens
 
 ```bash
 # Example API call
-curl -H "Authorization: Bearer itdocs_live_xK9mPL..." \
+curl -H "Authorization: Bearer cst_live_xK9mPL..." \
      https://your-server/api/assets/
 ```
 

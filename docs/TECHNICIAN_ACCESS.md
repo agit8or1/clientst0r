@@ -1,8 +1,19 @@
 # Technician access and Ticket AI Assist — operator guide
 
 *Since v3.17.646. Ticket AI Assist is **OPTIONAL AI**: it requires PSA to be on and the master AI switch
-(`psa_ai_enabled`, Settings → General → Service Desk). The RMM tools on a ticket (v3.17.658, [below](#rmm-tools-on-a-ticket))
+(`psa_ai_enabled`, Administration → General → Service Desk). The RMM tools on a ticket (v3.17.658, [below](#rmm-tools-on-a-ticket))
 are not AI features: they work with AI off, but need PSA, a preset and a paired RMM.*
+
+The Technician Access page is **Administration → Security → Technician Access** (`/settings/security/technician-access/`, superusers only). The numbers in the screenshot match the list under it. The screenshot is a capture of the application against a demo database; the customers and people in it are invented.
+
+<!-- guide-figure: guide-x2-technician-access -->
+![Technician Access page with numbered callouts on protected changes, the preview, assignments and presets](images/guides/guide-x2-technician-access.png "Administration → Security → Technician Access.")
+
+1. Protected changes: widening changes wait here for confirmation or approval.
+2. Preview: what a technician can do at a customer.
+3. Assignments: which preset each technician has, and where.
+4. Presets: the L1, L2, L3 and other permission sets.
+<!-- /guide-figure -->
 
 ## What it governs
 
@@ -82,7 +93,7 @@ already queued, which the gateway re-checks before calling a model.
 
 ## Why can this technician do this?
 
-**Settings → Security → Technician Access → Why** (`/settings/security/technician-access/why/`), or **Why?** on any row
+**Administration → Security → Technician Access → Why** (`/settings/security/technician-access/why/`), or **Why?** on any row
 of the effective-access preview. Pick a technician, a customer and a capability. The page shows the same decision the
 ticket tools make (Allowed, Request, Off, Unavailable or Locked) and the chain of records behind it at that customer:
 
@@ -124,7 +135,7 @@ command line).
 
 ## Admin setup
 
-1. **Settings → AI Configuration → Ticket AI models.** Create model profiles: Anthropic, OpenAI or Ollama.
+1. **Administration → AI Configuration → Ticket AI models.** Create model profiles: Anthropic, OpenAI or Ollama.
    - API keys are write-only, sealed to the gateway key, and can't be shown again.
    - An Ollama address only works after **Propose address** is approved as a protected change.
 2. On the same page, set each customer's **AI policy**: analysis, compare, allowed models, default model,
@@ -134,12 +145,12 @@ command line).
      **account menu → My Profile → My AI keys**. Only its owner can use it, and only at customers that allow
      technicians' keys and are not local-only; it doesn't have to be listed in the policy. The
      customer's daily budget counts it at the prices the technician enters.
-3. **Settings → Integrations → Integrations → RMM → the customer's connection → Configure → Ticket integration pairing (ticket-rmm-v1).**
+3. **Administration → Integrations → Integrations → RMM → the customer's connection → Configure → Ticket integration pairing (ticket-rmm-v1).**
    Any RMM that implements the contract can be paired; the connection must serve a single customer. Enter the
    key ID, the two secrets, where the RMM runs and, if it differs from the connection's address, the integration
    address. A second administrator approves the pairing; then **Check pairing** on the connection page fetches
    the RMM's capabilities and pins its tenant. The scheduler re-checks hourly (every 10 minutes after a failure).
-4. **Settings → Security → Technician Access.**
+4. **Administration → Security → Technician Access.**
    - Assign presets per technician or group, per customer, optionally with an expiry. **Preview** shows the diff,
      the affected technicians and the expiry before you save.
    - Set customer defaults and restrictions, add denies, and preview anyone's effective access with explanations.
@@ -189,7 +200,7 @@ alerts and these notices go, so it can't be moved by one person:
 
 **One-administrator installs can't widen access** or move a protected address. Add a second superuser first.
 
-**Granting superuser** is a protected change when **Settings → Security → Superuser Approval** is on (since
+**Granting superuser** is a protected change when **Administration → Security → Superuser Approval** is on (since
 v3.17.653; off on upgrade):
 
 - One administrator requests the grant (from the user page, the user editor or Django admin) and confirms it with
@@ -422,7 +433,7 @@ the same redaction again and cut to 300 characters.
 
 ### Retention
 
-Each customer's **AI policy** (**Settings → AI Configuration → Ticket AI models**, `/psa/ai/profiles/`) has **History retention days**. Blank uses the
+Each customer's **AI policy** (**Administration → AI Configuration → Ticket AI models**, `/psa/ai/profiles/`) has **History retention days**. Blank uses the
 installation default, `PSA_AI_HISTORY_RETENTION_DAYS` in `.env` (365); `0` keeps history until deleted by hand.
 
 - Entries older than the window drop out of the timeline immediately.

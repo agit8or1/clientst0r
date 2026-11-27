@@ -86,15 +86,7 @@ PENDING_SECTIONS = frozenset({
 
 # Guides (by slug) without an annotated figure yet (112.10 and the batches above).
 GUIDES_WITHOUT_FIGURE = frozenset({
-    'what-is-clientst0r', 'features', 'admin-guide', 'screenshots', 'faq',
-    'ticket-routing', 'msp-documentation', 'office-documents',
-    'ai-troubleshoot',
-    'payments', 'tax',
-    'technician-access', 'client-data-protection', 'azure-sso', 'oidc-sso', 'security-policy',
-    'integrations', 'api-access', 'api-multi-org', 'graphql-api', 'browser-extension-api',
-    'importing-from-it-glue', 'importing-from-hudu',
-    'install', 'docker', 'upgrade-and-recovery', 'manual-update', 'upgrade-notes',
-    'seeding-data', 'package-scanner', 'install-app',
+    'screenshots',  # the screenshot gallery itself
 })
 
 

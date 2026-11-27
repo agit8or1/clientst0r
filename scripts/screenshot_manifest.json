@@ -1433,9 +1433,9 @@
       "route": "/core/settings/billing/",
       "theme": "light",
       "group": "access",
-      "heading": "Settings → Billing",
+      "heading": "Administration → General → Billing",
       "caption": "The billing thresholds in one place: invoice and quote approval, agreement-usage approval, late fees, the default tax rate and currency, and whether month-to-month contracts need an e-signature. Each value shows which level it comes from; every change is audit-logged.",
-      "alt": "Settings Billing page in light theme listing invoice approval threshold, agreement usage approval percentage, late fee terms, automatic accounting push, quote approval threshold, default tax rate and currency, and the month-to-month e-signature exemption",
+      "alt": "Administration General Billing settings page in light theme listing invoice approval threshold, agreement usage approval percentage, late fee terms, automatic accounting push, quote approval threshold, default tax rate and currency, and the month-to-month e-signature exemption",
       "organization": "Beacon Managed IT",
       "max_h": 1500
     },

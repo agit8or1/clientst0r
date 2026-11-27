@@ -1,6 +1,6 @@
 # Clientst0r Features
 
-What Clientst0r does as of **v3.17.761**, by area, with what each feature needs and where it stops.
+What Clientst0r does as of **v3.17.776**, by area, with what each feature needs and where it stops.
 See the [README](README.md) for install steps, [docs/screenshots.md](docs/screenshots.md) for the
 visual tour, and the [roadmap](docs/ROADMAP.md) for planned work.
 
@@ -13,15 +13,27 @@ visual tour, and the [roadmap](docs/ROADMAP.md) for planned work.
 | **Planned** | Not built yet (or only partly). Tracked in the [roadmap](docs/ROADMAP.md). |
 | **Separate component** | Not part of the web application in this repository. |
 
-**Configuration** names where to switch or set the feature up. "Settings → X → Y" means
+**Configuration** names where to switch or set the feature up. "Administration → X → Y" means
 **Administration** (or the gear in the top bar) → settings center category X → page Y. Module
-switches (`*_enabled`) live in **Settings → Modules → Feature Toggles**, superusers only. Every
+switches (`*_enabled`) live in **Administration → Modules → Feature Toggles**, superusers only. Every
 module switch is **on** for a new install; upgrading keeps each module as it was. A module that is
 off is hidden from every menu, its pages answer "Page not found" and its scheduled jobs pause;
 nothing is deleted. The full list is in
 [ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md#modules-turning-features-on-and-off). `psa_ai_enabled`
 (**OPTIONAL AI**), the customer portal switches and CSAT e-mails are not module switches and stay
 **off** until turned on.
+
+The numbers in the screenshot match the list under it. Every screenshot is a capture of the application
+against a demo database; the customers and people in it are invented.
+
+<!-- guide-figure: guide-x1-features-modules -->
+![Administration, Modules, Optional Modules: each optional module with its state and a Turn on or Turn off button](docs/images/guides/guide-x1-features-modules.png "Administration, Modules, Optional Modules.")
+
+1. Modules are grouped (Service desk, Sales, Operations, and so on).
+2. One module: its name, what it does and its current state.
+3. Turn off: the module's pages leave the menus, and modules that need it stop working until it is back on.
+4. A module that is off. Turn it on to use it.
+<!-- /guide-figure -->
 
 **Access model.** Every user is **MSP staff** (superuser, staff flag, or User Type *Staff*) or a
 **customer user**. Staff work across customers within their global role. Customer users see only
@@ -57,9 +69,9 @@ Categories:
 | Ten-section sidebar (Dashboard, My Work, Service Desk, Clients, Assets & Network, Business, Knowledge & Vault, Security & Monitoring, Reports; Administration at the foot) with icon rail and flyouts | Available | None | Sections hide when their module is off or the user lacks permission | [navigation-map.md](docs/navigation-map.md) |
 | Go to palette (Ctrl+K / Cmd+K): pages, settings, quick commands, clients, tickets, devices, projects, documents, reports | Available | None | Passwords are never searched; results follow each list's permissions | — |
 | Jump to filter, Favorites, Recent, `g <key>` section shortcuts | Available | None | | — |
-| Role dashboards with KPI row (administrator, manager, technician levels, sales, customer) | Available | Settings → Users & Access → Role Dashboards | | — |
+| Role dashboards with KPI row (administrator, manager, technician levels, sales, customer) | Available | Administration → Users & Access → Role Dashboards | | — |
 | Client workspace: overview, tickets, assets, RMM devices, contacts, documents, passwords (names only), contracts, billing, projects, activity, members | Available | PSA tabs need `psa_enabled` | | — |
-| Settings center: ten searchable categories showing only permitted pages | Available | None | | — |
+| Administration page (settings center): ten searchable categories showing only permitted pages | Available | None | | — |
 | Global search | Limited | None | Substring match; no ranking or saved searches | — |
 | Themes (light, Professional Dark default), phone layout, installable web app (PWA) | Available | None | PWA install needs HTTPS | [INSTALL_APP.md](docs/INSTALL_APP.md) |
 
@@ -111,7 +123,7 @@ third-party PSA sync in [category 17](#17-api-integrations-and-administration).
 | Diagrams (draw.io) | Available | `diagrams_enabled` | | — |
 | Agreements and policy acknowledgments bound to an exact document version, with evidence download | Available | Document → Agreement | Uploaded-file documents can't be agreements | — |
 | Export: Markdown, HTML, DOCX, PDF | Available | None | | — |
-| Office document editing: ONLYOFFICE, Collabora, Microsoft 365 (SharePoint/OneDrive) | Limited | Settings → Integrations → Office Documents | Not yet verified against real editor services; customer-portal editing and Google Docs planned | [OFFICE_DOCUMENTS.md](docs/OFFICE_DOCUMENTS.md) |
+| Office document editing: ONLYOFFICE, Collabora, Microsoft 365 (SharePoint/OneDrive) | Limited | Administration → Integrations → Office Documents | Not yet verified against real editor services; customer-portal editing and Google Docs planned | [OFFICE_DOCUMENTS.md](docs/OFFICE_DOCUMENTS.md) |
 
 ## 5. Password vault
 
@@ -119,19 +131,19 @@ third-party PSA sync in [category 17](#17-api-integrations-and-administration).
 |---|---|---|---|---|
 | Encrypted entries (AES-256-GCM, per-purpose HKDF keys), 15 types, folders, TOTP codes | Available | `APP_MASTER_KEY` | Losing the master key makes vault data unrecoverable | [CLIENT_DATA_PROTECTION.md](docs/CLIENT_DATA_PROTECTION.md) |
 | Reveal as its own permission; every reveal audited and rate-limited | Available | Roles | | — |
-| Access rules (country, address range, time), reveal approval, break-glass, expiry warnings | Available | Vault → access rules | | — |
-| Vault visibility: technicians see a customer's entries only where a membership or global role grants it | Available | Settings → Security → Vault Visibility | | [TECHNICIAN_ACCESS.md](docs/TECHNICIAN_ACCESS.md) |
+| Access rules (country, address range, time), reveal approval, break-glass, expiry warnings | Available | Knowledge & Vault → Password Vault → access rules | | — |
+| Vault visibility: technicians see a customer's entries only where a membership or global role grants it | Available | Administration → Security → Vault Visibility | | [TECHNICIAN_ACCESS.md](docs/TECHNICIAN_ACCESS.md) |
 | Breach checks (Have I Been Pwned, k-anonymity) | Limited | Scheduler | Blocking breached passwords only via `HIBP_BLOCK_BREACHED` environment variable | — |
 | Personal vault | Limited | None | Encrypted with the server master key, not a per-user key | — |
 | Secure notes (ephemeral share links) | Available | `secure_notes_enabled` | | — |
-| Bitwarden / Vaultwarden JSON import | Limited | Settings → Maintenance → Vault Import | Superusers only | — |
+| Bitwarden / Vaultwarden JSON import | Limited | Administration → Maintenance → Vault Import | Superusers only | — |
 | Browser extension | Separate component | REST API key (Editor level or higher) | In `clientst0r-extension/`; unsigned, loads in developer mode only | [browser-extension-api.md](docs/browser-extension-api.md) |
 
 ## 6. Assets, hardware and racks
 
 | Feature | Status | Configuration | Limitations | Docs |
 |---|---|---|---|---|
-| Assets: about 60 built-in types, custom types and custom fields (on the form and the API), relationships, photos, RMA, lifecycle dates | Limited | Settings → General → Custom Fields & Types | No bulk edit; no per-asset change history; status is a custom field | — |
+| Assets: about 60 built-in types, custom types and custom fields (on the form and the API), relationships, photos, RMA, lifecycle dates | Limited | Administration → General → Custom Fields & Types | No bulk edit; no per-asset change history; status is a custom field | — |
 | Hardware catalog (community device-type library) with generated front/rear panel artwork and a layout editor | Available | Catalog import | Catalog size depends on the imported revision | [HARDWARE_INVENTORY.md](docs/HARDWARE_INVENTORY.md) |
 | Ports, VLANs, PoE, cables, patch-panel mapping, cable tracing, labels with QR codes, rack/connectivity/VLAN diagrams | Available | None | Documentation only: nothing is pushed to devices; link state shows "Not observed"; hardware REST API is read-only | [HARDWARE_INVENTORY.md](docs/HARDWARE_INVENTORY.md) |
 | Rack elevations (drag placement), network closets | Limited | None | Rack power figures are not summed from devices | — |
@@ -150,7 +162,7 @@ third-party PSA sync in [category 17](#17-api-integrations-and-administration).
 | Status pages (public token pages, per customer, incident posts) | Available | `status_pages_enabled` (menu under Monitoring) | | — |
 | Network config backups over SSH (Cisco IOS/ASA, Arista EOS, Juniper Junos, MikroTik, FortiOS, HP ProCurve, generic), diff, approve, drift | Available | `netconfig_enabled`; per-device SSH credentials | | — |
 | Network discovery import (script run on a Windows host, results imported as assets) | Available | Collector token | No SNMP or LLDP; the topology and port-map pages have no data source until pushed link data exists | — |
-| Network controller sync: UniFi, Omada, Grandstream | Limited | Settings → Integrations | Scheduled UniFi sync records every device as an access point; use manual import for correct types | — |
+| Network controller sync: UniFi, Omada, Grandstream | Limited | Administration → Integrations | Scheduled UniFi sync records every device as an access point; use manual import for correct types | — |
 | Backup monitoring: Proxmox Backup Server (polled), restic, Borg, Kopia (signed push reports); alerts, tickets, restore tests | Available | `backup_monitoring_enabled`; Assets & Network → Backup Monitoring; `view_backup_status` | Commercial backup products planned | [BACKUP_MONITORING.md](docs/BACKUP_MONITORING.md) |
 | Service dependency and impact mapping | Planned | | Phase 88 | [ROADMAP.md](docs/ROADMAP.md) |
 
@@ -165,8 +177,8 @@ Security Alerts and Incidents need `psa_enabled` and are MSP-staff only.
 | Auto-ticket rules, incidents, playbooks, correlation, threat overview, digest, MTTA | Available | `psa_enabled`, `security_alerts_enabled` | Correlation is fixed grouping; configurable rules planned (Phase 85) | — |
 | Security Overview (read-only summary) | Available | `psa_enabled`, `security_alerts_enabled` | | — |
 | Events: one list of security, RMM, Rem0te, backup and website-monitor alerts; manual ticket/incident links; ingestion health | Available | Security & Monitoring → Events; ingestion switch on by default; permissions `events_view`, `events_link`, `events_manage_ingestion` (seeded Security Analyst and Security Administrator roles); retention per source and per customer on the ingestion health page | Phase 82 in progress: no correlation or automation yet; address/account/IOC fields empty until connectors supply them; WAN monitors not a source | [ROADMAP.md](docs/ROADMAP.md) |
-| Firewall: IP and GeoIP rules, blocked-request log; fail2ban management | Available | Settings → Security → Firewall & GeoIP, Fail2ban | Application-level; fail2ban on native installs only | — |
-| Vulnerability scans (Snyk, pip-audit, OS packages) | Available | Settings → Security → Vulnerability Scans | Snyk needs a token | [PACKAGE_SCANNER.md](docs/PACKAGE_SCANNER.md) |
+| Firewall: IP and GeoIP rules, blocked-request log; fail2ban management | Available | Administration → Security → Firewall & GeoIP, Fail2ban | Application-level; fail2ban on native installs only | — |
+| Vulnerability scans (Snyk, pip-audit, OS packages) | Available | Administration → Security → Vulnerability Scans | Snyk needs a token | [PACKAGE_SCANNER.md](docs/PACKAGE_SCANNER.md) |
 | Vendor connectors, Operations Center, SOAR Lite, on-call routing, posture scorecards | Planned | | Phases 84–89 | [ROADMAP.md](docs/ROADMAP.md) |
 
 ## 9. RMM and Rem0te
@@ -177,14 +189,14 @@ Clientst0r or by AI.
 
 | Feature | Status | Configuration | Limitations | Docs |
 |---|---|---|---|---|
-| RMM sync (devices, alerts, software): Atera, ConnectWise Automate, Datto RMM, NinjaOne, Tactical RMM, Rem0te | Available | Settings → Integrations; scheduler task `rmm_sync` (off by default) | Polling; device map coordinates only from Tactical RMM | [INTEGRATION_SETUP_GUIDE.md](docs/INTEGRATION_SETUP_GUIDE.md) |
-| Rem0te pairing over contract ticket-rmm-v1 revision 2 (Ed25519 signatures, replay protection, tenant pinned by immutable IDs) | Available | Settings → Integrations → RMM · Rem0te; turning pairing on is a protected change a second administrator approves | Tested with both real applications in CI | [TECHNICIAN_ACCESS.md](docs/TECHNICIAN_ACCESS.md) |
+| RMM sync (devices, alerts, software): Atera, ConnectWise Automate, Datto RMM, NinjaOne, Tactical RMM, Rem0te | Available | Administration → Integrations; scheduler task `rmm_sync` (off by default) | Polling; device map coordinates only from Tactical RMM | [INTEGRATION_SETUP_GUIDE.md](docs/INTEGRATION_SETUP_GUIDE.md) |
+| Rem0te pairing over contract ticket-rmm-v1 revision 2 (Ed25519 signatures, replay protection, tenant pinned by immutable IDs) | Available | Administration → Integrations → RMM · Rem0te; turning pairing on is a protected change a second administrator approves | Tested with both real applications in CI | [TECHNICIAN_ACCESS.md](docs/TECHNICIAN_ACCESS.md) |
 | Pairing other RMMs that implement the contract (HMAC signatures) | Limited | RMM connection page | Rem0te is the only known implementation | — |
 | Rem0te alert → Clientst0r ticket with link back; alert-to-ticket policy and maintenance windows | Available | Security & Monitoring → Alert Policies | One ticket per Rem0te alert until the policy is switched on | — |
 | Redacted handoff from a ticket, view/control session launch | Limited | Technician access assignment at the customer | Session grants come from the RMM; the Rem0te handoff and session-launch routes (contract revision 3) are in development on the Rem0te side | [TECHNICIAN_ACCESS.md](docs/TECHNICIAN_ACCESS.md) |
 | Read-only diagnostics, remediation proposals, approval in Rem0te and results back to the ticket | Limited | | In development: contract routes agreed (revision 3) but not built on the Rem0te side; not yet end-to-end | [ROADMAP.md](docs/ROADMAP.md) |
 | Ticket RMM panel, verify-then-close, service lists (Tactical RMM only) | Available | Paired or synced RMM | | — |
-| RMM Permissions: action catalog, tier holds, second-person approvals, per-customer overrides | Available | Settings → Security → RMM Permissions | | [TECHNICIAN_ACCESS.md](docs/TECHNICIAN_ACCESS.md) |
+| RMM Permissions: action catalog, tier holds, second-person approvals, per-customer overrides | Available | Administration → Security → RMM Permissions | | [TECHNICIAN_ACCESS.md](docs/TECHNICIAN_ACCESS.md) |
 
 ## 10. Projects, scheduling and dispatch
 
@@ -195,7 +207,7 @@ Clientst0r or by AI.
 | Scheduling: recurring maintenance tasks with sign-off, calendar | Available | `scheduling_enabled` | | — |
 | Scheduler wallboard (public token page) | Available | `scheduling_enabled`; Scheduling → Wallboard settings | | — |
 | Resourcing: shifts, leave, holidays, skills, certifications, on-call, capacity, cost rates | Available | MSP staff | | — |
-| Timeclock and location sharing (field ops) | Available | `field_ops_enabled`; Settings → Modules → Field Ops; consent | The native mobile app is a separate component | — |
+| Timeclock and location sharing (field ops) | Available | `field_ops_enabled`; Administration → Modules → Field Ops; consent | The native mobile app is a separate component | — |
 
 ## 11. Billing, contracts and invoicing
 
@@ -207,14 +219,14 @@ Clientst0r or by AI.
 | Prepaid-hour ledger: immutable postings, earliest-expiry-first, only approved time uses hours, retainer cycles, audited adjustments | Available | Contract → Prepaid-hour ledger | After-hours and weekend rates are not set automatically | [BILLING.md](docs/BILLING.md#prepaid-hour-ledger) |
 | Ready for Billing queue on Billing Review: approve, hold, exclude, adjust, draft invoices | Available | Business → Billing → Billing Review | Creates drafts only; nothing is sent | [BILLING.md](docs/BILLING.md#ready-for-billing) |
 | Consolidated invoices: one draft per customer from selected tickets, account charges and the agreement fee | Available | Billing Review → Ready for Billing | Draft only; sent invoices change by credit note | [BILLING.md](docs/BILLING.md#consolidated-invoices) |
-| Settings → Billing: approval thresholds, late fees, default tax and currency, month-to-month e-signature exemption, with per-customer and per-contract overrides | Available | Settings → General → Billing | Superusers and staff who can approve invoices | [BILLING.md](docs/BILLING.md#settings--billing) |
+| Settings → Billing: approval thresholds, late fees, default tax and currency, month-to-month e-signature exemption, with per-customer and per-contract overrides | Available | Administration → General → Billing | Superusers and staff who can approve invoices | [BILLING.md](docs/BILLING.md#settings--billing) |
 | Contract documents with digital signing: build, approve, send, sign link with optional e-mail code, countersign, evidence PDF and certificate; term and notice period; e-signature required before a non-month-to-month contract takes effect or bills | Available | `contracts_enabled`; Business → Contracts | The twelve sample agreements are starting points, not legal advice | [BILLING.md](docs/BILLING.md#contracts-samples-terms-and-e-signature) |
 | Sample contract library (twelve starters) | Available | Business → Contracts → Templates → Use this sample | Not legal advice; review notes block sending until replaced | [BILLING.md](docs/BILLING.md#contracts-samples-terms-and-e-signature) |
 | Viewed tracking for quote, invoice and contract links (first view, last view, count, webhook, email to creator) | Available | Automatic | Staff previews, email scanners and bots are not counted | [BILLING.md](docs/BILLING.md#contracts-samples-terms-and-e-signature) |
 | Price book, service plans, labor rate cards, cost rates | Limited | Django admin | Admin-managed; picking items in quote/invoice editors planned | — |
-| Accounting: QuickBooks Online, Xero (customer sync, duplicate-safe invoice push, payment status pull) | Limited | Settings → Integrations → Accounting | Payments, credit memos, refunds and voids are not pushed; FreshBooks, Wave, Zoho Books and Sage are listed but not implemented | — |
+| Accounting: QuickBooks Online, Xero (customer sync, duplicate-safe invoice push, payment status pull) | Limited | Administration → Integrations → Accounting | Payments, credit memos, refunds and voids are not pushed; FreshBooks, Wave, Zoho Books and Sage are listed but not implemented | — |
 | Payments: Stripe (card/ACH), GoCardless; portal payment, saved methods, autopay, refunds | Limited | Service Desk → Billing → Payments | Not yet verified with live or sandbox keys; payments are not posted to accounting | [PAYMENTS.md](docs/PAYMENTS.md) |
-| Sales tax: manual rates, Avalara AvaTax, TaxJar, exemptions | Limited | Settings → Integrations → Sales Tax | Provider calls not yet verified against sandboxes | [TAX.md](docs/TAX.md) |
+| Sales tax: manual rates, Avalara AvaTax, TaxJar, exemptions | Limited | Administration → Integrations → Sales Tax | Provider calls not yet verified against sandboxes | [TAX.md](docs/TAX.md) |
 | Software licensing: subscriptions, seats, renewals; Microsoft 365 and Pax8 sync | Available | `licensing_enabled`; Business → Licensing | Google Workspace not implemented | — |
 
 ## 12. Quotes, CRM and procurement
@@ -224,7 +236,7 @@ Clientst0r or by AI.
 | Quotes: line items, tax, PDF, email, approval chains, no-login e-signature (required before a quote can be accepted or converted), Viewed status | Available | `psa_enabled`, `quotes_enabled` | Staff cannot accept on the customer's behalf | — |
 | CRM: leads, opportunities, campaigns, commissions, quote from opportunity | Available | `crm_enabled` | | — |
 | Procurement, vendors, purchase orders | Available | `psa_enabled`, `procurement_enabled`; MSP staff | | — |
-| Distributors: Ingram Micro Xvantage, Pax8, TD Synnex (catalog, price, availability, webhooks) | Limited | Settings → Integrations → Distributors | No ordering from the UI; D&H, ScanSource, QBS and Westcoast are listed but not implemented | — |
+| Distributors: Ingram Micro Xvantage, Pax8, TD Synnex (catalog, price, availability, webhooks) | Limited | Administration → Integrations → Distributors | No ordering from the UI; D&H, ScanSource, QBS and Westcoast are listed but not implemented | — |
 
 ## 13. Reporting, dashboards and wallboards
 
@@ -250,9 +262,9 @@ reports permission.
 | Tickets, replies, secure replies, plain-language progress, votes, escalation | Available | `psa_enabled` and the customer's portal enabled | Only tickets shared with the customer | — |
 | Request a service (guided catalog forms with KB suggestions) | Available | Catalog item portal visibility | | — |
 | Customer approvals | Available | Portal customer-approvals setting | | — |
-| Knowledge base, vault entries (per-entry visibility), agreements, pulse feedback, announcements, Service Status | Available | Settings → General → Customer Portal | | — |
+| Knowledge base, vault entries (per-entry visibility), agreements, pulse feedback, announcements, Service Status | Available | Administration → General → Customer Portal | | — |
 | Billing: invoices, online payment, saved methods, autopay | Limited | Payments connection | Payment provider calls not yet verified | [PAYMENTS.md](docs/PAYMENTS.md) |
-| Portal address, sign-in and branding | Available | Settings → General → Customer Portal | | — |
+| Portal address, sign-in and branding | Available | Administration → General → Customer Portal | | — |
 | Customer command center (health, backups, contracts, licensing, self-service requests) | Planned | | Phase 77 | [ROADMAP.md](docs/ROADMAP.md) |
 
 ## 15. AI assistance (OPTIONAL AI)
@@ -263,8 +275,8 @@ policy, an enabled model profile and a technician access assignment at that cust
 
 | Feature | Status | Configuration | Limitations | Docs |
 |---|---|---|---|---|
-| Documentation generate, enhance, validate | Available | Settings → AI Configuration → AI & LLM | Providers: Anthropic, OpenAI, Moonshot, MiniMax, Ollama | — |
-| Ticket reply drafts, suggested actions, triage (AI Inbox) | Available | Settings → AI Configuration → Ticket AI models; customer AI policy | Providers: Anthropic, OpenAI, Ollama; nothing is sent to a customer until a technician presses Send | [CLIENT_DATA_PROTECTION.md](docs/CLIENT_DATA_PROTECTION.md) |
+| Documentation generate, enhance, validate | Available | Administration → AI Configuration → AI & LLM | Providers: Anthropic, OpenAI, Moonshot, MiniMax, Ollama | — |
+| Ticket reply drafts, suggested actions, triage (AI Inbox) | Available | Administration → AI Configuration → Ticket AI models; customer AI policy | Providers: Anthropic, OpenAI, Ollama; nothing is sent to a customer until a technician presses Send | [CLIENT_DATA_PROTECTION.md](docs/CLIENT_DATA_PROTECTION.md) |
 | Ticket Analyze and Compare models (2–4 profiles) | Limited | As above, plus a paired RMM | Requires a paired RMM as the job processor ("No RMM is paired" otherwise) | [TECHNICIAN_ACCESS.md](docs/TECHNICIAN_ACCESS.md) |
 | AI Troubleshoot (primary/fallback/local-first/cheapest routing, multi-model) | Available | Customer policy `troubleshoot_enabled` | Text suggestions only; cannot run commands | [AI_TROUBLESHOOT.md](docs/AI_TROUBLESHOOT.md) |
 | Redaction: secrets stripped from evidence; network identifiers and contact names replaced when sharing rules say so; vault data, attachments and internal notes never sent; preview of what leaves | Available | Customer AI policy sharing rules | | [CLIENT_DATA_PROTECTION.md](docs/CLIENT_DATA_PROTECTION.md) |
@@ -277,17 +289,17 @@ policy, an enabled model profile and a technician access assignment at that cust
 
 | Feature | Status | Configuration | Limitations | Docs |
 |---|---|---|---|---|
-| TOTP 2FA (required by default), Argon2, lockout, session idle and maximum length, password policy | Available | Settings → Security → Security Settings (environment variables override) | | — |
+| TOTP 2FA (required by default), Argon2, lockout, session idle and maximum length, password policy | Available | Administration → Security → Security Settings (environment variables override) | | — |
 | Sign out everywhere (web, optionally mobile) | Available | Profile | | — |
-| Azure AD / Entra ID SSO | Limited | Settings → Users & Access → Directory Services | Counts as 2FA only when Microsoft confirms MFA (or `AZURE_SSO_TRUSTED_AS_2FA`) | — |
-| LDAP / Active Directory sign-in | Available | Settings → Users & Access → Directory Services | Needs optional `django-auth-ldap` and `python-ldap` | — |
-| OIDC sign-in | Limited | Settings → Security → Single sign-on (OIDC); off by default | Not yet verified against a live identity provider | [OIDC_SSO.md](docs/OIDC_SSO.md) |
+| Azure AD / Entra ID SSO | Limited | Administration → Users & Access → Directory Services | Counts as 2FA only when Microsoft confirms MFA (or `AZURE_SSO_TRUSTED_AS_2FA`) | — |
+| LDAP / Active Directory sign-in | Available | Administration → Users & Access → Directory Services | Needs optional `django-auth-ldap` and `python-ldap` | — |
+| OIDC sign-in | Limited | Administration → Security → Single sign-on (OIDC); off by default | Not yet verified against a live identity provider | [OIDC_SSO.md](docs/OIDC_SSO.md) |
 | SAML, passkeys | Planned | | | [ROADMAP.md](docs/ROADMAP.md) |
-| Roles: built-in and custom, about a hundred switches; View passwords/documents/assets/files/monitors/integrations enforced per customer | Available | Settings → Users & Access → Roles | Vault export permission not implemented | [ROLES_AND_ACCESS.md](docs/ROLES_AND_ACCESS.md) |
-| Access groups: named groups of MSP staff (L1/L2/L3 Tech, Managers, Sales, Sales Managers, Owners, Administrators, Billing, Auditors by default) with one role and a customer scope; members hold it in addition to their own access | Available | Settings → Users & Access → Access groups | Staff only; a group never removes access or grants superuser or an RMM tier | [ROLES_AND_ACCESS.md](docs/ROLES_AND_ACCESS.md#access-groups) |
-| Technician Access: L1/L2/L3 presets per technician or group per customer, expiry, denies, "why" page, protected changes needing a second administrator | Available | Settings → Security → Technician Access | | [TECHNICIAN_ACCESS.md](docs/TECHNICIAN_ACCESS.md) |
-| Superuser Approval (second administrator approves superuser grants) | Available | Settings → Security → Superuser Approval; 2+ administrators | Off by default | [TECHNICIAN_ACCESS.md](docs/TECHNICIAN_ACCESS.md) |
-| Security Features: per-customer check of which protections are in effect | Available | Settings → Security → Security Features | | [CLIENT_DATA_PROTECTION.md](docs/CLIENT_DATA_PROTECTION.md) |
+| Roles: built-in and custom, about a hundred switches; View passwords/documents/assets/files/monitors/integrations enforced per customer | Available | Administration → Users & Access → Roles | Vault export permission not implemented | [ROLES_AND_ACCESS.md](docs/ROLES_AND_ACCESS.md) |
+| Access groups: named groups of MSP staff (L1/L2/L3 Tech, Managers, Sales, Sales Managers, Owners, Administrators, Billing, Auditors by default) with one role and a customer scope; members hold it in addition to their own access | Available | Administration → Users & Access → Access groups | Staff only; a group never removes access or grants superuser or an RMM tier | [ROLES_AND_ACCESS.md](docs/ROLES_AND_ACCESS.md#access-groups) |
+| Technician Access: L1/L2/L3 presets per technician or group per customer, expiry, denies, "why" page, protected changes needing a second administrator | Available | Administration → Security → Technician Access | | [TECHNICIAN_ACCESS.md](docs/TECHNICIAN_ACCESS.md) |
+| Superuser Approval (second administrator approves superuser grants) | Available | Administration → Security → Superuser Approval; 2+ administrators | Off by default | [TECHNICIAN_ACCESS.md](docs/TECHNICIAN_ACCESS.md) |
+| Security Features: per-customer check of which protections are in effect | Available | Administration → Security → Security Features | | [CLIENT_DATA_PROTECTION.md](docs/CLIENT_DATA_PROTECTION.md) |
 | Key rotation and secret storage audit (`rotate_encryption_key`, `check_secrets_storage`) | Available | CLI | | [SECURITY.md](SECURITY.md) |
 | Content-Security-Policy with nonces | Limited | `CSP_REPORT_ONLY=False` to enforce | Report-only by default | — |
 
@@ -297,19 +309,19 @@ policy, an enabled model profile and a technician access assignment at that cust
 |---|---|---|---|---|
 | REST API: assets, contacts, documents, passwords, tags; organizations and hardware read-only | Limited | API key | No tickets, monitors or locations endpoints | [API_V2_GRAPHQL.md](docs/API_V2_GRAPHQL.md) |
 | API keys: levels, organization scope, expiry, allowed sources, per-key rate limit, rotation with overlap, required client-certificate fingerprint (mutual TLS) | Available | `/api/keys/` | Mutual TLS needs a reverse proxy that verifies the client certificate | [API_ACCESS_CONTROL.md](docs/API_ACCESS_CONTROL.md) |
-| API Access Control: IP/CIDR allow and deny rules for the APIs and inbound webhooks, modes, scopes, test-an-address, refused-request log, rollback window, repeat-source alerts, per-address limits, trusted proxies | Available | Settings → Security → API Access Control (superusers); Unrestricted by default | Concurrency limits not built; web pages are covered by Firewall & GeoIP instead | [API_ACCESS_CONTROL.md](docs/API_ACCESS_CONTROL.md) |
+| API Access Control: IP/CIDR allow and deny rules for the APIs and inbound webhooks, modes, scopes, test-an-address, refused-request log, rollback window, repeat-source alerts, per-address limits, trusted proxies | Available | Administration → Security → API Access Control (superusers); Unrestricted by default | Concurrency limits not built; web pages are covered by Firewall & GeoIP instead | [API_ACCESS_CONTROL.md](docs/API_ACCESS_CONTROL.md) |
 | Inbound webhook protection: signatures, timestamps, replay protection (security vendor, SIEM, distributor, ticket partner) | Available | Per connection | Opt-in for existing security vendor connections | [API_ACCESS_CONTROL.md](docs/API_ACCESS_CONTROL.md) |
 | GraphQL | Limited | `requirements-graphql.txt` | Session only (no API keys); not in the Docker image; mostly read-only | [API_V2_GRAPHQL.md](docs/API_V2_GRAPHQL.md) |
 | Mobile API; native mobile app | Available / Separate component | `/api/mobile/v1/` | App source is maintained outside this repository | — |
-| Outbound webhooks (assets, documents, password metadata, reveals, locations, organizations, workflows, monitors, syncs) | Available | Settings → Integrations → Webhooks | Plain JSON; no Slack/Teams format | — |
-| Third-party PSA sync: ConnectWise Manage, Autotask, HaloPSA, Kaseya BMS, Syncro, Freshservice, Zendesk, ITFlow; RangerMSP and Alga PSA (newly added) | Available / Limited | Settings → Integrations; `psa_sync` task (off by default) | Companies, contacts, tickets only; no projects/agreements or field mapping | [INTEGRATION_SETUP_GUIDE.md](docs/INTEGRATION_SETUP_GUIDE.md) |
-| Microsoft 365 tenant connection | Limited | Settings → Integrations | Read-only inventory with manual sync; not yet verified against a real tenant | [INTEGRATION_SETUP_GUIDE.md](docs/INTEGRATION_SETUP_GUIDE.md) |
-| SMS: Twilio, Plivo, Vonage, Telnyx | Available | Settings → Communications → SMS Provider | AWS SNS and Sinch are listed but not implemented | — |
-| Agit8or Connect / Quick Connect (app-to-app pairing, default-deny source and destination addresses, health, automatic reconnection, incidents, diagnostics) | Limited | `AGIT8OR_CONNECT_ENABLED=True` (off); Settings → Integrations → Connected Applications | Early release, not independently reviewed; incoming events are stored, acting on them is planned | [CONNECTED_APPLICATIONS.md](docs/CONNECTED_APPLICATIONS.md) |
-| Built-in scheduler (no crontab, Redis or Celery) | Available | Settings → Automation → Task Scheduler | | — |
-| Feature toggles and Optional Modules page | Limited | Settings → Modules | Install-wide, not per customer; some switches only hide menus | — |
-| Web updates: Official or Preview channel (explained on the page), pinned commit, signed tag check, preflight, verified pre-upgrade backup, one status and stage checklist while updating, resume/repair, restore points | Available | Settings → System → System Updates | Rollback is a manual restore command on the server | [UPGRADE_AND_RECOVERY.md](docs/UPGRADE_AND_RECOVERY.md) |
-| Off-host backups: encrypted (AES-256-GCM, separate backup key) database and uploads to SFTP or a mounted directory, retention, weekly restore verification, warnings | Available | Settings → Maintenance → Off-host Backups (superusers); off until set up | No S3 client; use SFTP or mount the bucket. `.env` keys are never in the archive | [BACKUP_AND_RESTORE.md](docs/BACKUP_AND_RESTORE.md) |
+| Outbound webhooks (assets, documents, password metadata, reveals, locations, organizations, workflows, monitors, syncs) | Available | Administration → Integrations → Webhooks | Plain JSON; no Slack/Teams format | — |
+| Third-party PSA sync: ConnectWise Manage, Autotask, HaloPSA, Kaseya BMS, Syncro, Freshservice, Zendesk, ITFlow; RangerMSP and Alga PSA (newly added) | Available / Limited | Administration → Integrations; `psa_sync` task (off by default) | Companies, contacts, tickets only; no projects/agreements or field mapping | [INTEGRATION_SETUP_GUIDE.md](docs/INTEGRATION_SETUP_GUIDE.md) |
+| Microsoft 365 tenant connection | Limited | Administration → Integrations | Read-only inventory with manual sync; not yet verified against a real tenant | [INTEGRATION_SETUP_GUIDE.md](docs/INTEGRATION_SETUP_GUIDE.md) |
+| SMS: Twilio, Plivo, Vonage, Telnyx | Available | Administration → Communications → SMS Provider | AWS SNS and Sinch are listed but not implemented | — |
+| Agit8or Connect / Quick Connect (app-to-app pairing, default-deny source and destination addresses, health, automatic reconnection, incidents, diagnostics) | Limited | `AGIT8OR_CONNECT_ENABLED=True` (off); Administration → Integrations → Connected Applications | Early release, not independently reviewed; incoming events are stored, acting on them is planned | [CONNECTED_APPLICATIONS.md](docs/CONNECTED_APPLICATIONS.md) |
+| Built-in scheduler (no crontab, Redis or Celery) | Available | Administration → Automation → Task Scheduler | | — |
+| Feature toggles and Optional Modules page | Limited | Administration → Modules | Install-wide, not per customer; some switches only hide menus | — |
+| Web updates: Official or Preview channel (explained on the page), pinned commit, signed tag check, preflight, verified pre-upgrade backup, one status and stage checklist while updating, resume/repair, restore points | Available | Administration → System → System Updates | Rollback is a manual restore command on the server | [UPGRADE_AND_RECOVERY.md](docs/UPGRADE_AND_RECOVERY.md) |
+| Off-host backups: encrypted (AES-256-GCM, separate backup key) database and uploads to SFTP or a mounted directory, retention, weekly restore verification, warnings | Available | Administration → Maintenance → Off-host Backups (superusers); off until set up | No S3 client; use SFTP or mount the bucket. `.env` keys are never in the archive | [BACKUP_AND_RESTORE.md](docs/BACKUP_AND_RESTORE.md) |
 | Backup and restore commands (`manage.py backup`, `restore`) | Limited | CLI | No web restore; not scheduled by default; on SQLite never copy `db.sqlite3` while running | [UPGRADE_AND_RECOVERY.md](docs/UPGRADE_AND_RECOVERY.md) |
 | Install: Docker Compose (app, scheduler, MariaDB; profiles proxy, cache, ai-gateway) or `install.sh` (MariaDB, Gunicorn on :8000, systemd) | Available | `.env` | `install.sh` does not install Nginx or TLS and creates `admin` / `ChangeMe123!` (change at first login); single server only | [docker.md](docs/docker.md), [INSTALL.md](INSTALL.md) |
 | Health endpoint `/health/`, system status page | Available | None | | — |

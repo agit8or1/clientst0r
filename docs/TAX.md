@@ -17,6 +17,18 @@ the rows with no organization. Exemptions belong to one customer. The tax
 jurisdiction comes from that customer's billing address (street, city, state,
 postal code and country on the client record).
 
+The numbers in the screenshot match the list under it. The screenshot is a capture of the application against a demo database with no tax configured, so the rate and category tables are empty and the **Test connection** button, which only appears in Avalara and TaxJar modes, is not shown.
+
+<!-- guide-figure: guide-x2-tax -->
+![Sales tax settings with numbered callouts on the mode, authoritative system, provider credentials, rates and recent calculations](images/guides/guide-x2-tax.png "Administration → Integrations → Sales Tax.")
+
+1. Mode: none, flat rate, manual jurisdiction rates, Avalara or TaxJar.
+2. Authoritative system: which system calculates and reports the tax.
+3. Provider credentials: write-only; the secret fields stay empty after saving.
+4. Manual jurisdiction rates, used in manual mode.
+5. Recent tax calculations: the audit trail of every preview, finalize and override.
+<!-- /guide-figure -->
+
 ## Modes
 
 | Mode | Who calculates | Notes |

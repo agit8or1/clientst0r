@@ -347,7 +347,7 @@ MODULES = (
 
     Module(
         'reports', 'Reports & Analytics', 'fa-chart-bar',
-        'Dashboards, wallboards, report templates, scheduled reports and the PSA / billing reports.',
+        'Dashboards, wallboards, report templates, scheduled reports and the Service Desk and billing reports.',
         shows=('Modules → Reports for MSP staff', 'Wallboard and agreement reconciliation quick actions',
                'Scheduled report emails'),
         settings_links=(('Feature toggles', 'core:settings_features'),),

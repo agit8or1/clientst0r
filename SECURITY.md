@@ -37,7 +37,7 @@ Please provide as much information as possible:
 | < 3.17   | :x:                |
 
 Security updates land on the current release line only. Clientst0r ships continuously and
-upgrades in place from the web UI (**Settings → System → System Updates**), so the supported
+upgrades in place from the web UI (**Administration → System → System Updates**), so the supported
 line is always the latest one — update rather than pinning an older release.
 
 ### Disclosure Policy
@@ -48,6 +48,16 @@ line is always the latest one — update rather than pinning an older release.
 - **Security Advisories**: Published on GitHub Security Advisories
 
 ---
+
+Inside the application, **Administration → Security → Security Dashboard** shows the results of the scans described below. The numbers in the screenshot match the list under it. The screenshot is a capture of the application against a demo database.
+
+<!-- guide-figure: guide-x2-security-policy -->
+![Security Dashboard with numbered callouts on Run Full Scan, History, Configure and the scan results](docs/images/guides/guide-x2-security-policy.png "Administration → Security → Security Dashboard.")
+
+1. Run Full Scan: dependency, code, infrastructure and OS package scans.
+2. System Warnings: backups, vulnerable dependencies, connection health and expiring domains.
+3. Vulnerability Status: results of the latest dependency scan.
+<!-- /guide-figure -->
 
 ## Security Documentation
 
@@ -87,11 +97,11 @@ Clientst0r implements defense-in-depth security with multiple layers of protecti
 - **2FA**: Mandatory TOTP via django-otp (Google Authenticator, Authy, etc.)
 - **SSO**: Azure AD / Microsoft Entra ID OAuth integration
 - **LDAP / Active Directory**: sign-in via `django-auth-ldap` (optional packages in `requirements-optional.txt`), LDAPS or StartTLS with certificate checking on by default, required group, optional MSP staff group; never creates superusers or takes over an existing local account; same 2FA and lockout rules as local users (v3.17.608)
-- **Brute Force Protection**: django-axes, by username + IP (defaults: 5 attempts, 30-minute lockout, set in Settings → Security → Security Settings)
+- **Brute Force Protection**: django-axes, by username + IP (defaults: 5 attempts, 30-minute lockout, set in Administration → Security → Security Settings)
 - **Multi-Tenancy**: Organization-based with automated isolation tests. MSP staff (superusers, or User Type = Staff) work across all organizations; customer users are limited to their own organizations, see only tickets shared with the client, and never see internal comments or attachments (v3.17.599–600)
 - **Role view permissions**: View passwords / documents / assets are enforced in the web UI, search, dashboards, REST and GraphQL APIs, mobile app and browser extension (v3.17.600). View files / monitors / integrations are enforced the same way since v3.17.664
-- **Session Management**: Secure cookies with HttpOnly, Secure, SameSite=Lax; idle timeout (default 60 minutes) and a real maximum session length (default 8 hours) set in Settings → Security → Security Settings
-- **Security settings precedence** (v3.17.610): the saved Settings → Security → Security Settings values (idle timeout, maximum session length, require 2FA, password minimum length and special-character rule, failed-login limit, lockout duration) take effect. An environment variable, if set, wins — `SESSION_IDLE_TIMEOUT` and `SESSION_COOKIE_AGE` (seconds), `REQUIRE_2FA`, `PASSWORD_MIN_LENGTH`, `PASSWORD_REQUIRE_SPECIAL`, `AXES_FAILURE_LIMIT`, `AXES_COOLOFF_TIME` (hours) — and the field shows "set by environment" and can't be changed in the UI. **Before updating an older install, check Settings → Security**: without `AXES_COOLOFF_TIME` the lockout becomes the saved value (default 30 minutes), and an install with "Require 2FA" unticked and no `REQUIRE_2FA` variable stops requiring 2FA
+- **Session Management**: Secure cookies with HttpOnly, Secure, SameSite=Lax; idle timeout (default 60 minutes) and a real maximum session length (default 8 hours) set in Administration → Security → Security Settings
+- **Security settings precedence** (v3.17.610): the saved Administration → Security → Security Settings values (idle timeout, maximum session length, require 2FA, password minimum length and special-character rule, failed-login limit, lockout duration) take effect. An environment variable, if set, wins — `SESSION_IDLE_TIMEOUT` and `SESSION_COOKIE_AGE` (seconds), `REQUIRE_2FA`, `PASSWORD_MIN_LENGTH`, `PASSWORD_REQUIRE_SPECIAL`, `AXES_FAILURE_LIMIT`, `AXES_COOLOFF_TIME` (hours) — and the field shows "set by environment" and can't be changed in the UI. **Before updating an older install, check Administration → Security**: without `AXES_COOLOFF_TIME` the lockout becomes the saved value (default 30 minutes), and an install with "Require 2FA" unticked and no `REQUIRE_2FA` variable stops requiring 2FA
 
 #### Data Protection
 - **Vault encryption**: AES-256-GCM; per-purpose keys derived from `APP_MASTER_KEY` with HKDF-SHA256, with the record's context bound as associated data (vault passwords, TOTP secrets, personal vault)
@@ -164,7 +174,7 @@ SECURE_SSL_REDIRECT=True
 SECURE_HSTS_SECONDS=31536000
 SESSION_COOKIE_SECURE=True
 CSRF_COOKIE_SECURE=True
-# Optional. If set, overrides Settings → Security and locks the field there.
+# Optional. If set, overrides Administration → Security and locks the field there.
 REQUIRE_2FA=True
 # Content-Security-Policy: report-only by default; set False to enforce
 CSP_REPORT_ONLY=True
@@ -180,7 +190,7 @@ AI_MAX_DAILY_SPEND_PER_USER=10.00
 AI_MAX_DAILY_SPEND_PER_ORG=100.00
 
 # ===== BRUTE FORCE PROTECTION =====
-# Optional. Leave unset to manage these in Settings → Security.
+# Optional. Leave unset to manage these in Administration → Security.
 # If set, they win and the fields there become read-only.
 # AXES_FAILURE_LIMIT=5
 # AXES_COOLOFF_TIME=1   # hours
@@ -228,8 +238,8 @@ python manage.py test core.tests.test_tenant_isolation -v 2
 
 #### 6. Application Checklist
 - [ ] Admin username changed from default
-- [ ] All users have 2FA enabled (Settings → Security → Security Settings → Require 2FA, or REQUIRE_2FA=True)
-- [ ] Settings → Security → Security Settings reviewed (session, lockout and password-policy values are live)
+- [ ] All users have 2FA enabled (Administration → Security → Security Settings → Require 2FA, or REQUIRE_2FA=True)
+- [ ] Administration → Security → Security Settings reviewed (session, lockout and password-policy values are live)
 - [ ] `python manage.py check_secrets_storage` reports nothing unprotected
 - [ ] Unnecessary endpoints disabled
 - [ ] Rate limits appropriate for traffic patterns
@@ -353,7 +363,7 @@ REQUIRE_2FA=True
 # ========================================
 # BRUTE FORCE PROTECTION (django-axes)
 # ========================================
-# Optional overrides of Settings → Security (the field shows "set by environment")
+# Optional overrides of Administration → Security (the field shows "set by environment")
 # AXES_FAILURE_LIMIT=5
 # AXES_COOLOFF_TIME=1  # hours
 
@@ -578,7 +588,7 @@ api_key, plaintext = APIKey.create_key(
 print(f'Key: {plaintext}')  # Only shown once; only the HMAC hash is stored
 
 # Use API key
-curl -H "Authorization: Bearer itdocs_live_YOUR_KEY" https://clientst0r.example.com/api/passwords/
+curl -H "Authorization: Bearer cst_live_YOUR_KEY" https://clientst0r.example.com/api/passwords/
 ```
 
 **Security Notes:**
@@ -1027,7 +1037,7 @@ class AIRequestThrottle(UserRateThrottle):
 ### Brute Force Protection (django-axes)
 
 The failed-login limit (default 5) and lockout duration (default 30 minutes) are set in
-**Settings → Security → Security Settings**. `AXES_FAILURE_LIMIT` and `AXES_COOLOFF_TIME` (hours), if set in the
+**Administration → Security → Security Settings**. `AXES_FAILURE_LIMIT` and `AXES_COOLOFF_TIME` (hours), if set in the
 environment, override them and lock the fields.
 
 ```python
@@ -1067,8 +1077,8 @@ AUTH_PASSWORD_VALIDATORS = [
 ```
 
 **Requirements:**
-- ✅ Minimum length — 12 by default, set in Settings → Security → Security Settings (`PASSWORD_MIN_LENGTH` overrides)
-- ✅ Special-character rule — Settings → Security → Security Settings (`PASSWORD_REQUIRE_SPECIAL` overrides)
+- ✅ Minimum length — 12 by default, set in Administration → Security → Security Settings (`PASSWORD_MIN_LENGTH` overrides)
+- ✅ Special-character rule — Administration → Security → Security Settings (`PASSWORD_REQUIRE_SPECIAL` overrides)
 - ✅ Not similar to username/email/first name/last name
 - ✅ Not in common password list (10,000+ passwords)
 - ✅ Not entirely numeric
@@ -1077,7 +1087,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ### 2FA (Two-Factor Authentication)
 
 **Configuration:**
-**Require 2FA** is set in Settings → Security → Security Settings (on by default). The `REQUIRE_2FA` environment
+**Require 2FA** is set in Administration → Security → Security Settings (on by default). The `REQUIRE_2FA` environment
 variable, if set, overrides it and locks the field. LDAP users follow the same rule.
 
 ```python
@@ -1128,7 +1138,7 @@ print(f'Key: {plaintext}')  # Only shown once, hash stored
 
 **Use:**
 ```bash
-curl -H "Authorization: Bearer itdocs_live_YOUR_KEY" \
+curl -H "Authorization: Bearer cst_live_YOUR_KEY" \
     https://clientst0r.example.com/api/passwords/
 ```
 
@@ -1167,7 +1177,7 @@ AZURE_AD_AUTO_CREATE_USERS=True  # Auto-create on first login
 
 ### LDAP / Active Directory
 
-Since v3.17.608, configured at **Settings → Users & Access → Directory Services** (`/core/settings/directory/`). Off
+Since v3.17.608, configured at **Administration → Users & Access → Directory Services** (`/core/settings/directory/`). Off
 until enabled, and it won't switch on with missing or invalid settings.
 
 - Requires the optional packages `django-auth-ldap` and `python-ldap`
@@ -1254,7 +1264,7 @@ AuditLog.objects.filter(organization=org).order_by('-timestamp')
 
 **Configuration:**
 ```python
-# Settings → Security → Scan Configuration (/core/settings/snyk/)
+# Administration → Security → Scan Configuration (/core/settings/snyk/)
 SNYK_API_TOKEN=<your-snyk-token>  # Optional for enhanced features
 SNYK_ENABLED=True
 SNYK_SCAN_SCHEDULE='daily'  # Options: daily, weekly, monthly
@@ -1271,7 +1281,7 @@ SNYK_SEVERITY_THRESHOLD='low'  # Alert on: critical, high, medium, low
 
 **Scan Process:**
 1. **Automatic Scans** - Runs on configured schedule via systemd timer
-2. **Manual Scans** - One-click from Settings → Security → Scan Configuration → Run Scan
+2. **Manual Scans** - One-click from Administration → Security → Scan Configuration → Run Scan
 3. **GitHub Integration** - Automatic scans on pull requests (if GitHub Actions enabled)
 4. **Result Processing**:
    - Parses JSON output from Snyk CLI
@@ -1280,7 +1290,7 @@ SNYK_SEVERITY_THRESHOLD='low'  # Alert on: critical, high, medium, low
    - Tracks trends and changes over time
    - Generates remediation recommendations
 
-**Web UI Dashboard (Settings → Security → Vulnerability Scans, `/core/settings/snyk/scans/`):**
+**Web UI Dashboard (Administration → Security → Vulnerability Scans, `/core/settings/snyk/scans/`):**
 - **Total Vulnerability Count** - Current known vulnerabilities
 - **Severity Breakdown** - Critical, high, medium, low counts with color coding
 - **Trend Analysis** - Graph showing vulnerability trends (improving/worsening)
@@ -1307,7 +1317,7 @@ python manage.py run_snyk_scan
 python manage.py run_snyk_scan --severity-threshold high --json
 
 # Or via Web UI
-# Settings → Security → Scan Configuration → Run Scan Now button (/core/settings/snyk/)
+# Administration → Security → Scan Configuration → Run Scan Now button (/core/settings/snyk/)
 ```
 
 **Integration with CI/CD:**
