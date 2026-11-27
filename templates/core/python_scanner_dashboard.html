@@ -9,9 +9,11 @@
         <button type="button" class="btn btn-primary" id="runPyScanBtn">
             <i class="fas fa-sync"></i> Run Scan Now
         </button>
+        {% if user.is_superuser %}
         <a href="{% url 'core:package_scanner_dashboard' %}" class="btn btn-outline-secondary">
             <i class="fas fa-cubes"></i> OS Packages
         </a>
+        {% endif %}
         <a href="{% url 'core:security_dashboard' %}" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left"></i> Security Dashboard
         </a>

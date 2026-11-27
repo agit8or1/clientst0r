@@ -136,7 +136,7 @@ of the ticket list (its saved-view presets), not separate pages.
 | Organizations & Access: Office Documents (organization) | **Integrations** → Office Documents (organization) | org managers |
 | Security (11 pages) | **Security** (Security Dashboard first) | superuser; RMM Permissions: policy readers |
 | Integrations: Integrations, RMM · Rem0te, Webhooks, Office Documents, Accounting, Distributors | **Integrations** | |
-| Integrations: AI & LLM, Ticket AI models | **AI Configuration** (tagged OPTIONAL AI; the card says when AI is off — the switch is General → PSA) | superuser, unchanged, so the provider can be set up before AI is switched on |
+| Integrations: AI & LLM, Ticket AI models | **AI Configuration** (tagged OPTIONAL AI; the card says when AI is off — the switch is General → Service Desk) | superuser, unchanged, so the provider can be set up before AI is switched on |
 | Automation | **Automation** | |
 | Email & Communications | **Communications** | |
 | Features & Modules | **Modules** | |

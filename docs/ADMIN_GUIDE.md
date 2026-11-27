@@ -152,7 +152,7 @@ Not modules, and not on this page: clients, users and access, tickets inside PSA
 vault, settings, the audit log and help are always available. These keep their own setting and
 their own default:
 
-- AI features **OPTIONAL AI** (`psa_ai_enabled`, Settings → General → PSA): off until you turn
+- AI features **OPTIONAL AI** (`psa_ai_enabled`, Administration → General → Service Desk): off until you turn
   them on.
 - Customer portal switches (announcements, votes, escalation, customer approvals): Settings →
   Customer portal, off by default.

@@ -55,6 +55,16 @@ def is_superuser(user):
     return user.is_superuser
 
 
+def _every_minutes(minutes):
+    """'every day', 'every 6 hours', 'every 90 minutes' for a task interval."""
+    minutes = int(minutes or 0)
+    for size, unit in ((1440, 'day'), (60, 'hour')):
+        if minutes >= size and minutes % size == 0:
+            n = minutes // size
+            return f'every {unit}' if n == 1 else f'every {n} {unit}s'
+    return 'every minute' if minutes == 1 else f'every {minutes} minutes'
+
+
 @login_required
 @user_passes_test(is_superuser)
 def security_dashboard(request):
@@ -136,6 +146,7 @@ def security_dashboard(request):
     except CoreScheduledTask.DoesNotExist:
         auto_scan_task = None
     context['auto_scan_task'] = auto_scan_task
+    context['auto_scan_every'] = _every_minutes(auto_scan_task.interval_minutes) if auto_scan_task else ''
 
     # Unified system warnings (OS pkg / Python deps / app version / SSL / domains)
     from core.system_warnings import collect_system_warnings, severity_summary, worst_severity
@@ -552,20 +563,47 @@ def settings_scheduler(request):
     tasks = ScheduledTask.objects.all()
 
     if request.method == 'POST':
-        # Update task schedules
+        # Update task schedules. An interval that is not a whole number from 1
+        # to 10080 (one week) keeps the task's current interval and is reported
+        # instead of failing the whole save.
+        bad = []
         for task in tasks:
             enabled = request.POST.get(f'task_{task.id}_enabled') == 'on'
-            interval = int(request.POST.get(f'task_{task.id}_interval', task.interval_minutes))
+            raw = request.POST.get(f'task_{task.id}_interval', '')
+            try:
+                interval = int(str(raw).strip())
+                if not 1 <= interval <= 10080:
+                    raise ValueError(raw)
+            except (TypeError, ValueError):
+                bad.append(task.get_task_type_display())
+                interval = task.interval_minutes
 
+            if interval != task.interval_minutes:
+                # A shorter interval must not wait out the old, longer one.
+                task.interval_minutes = interval
+                task.calculate_next_run()
             task.enabled = enabled
-            task.interval_minutes = interval
             task.save()
 
+        if bad:
+            messages.warning(
+                request,
+                'Interval must be a whole number of minutes from 1 to 10080; left unchanged for: '
+                + ', '.join(bad) + '.')
         messages.success(request, 'Scheduler settings updated successfully.')
         return redirect('core:settings_scheduler')
 
+    # Honest scheduler status: the timer is outside the web app, so the only
+    # evidence it runs is that tasks have started recently.
+    from django.db.models import Max
+    last_activity = ScheduledTask.objects.aggregate(m=Max('last_run_at'))['m']
+    scheduler_active = bool(last_activity and
+                            timezone.now() - last_activity <= timedelta(minutes=15))
+
     return render(request, 'core/settings_scheduler.html', {
         'tasks': tasks,
+        'scheduler_last_activity': last_activity,
+        'scheduler_active': scheduler_active,
         'current_tab': 'scheduler',
     })
 
@@ -1236,16 +1274,38 @@ def maintenance(request):
     })
 
 
-@login_required
-@user_passes_test(is_superuser)
-def settings_ai(request):
-    """AI and LLM settings - Anthropic, OpenAI, etc."""
-    import os
-    from pathlib import Path
-    from django.conf import settings as django_settings
+# Secret fields on Settings → AI & LLM: form field -> .env variable. Their
+# saved values are never sent back to the browser: the page shows "A key is
+# set", an empty submission keeps the saved key, and clear_<field> removes it.
+AI_SECRET_FIELDS = {
+    'anthropic_api_key': 'ANTHROPIC_API_KEY',
+    'moonshot_api_key': 'MOONSHOT_API_KEY',
+    'minimax_api_key': 'MINIMAX_API_KEY',
+    'minimax_coding_api_key': 'MINIMAX_CODING_API_KEY',
+    'openai_api_key': 'OPENAI_API_KEY',
+    'google_maps_api_key': 'GOOGLE_MAPS_API_KEY',
+    'regrid_api_key': 'REGRID_API_KEY',
+    'attom_api_key': 'ATTOM_API_KEY',
+}
 
-    # Read current values from .env file (located in project root)
-    env_path = django_settings.BASE_DIR / '.env'
+# Provider name used by the page's Test buttons -> .env variable of its key.
+_LLM_PROVIDER_KEY_ENV = {
+    'anthropic': 'ANTHROPIC_API_KEY',
+    'moonshot': 'MOONSHOT_API_KEY',
+    'minimax': 'MINIMAX_API_KEY',
+    'minimax_coding': 'MINIMAX_CODING_API_KEY',
+    'openai': 'OPENAI_API_KEY',
+}
+
+
+def _ai_env_path():
+    from django.conf import settings as django_settings
+    return django_settings.BASE_DIR / '.env'
+
+
+def _read_ai_env():
+    """KEY=value pairs from the app's .env file (empty when there is none)."""
+    env_path = _ai_env_path()
     env_values = {}
     if env_path.exists():
         with open(env_path, 'r') as f:
@@ -1254,6 +1314,35 @@ def settings_ai(request):
                 if '=' in line and not line.startswith('#'):
                     key, value = line.split('=', 1)
                     env_values[key] = value
+    return env_values
+
+
+def _saved_ai_key(env_name):
+    """The key saved in .env, for a Test button pressed with the field left
+    blank (the page never holds the saved key itself)."""
+    if not env_name:
+        return ''
+    return _read_ai_env().get(env_name, '')
+
+
+def _submitted_ai_secret(request, field, current):
+    """New value of a secret field: cleared, replaced, or kept as saved."""
+    if request.POST.get(f'clear_{field}'):
+        return ''
+    # A line break would start a new line in .env: drop any.
+    submitted = request.POST.get(field, '').replace('\r', '').replace('\n', '').strip()
+    return submitted or current
+
+
+@login_required
+@user_passes_test(is_superuser)
+def settings_ai(request):
+    """AI and LLM settings - Anthropic, OpenAI, etc."""
+    import os
+
+    # Read current values from .env file (located in project root)
+    env_path = _ai_env_path()
+    env_values = _read_ai_env()
 
     # LLM Provider settings
     current_llm_provider = env_values.get('LLM_PROVIDER', 'anthropic')
@@ -1279,25 +1368,26 @@ def settings_ai(request):
     if request.method == 'POST':
         # Update .env file with new values
         llm_provider = request.POST.get('llm_provider', 'anthropic').strip()
-        anthropic_key = request.POST.get('anthropic_api_key', '').strip()
+        anthropic_key = _submitted_ai_secret(request, 'anthropic_api_key', current_anthropic_key)
         claude_model = request.POST.get('claude_model', '').strip()
         if not is_valid_claude_model(claude_model):
             # Unknown or malformed (it is written into .env): keep what was saved.
             claude_model = current_claude_model
-        moonshot_key = request.POST.get('moonshot_api_key', '').strip()
+        moonshot_key = _submitted_ai_secret(request, 'moonshot_api_key', current_moonshot_key)
         moonshot_model = request.POST.get('moonshot_model', 'moonshot-v1-8k')
-        minimax_key = request.POST.get('minimax_api_key', '').strip()
+        minimax_key = _submitted_ai_secret(request, 'minimax_api_key', current_minimax_key)
         minimax_group_id = request.POST.get('minimax_group_id', '').strip()
         minimax_model = request.POST.get('minimax_model', 'abab6.5-chat')
-        minimax_coding_key = request.POST.get('minimax_coding_api_key', '').strip()
+        minimax_coding_key = _submitted_ai_secret(request, 'minimax_coding_api_key',
+                                                  current_minimax_coding_key)
         minimax_coding_model = request.POST.get('minimax_coding_model', 'MiniMax-M2.5')
-        openai_key = request.POST.get('openai_api_key', '').strip()
+        openai_key = _submitted_ai_secret(request, 'openai_api_key', current_openai_key)
         openai_model = request.POST.get('openai_model', 'gpt-4o')
         ollama_url = request.POST.get('ollama_base_url', 'http://localhost:11434').strip()
         ollama_model = request.POST.get('ollama_model', 'llama3.2').strip()
-        google_maps_key = request.POST.get('google_maps_api_key', '').strip()
-        regrid_key = request.POST.get('regrid_api_key', '').strip()
-        attom_key = request.POST.get('attom_api_key', '').strip()
+        google_maps_key = _submitted_ai_secret(request, 'google_maps_api_key', current_google_maps_key)
+        regrid_key = _submitted_ai_secret(request, 'regrid_api_key', current_regrid_key)
+        attom_key = _submitted_ai_secret(request, 'attom_api_key', current_attom_key)
 
         # Read all lines from .env
         lines = []
@@ -1394,27 +1484,23 @@ def settings_ai(request):
 
         return redirect('core:settings_ai')
 
+    # Only whether each key is set reaches the template, never the key.
+    key_set = {field: bool(env_values.get(env_name, '').strip())
+               for field, env_name in AI_SECRET_FIELDS.items()}
     return render(request, 'core/settings_ai.html', {
         'current_llm_provider': current_llm_provider,
-        'current_anthropic_key': current_anthropic_key,
+        'key_set': key_set,
         'current_claude_model': current_claude_model,
         'current_claude_models': CURRENT_CLAUDE_MODELS,
         'previous_claude_models': PREVIOUS_CLAUDE_MODELS,
         'claude_model_listed': current_claude_model in CLAUDE_MODEL_IDS,
-        'current_moonshot_key': current_moonshot_key,
         'current_moonshot_model': current_moonshot_model,
-        'current_minimax_key': current_minimax_key,
         'current_minimax_group_id': current_minimax_group_id,
         'current_minimax_model': current_minimax_model,
-        'current_minimax_coding_key': current_minimax_coding_key,
         'current_minimax_coding_model': current_minimax_coding_model,
-        'current_openai_key': current_openai_key,
         'current_openai_model': current_openai_model,
         'current_ollama_url': current_ollama_url,
         'current_ollama_model': current_ollama_model,
-        'current_google_maps_key': current_google_maps_key,
-        'current_regrid_key': current_regrid_key,
-        'current_attom_key': current_attom_key,
         'current_tab': 'ai',
     })
 
@@ -1431,6 +1517,9 @@ def test_llm_connection(request):
     try:
         data = json.loads(request.body)
         provider_name = data.get('provider', '').strip().lower()
+        if not str(data.get('api_key') or '').strip():
+            # The page never holds the saved key: test the saved one.
+            data['api_key'] = _saved_ai_key(_LLM_PROVIDER_KEY_ENV.get(provider_name))
 
         if not provider_name:
             return JsonResponse({
@@ -3164,6 +3253,10 @@ def import_demo_data(request):
         })
 
 
+# The providers core/sms.py can send through (its provider_map).
+SMS_SENDING_PROVIDERS = ('twilio', 'plivo', 'vonage', 'telnyx')
+
+
 @login_required
 @user_passes_test(is_superuser)
 def settings_sms(request):
@@ -3173,7 +3266,15 @@ def settings_sms(request):
     if request.method == 'POST':
         # Update SMS settings
         settings_obj.sms_enabled = request.POST.get('sms_enabled') == 'on'
-        settings_obj.sms_provider = request.POST.get('sms_provider', settings_obj.sms_provider)
+        provider = request.POST.get('sms_provider', settings_obj.sms_provider)
+        if provider not in SMS_SENDING_PROVIDERS:
+            # Sinch and AWS SNS are listed in the model but core/sms.py cannot
+            # send through them: saving one would make every send fail with
+            # "SMS is not configured or enabled".
+            messages.error(request, 'That SMS provider is not supported for sending. '
+                                    'Choose Twilio, Plivo, Vonage or Telnyx.')
+            return redirect('core:settings_sms')
+        settings_obj.sms_provider = provider
         settings_obj.sms_account_sid = request.POST.get('sms_account_sid', settings_obj.sms_account_sid)
         settings_obj.sms_from_number = request.POST.get('sms_from_number', settings_obj.sms_from_number)
 
@@ -3201,6 +3302,7 @@ def settings_sms(request):
 
     return render(request, 'core/settings_sms.html', {
         'settings': settings_obj,
+        'sms_unsupported': settings_obj.sms_provider not in SMS_SENDING_PROVIDERS,
         'current_tab': 'sms',
     })
 
@@ -3231,7 +3333,7 @@ def validate_anthropic_key(request):
 
     try:
         data = json.loads(request.body)
-        api_key = data.get('api_key', '')
+        api_key = (data.get('api_key') or '').strip() or _saved_ai_key('ANTHROPIC_API_KEY')
 
         success, message, details = APIKeyValidator.validate_anthropic(api_key)
 
@@ -3261,7 +3363,7 @@ def validate_google_maps_key(request):
 
     try:
         data = json.loads(request.body)
-        api_key = data.get('api_key', '')
+        api_key = (data.get('api_key') or '').strip() or _saved_ai_key('GOOGLE_MAPS_API_KEY')
 
         success, message, details = APIKeyValidator.validate_google_maps(api_key)
 

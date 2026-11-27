@@ -100,10 +100,10 @@ MODULES = (
             'Portal tickets, requests, knowledge base and status page',
         ),
         settings_links=(('Customer portal settings', 'core:settings_portal'),
-                        ('Per-customer PSA settings', 'psa:client_settings')),
+                        ('Per-customer Service Desk settings', 'psa:client_settings')),
         requires=('psa',),
         note='Turned on per customer (Customer portal settings → Customers, or the '
-             'per-customer PSA settings). There is no global portal switch.',
+             'per-customer Service Desk settings). There is no global portal switch.',
     ),
     Module(
         'portal_announcements', 'Portal announcements', 'fa-bullhorn',
@@ -208,7 +208,7 @@ MODULES = (
         'Leads, opportunities, campaigns and commissions.',
         shows=('Modules → CRM for MSP staff',),
         field='crm_enabled', works_better_with=('psa',), group='Business',
-        note='Converting an opportunity into a quote creates a PSA quote; turn on PSA to work with it.',
+        note='Converting an opportunity into a quote creates a Service Desk quote; turn on the Service Desk to work with it.',
     ),
     Module(
         'contracts', 'Contract documents', 'fa-file-signature',

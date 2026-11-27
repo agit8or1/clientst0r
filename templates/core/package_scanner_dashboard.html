@@ -9,12 +9,12 @@
         <button type="button" class="btn btn-primary" id="runScanBtn">
             <i class="fas fa-sync"></i> Run Scan Now
         </button>
-        {% if stats.security_updates > 0 %}
+        {% if user.is_superuser and stats.security_updates > 0 %}
         <button type="button" class="btn btn-danger" id="updateSecurityBtn">
             <i class="fas fa-shield-virus"></i> Update Security ({{ stats.security_updates }})
         </button>
         {% endif %}
-        {% if stats.total_updates > 0 %}
+        {% if user.is_superuser and stats.total_updates > 0 %}
         <button type="button" class="btn btn-warning" id="updateAllBtn">
             <i class="fas fa-download"></i> Update All ({{ stats.total_updates }})
         </button>

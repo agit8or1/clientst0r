@@ -59,12 +59,42 @@ def _staff_or_superuser_view(view_fn):
     return wrapped
 
 
+def _superuser_api(view_fn):
+    """JSON endpoints that touch the host's OS packages: superusers only.
+
+    The OS package scanner reads and changes the server itself, so the
+    Django ``is_staff`` flag (which also opens the Django admin) is not
+    enough.
+    """
+    from functools import wraps
+
+    @wraps(view_fn)
+    def wrapped(request, *args, **kwargs):
+        if not (request.user.is_authenticated and request.user.is_superuser):
+            return JsonResponse({'error': 'Superuser required'}, status=403)
+        return view_fn(request, *args, **kwargs)
+    return wrapped
+
+
+def _superuser_view(view_fn):
+    """HTML pages of the OS package scanner: superusers only."""
+    from functools import wraps
+
+    @wraps(view_fn)
+    def wrapped(request, *args, **kwargs):
+        if not (request.user.is_authenticated and request.user.is_superuser):
+            messages.error(request, "You don't have permission to access this feature.")
+            return redirect('core:dashboard')
+        return view_fn(request, *args, **kwargs)
+    return wrapped
+
+
 @login_required
-@_staff_or_superuser_view
+@_superuser_view
 def package_scanner_dashboard(request):
     """
     Package scanner dashboard showing scan history and security status.
-    Staff/superuser only.
+    Superuser only.
     """
 
     # Get latest scan
@@ -102,7 +132,7 @@ def package_scanner_dashboard(request):
 
 
 @login_required
-@_staff_or_superuser_api
+@_superuser_api
 @require_http_methods(["POST"])
 def run_package_scan(request):
     """Run a package scan manually via web interface"""
@@ -189,7 +219,7 @@ def run_package_scan(request):
 
 
 @login_required
-@_staff_or_superuser_api
+@_superuser_api
 @require_http_methods(["POST"])
 def update_packages(request):
     """Update system packages via web interface (OPTIONAL)"""
@@ -242,7 +272,7 @@ def update_packages(request):
 
 
 @login_required
-@_staff_or_superuser_view
+@_superuser_view
 def scan_detail(request, pk):
     """View details of a specific scan"""
     from django.shortcuts import get_object_or_404
@@ -254,7 +284,7 @@ def scan_detail(request, pk):
 
 
 @login_required
-@_staff_or_superuser_api
+@_superuser_api
 def get_dashboard_widget_data(request):
     """
     API endpoint to get package scanner data for dashboard widget.

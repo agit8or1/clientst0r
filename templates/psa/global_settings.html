@@ -13,14 +13,16 @@
             <div class="card-body">
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle"></i>
-                    These flags apply to <strong>every client</strong> using the native PSA. Per-client opt-outs are listed below — they're rare since clients with an active external PSA connection (ConnectWise / Halo / Autotask / etc.) are auto-opted-out without any manual action.
+                    These flags apply to <strong>every customer</strong> using the Service Desk. Per-customer opt-outs are listed below — they're rare since customers with an active external PSA connection (ConnectWise / Halo / Autotask / etc.) are auto-opted-out without any manual action.
                 </div>
 
                 <form method="post">
                     {% csrf_token %}
+                    {# Enter in a text field submits with the form's first submit button: make that the main save, not "Save follow-up settings". #}
+                    <button type="submit" name="action" value="save_globals" class="visually-hidden" tabindex="-1" aria-hidden="true" data-default-submit>Save Settings</button>
 
                     <h6 class="text-muted mt-2 mb-3">Ticket close-out</h6>
-                    <p class="small text-muted">The customer portal is turned on per customer under <a href="{% url 'psa:client_settings' %}">Per-customer PSA settings</a>; email-to-ticket follows each mailbox under Email ingestion; SMS to staff follows Settings → SMS and each technician's profile.</p>
+                    <p class="small text-muted">The customer portal is turned on per customer under <a href="{% url 'psa:client_settings' %}">Per-customer Service Desk settings</a>; email-to-ticket follows each mailbox under Email ingestion; SMS to staff follows Settings → SMS and each technician's profile.</p>
 
                     <div class="form-check form-switch mb-2">
                         <input class="form-check-input" type="checkbox" id="psa_closeout_require_time" name="psa_closeout_require_time" {% if settings.psa_closeout_require_time %}checked{% endif %}>
@@ -34,7 +36,7 @@
 
                     <hr>
                     <h6 class="text-muted mt-2 mb-3">Customer follow-up and confirm-or-close</h6>
-                    <p class="small text-muted">Emails the customer when a ticket has waited on them for a while, then closes it after a stretch of silence. Off by default. Customers can be forced on or off under Per-customer PSA settings. Placeholders: {ticket_number} {subject} {requester} {days} {close_days}.</p>
+                    <p class="small text-muted">Emails the customer when a ticket has waited on them for a while, then closes it after a stretch of silence. Off by default. Customers can be forced on or off under Per-customer Service Desk settings. Placeholders: {ticket_number} {subject} {requester} {days} {close_days}.</p>
                     <div class="form-check form-switch mb-2">
                         <input class="form-check-input" type="checkbox" id="followup_enabled" name="followup_enabled" {% if followup.enabled %}checked{% endif %}>
                         <label class="form-check-label" for="followup_enabled"><strong>Follow up with customers and close after silence</strong></label>
@@ -70,7 +72,7 @@
                         <input class="form-check-input" type="checkbox" id="psa_ai_enabled" name="psa_ai_enabled" {% if settings.psa_ai_enabled %}checked{% endif %}>
                         <label class="form-check-label" for="psa_ai_enabled">
                             <strong>Enable AI Suggested Replies + Actions</strong>
-                            <small class="text-muted d-block">Off by default. Requires an Anthropic API key in the AI &amp; LLM settings.</small>
+                            <small class="text-muted d-block">Off by default. Ticket replies, actions and analysis also need a model profile under Ticket AI models and a customer AI policy that allows them; the document, floor-plan and receipt features use the key in AI &amp; LLM.</small>
                         </label>
                     </div>
 
@@ -109,14 +111,14 @@
 
                     <hr>
 
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary" name="action" value="save_globals">
                         <i class="fas fa-save me-1"></i>Save Settings
                     </button>
                 </form>
 
                 <hr class="my-4">
 
-                <h6 class="text-muted mb-2">Per-client opt-outs</h6>
+                <h6 class="text-muted mb-2">Per-customer opt-outs</h6>
                 <p class="small text-muted">
                     Clients explicitly disabled by an admin. Most clients won't appear here — auto-detect handles the common case.
                 </p>

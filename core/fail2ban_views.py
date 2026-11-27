@@ -7,8 +7,8 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.conf import settings
+import ipaddress
 import subprocess
-import re
 import logging
 
 from core import root_helper
@@ -19,6 +19,40 @@ logger = logging.getLogger('core')
 def is_superuser(user):
     """Check if user is a superuser."""
     return user.is_superuser
+
+
+def _parse_ip(value):
+    """The address as an ``ipaddress`` object (IPv4 or IPv6), or None."""
+    try:
+        return ipaddress.ip_address((value or '').strip())
+    except ValueError:
+        return None
+
+
+def _banned_ips(jail_output):
+    """The banned addresses listed in ``fail2ban-client status JAIL`` output.
+
+    Splits on the first colon only: an IPv6 address has colons of its own.
+    """
+    for line in jail_output.split('\n'):
+        if 'Banned IP list:' in line:
+            return [ip for ip in line.split(':', 1)[1].split() if ip.strip()]
+    return []
+
+
+def _audit(request, description, *, object_repr, extra=None, success=True):
+    """Audit entry for a fail2ban change (unban, start, install)."""
+    from audit.models import AuditLog
+    from core.client_ip import get_client_ip
+    try:
+        AuditLog.log(
+            user=request.user, action='update', object_type='core.Fail2ban',
+            object_repr=object_repr[:255], description=description,
+            ip_address=get_client_ip(request), path=request.path,
+            extra_data=extra or {}, success=success,
+        )
+    except Exception:
+        logger.exception('could not write the fail2ban audit entry')
 
 
 def _fail2ban_client_path():
@@ -215,7 +249,7 @@ def fail2ban_status(request):
                     # Parse jail details
                     currently_banned = 0
                     total_banned = 0
-                    banned_ips = []
+                    banned_ips = _banned_ips(jail_output)
 
                     for jail_line in jail_output.split('\n'):
                         if 'Currently banned:' in jail_line:
@@ -228,10 +262,6 @@ def fail2ban_status(request):
                                 total_banned = int(jail_line.split(':')[1].strip())
                             except (ValueError, IndexError):
                                 pass
-                        elif 'Banned IP list:' in jail_line:
-                            ip_list = jail_line.split(':')[1].strip()
-                            if ip_list:
-                                banned_ips = [ip.strip() for ip in ip_list.split() if ip.strip()]
 
                     jails.append({
                         'name': jail_name,
@@ -270,15 +300,23 @@ def fail2ban_unban_ip(request):
         messages.error(request, 'IP address and jail name are required.')
         return redirect('core:fail2ban_status')
 
-    # Validate IP address format
-    ip_pattern = r'^(\d{1,3}\.){3}\d{1,3}$'
-    if not re.match(ip_pattern, ip_address):
-        messages.error(request, 'Invalid IP address format.')
+    # Validate the address (IPv4 or IPv6) before anything reaches the root
+    # helper, and pass it on in canonical form.
+    parsed = _parse_ip(ip_address)
+    if parsed is None:
+        messages.error(request, 'Invalid IP address format. Enter an IPv4 or IPv6 address.')
         return redirect('core:fail2ban_status')
+    ip_address = str(parsed)
 
     # Unban the IP
     success, output, error = run_fail2ban_command(['set', jail_name, 'unbanip', ip_address])
 
+    _audit(request,
+           f'Unbanned {ip_address} from fail2ban jail {jail_name}' if success
+           else f'Failed to unban {ip_address} from fail2ban jail {jail_name}',
+           object_repr=f'fail2ban {jail_name}: {ip_address}',
+           extra={'jail': jail_name, 'ip_address': ip_address, 'error': '' if success else error[:300]},
+           success=success)
     if success:
         messages.success(request, f'Successfully unbanned {ip_address} from {jail_name} jail.')
         logger.info(f"User {request.user.username} unbanned IP {ip_address} from {jail_name}")
@@ -305,21 +343,22 @@ def fail2ban_unban_all(request):
         messages.error(request, f'Failed to get jail status: {error}')
         return redirect('core:fail2ban_status')
 
-    # Parse banned IPs
-    banned_ips = []
-    for line in output.split('\n'):
-        if 'Banned IP list:' in line:
-            ip_list = line.split(':')[1].strip()
-            if ip_list:
-                banned_ips = [ip.strip() for ip in ip_list.split() if ip.strip()]
-            break
+    # Parse banned IPs; skip anything that does not parse as an address.
+    banned_ips = [str(p) for p in map(_parse_ip, _banned_ips(output)) if p is not None]
 
     # Unban each IP
-    unbanned_count = 0
+    unbanned = []
     for ip in banned_ips:
         success, output, error = run_fail2ban_command(['set', jail_name, 'unbanip', ip])
         if success:
-            unbanned_count += 1
+            unbanned.append(ip)
+    unbanned_count = len(unbanned)
+
+    if unbanned:
+        _audit(request, f'Unbanned {unbanned_count} address(es) from fail2ban jail {jail_name}',
+               object_repr=f'fail2ban {jail_name}: unban all',
+               extra={'jail': jail_name, 'ip_addresses': unbanned,
+                      'failed': [ip for ip in banned_ips if ip not in unbanned]})
 
     if unbanned_count > 0:
         messages.success(request, f'Unbanned {unbanned_count} IP(s) from {jail_name} jail.')
@@ -338,6 +377,9 @@ def fail2ban_check_ip(request):
 
     if not ip_address:
         return JsonResponse({'error': 'IP address required'}, status=400)
+    wanted = _parse_ip(ip_address)
+    if wanted is None:
+        return JsonResponse({'error': 'Not a valid IPv4 or IPv6 address'}, status=400)
 
     # Check all jails for this IP
     success, status_output, error = run_fail2ban_command(['status'])
@@ -356,11 +398,13 @@ def fail2ban_check_ip(request):
     banned_in_jails = []
     for jail_name in jail_names:
         success, output, error = run_fail2ban_command(['status', jail_name])
-        if success and ip_address in output:
+        # Compare parsed addresses exactly: a substring test matched
+        # 1.2.3.4 against a ban on 11.2.3.45.
+        if success and any(_parse_ip(ip) == wanted for ip in _banned_ips(output)):
             banned_in_jails.append(jail_name)
 
     return JsonResponse({
-        'ip_address': ip_address,
+        'ip_address': str(wanted),
         'is_banned': len(banned_in_jails) > 0,
         'jails': banned_in_jails,
     })
@@ -375,7 +419,10 @@ def fail2ban_start(request):
     # systemctl start/enable are NOT in sudoers, so they will always fail with
     # "password required" when called from the web process.
     success, output, error = run_fail2ban_command(['start'])
-    if success or 'already running' in output.lower() or 'already running' in error.lower():
+    started = success or 'already running' in output.lower() or 'already running' in error.lower()
+    _audit(request, 'Started fail2ban' if started else 'Failed to start fail2ban',
+           object_repr='fail2ban service', extra={'action': 'start'}, success=started)
+    if started:
         messages.success(request, 'Fail2ban started successfully!')
         logger.info(f"User {request.user.username} started fail2ban service")
     else:
@@ -445,10 +492,13 @@ def fail2ban_install(request):
 
     if result is None or result.returncode != 0:
         detail = (result.stderr or result.stdout)[-300:] if result else 'root helper unavailable'
+        _audit(request, 'Failed to install fail2ban', object_repr='fail2ban service',
+               extra={'action': 'install', 'error': detail}, success=False)
         messages.error(request, f'Failed to install fail2ban: {detail}')
         logger.error('fail2ban installation failed: %s', detail)
         return redirect('core:fail2ban_status')
 
+    _audit(request, 'Installed fail2ban', object_repr='fail2ban service', extra={'action': 'install'})
     messages.success(request, 'Fail2ban installed and configured successfully! Refresh the page to see the status.')
     logger.info(f"User {request.user.username} successfully installed fail2ban automatically")
     return redirect('core:fail2ban_status')

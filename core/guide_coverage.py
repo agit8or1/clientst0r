@@ -64,6 +64,12 @@ SECTION_GUIDES = {
     'mod_security': 'security-alerts-and-incidents',
     'mod_security_ops': 'security-alerts-and-incidents',
     'ops_monitoring': 'monitoring',
+    'settings_general': 'settings-general',
+    'settings_security': 'security-settings',
+    'settings_ai': 'ai-automation-and-communications',
+    'settings_automation': 'ai-automation-and-communications',
+    'settings_email': 'ai-automation-and-communications',
+    'settings_features': 'admin-guide',
     'settings_access': 'roles-and-access',
     'settings_integrations': 'integrations',
     'settings_system': 'auto-update',
@@ -74,9 +80,6 @@ SECTION_GUIDES = {
 
 # Sections without a guide yet, by roadmap batch.
 PENDING_SECTIONS = frozenset({
-    # 112.8 Administration
-    'settings_general', 'settings_security', 'settings_ai', 'settings_automation', 'settings_email',
-    'settings_features',
     # 112.9 Your account
     'account_profile', 'account_work',
 })

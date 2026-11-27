@@ -169,8 +169,8 @@ class CatalogEditTests(TestCase):
         Membership.objects.create(user=user, organization=org, role='admin')
         vendor = Vendor.objects.create(name='Acme', slug='acme')
         c = _client(user, org)
-        self.assertEqual(c.get('/assets/vendors/').status_code, 200)
-        self.assertNotContains(c.get('/assets/vendors/'), '/assets/vendors/create/')
+        # 112.8: the catalog lists are for MSP staff; a customer admin is refused.
+        self.assertEqual(c.get('/assets/vendors/').status_code, 403)
         self.assertEqual(c.post('/assets/vendors/create/', {'name': 'Evil'}).status_code, 403)
         self.assertEqual(c.post(f'/assets/vendors/{vendor.pk}/edit/', {'name': 'X'}).status_code, 403)
         self.assertFalse(Vendor.objects.filter(name='Evil').exists())

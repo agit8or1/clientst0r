@@ -43,8 +43,10 @@ FEATURES = [
         'status': 'on_by_default',
         'protects': 'Accounts whose password is guessed or reused elsewhere.',
         'default': 'Required for every user: a user without an authenticator is sent to set one up.',
-        'prerequisites': 'None. Azure AD single sign-on sessions skip the TOTP step (the identity provider is '
-                         'trusted for it); each such sign-in is audited as azure_ad_2fa_bypass.',
+        'prerequisites': 'None. A Microsoft (Azure AD) sign-in skips the TOTP step only when Microsoft reports MFA '
+                         'for it or AZURE_SSO_TRUSTED_AS_2FA is set (audited as azure_ad_2fa_bypass); an OIDC '
+                         'sign-in only when its provider accepts the identity provider\'s MFA and the token shows '
+                         'it (audited as oidc_sso_2fa_accepted). Other single sign-on sessions still need the code.',
         'detail': 'TOTP authenticator codes. A password-only session (for example from /admin/login/) is ended '
                   'and sent through the two-factor sign-in.',
         'link': 'core:settings_security',

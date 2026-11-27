@@ -96,6 +96,22 @@ class UsOnlyFirewallTests(TestCase):
         self.assertNotEqual(self.get('/accounts/login/', '8.8.8.8').status_code, 403)
         self.assertEqual(self.get('/', '8.8.8.8').status_code, 403)
 
+    def test_ip_allowlist_exempts_the_real_sign_in_page(self):
+        """The staff sign-in lives at /account/login/ (config/urls.py); the
+        exemption used to list only paths that don't exist."""
+        s = FirewallSettings.get_settings()
+        s.geoip_firewall_enabled = False
+        s.ip_firewall_enabled = True
+        s.ip_firewall_mode = 'allowlist'
+        s.save()
+        FirewallIPRule.objects.all().delete()
+        self.assertNotEqual(self.get('/account/login/', '8.8.8.8').status_code, 403)
+        self.assertEqual(self.get('/core/dashboard/', '8.8.8.8').status_code, 403)
+        # The country check still covers the sign-in page.
+        s.geoip_firewall_enabled = True
+        s.save()
+        self.assertEqual(self.get('/account/login/', '5.255.255.70').status_code, 403)
+
     # Payment provider webhooks (v3.17.690)
 
     def post(self, path, client_ip):

@@ -1197,7 +1197,25 @@ def equipment_models_by_vendor_api(request, vendor_id):
 # Equipment Catalog Management Views
 # ========================================
 
+def _catalog_staff_only(view_fn):
+    """The equipment catalog's vendor and model lists are for MSP staff, the
+    same people the sidebar shows them to (psa.visibility.is_msp_staff);
+    customer users get 403. Goes under @login_required so anonymous requests
+    still reach the sign-in redirect."""
+    from functools import wraps
+    from django.core.exceptions import PermissionDenied
+    from psa.visibility import is_msp_staff
+
+    @wraps(view_fn)
+    def wrapped(request, *args, **kwargs):
+        if not is_msp_staff(request.user):
+            raise PermissionDenied('The equipment catalog is available to MSP staff only.')
+        return view_fn(request, *args, **kwargs)
+    return wrapped
+
+
 @login_required
+@_catalog_staff_only
 def vendor_list(request):
     """List all hardware vendors."""
     from .models import Vendor
@@ -1210,6 +1228,7 @@ def vendor_list(request):
 
 
 @login_required
+@_catalog_staff_only
 def vendor_detail(request, pk):
     """View vendor details with equipment models."""
     from .models import Vendor, EquipmentModel
@@ -1280,6 +1299,7 @@ def vendor_edit(request, pk):
 
 
 @login_required
+@_catalog_staff_only
 def equipment_model_list(request):
     """List all equipment models with filtering."""
     from .models import EquipmentModel, Vendor

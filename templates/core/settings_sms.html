@@ -36,12 +36,14 @@
                         <select class="form-select" id="sms_provider" name="sms_provider">
                             <option value="twilio" {% if settings.sms_provider == 'twilio' %}selected{% endif %}>Twilio</option>
                             <option value="plivo" {% if settings.sms_provider == 'plivo' %}selected{% endif %}>Plivo</option>
-                            <option value="sinch" {% if settings.sms_provider == 'sinch' %}selected{% endif %}>Sinch</option>
                             <option value="vonage" {% if settings.sms_provider == 'vonage' %}selected{% endif %}>Vonage/Nexmo</option>
-                            <option value="aws_sns" {% if settings.sms_provider == 'aws_sns' %}selected{% endif %}>AWS SNS</option>
                             <option value="telnyx" {% if settings.sms_provider == 'telnyx' %}selected{% endif %}>Telnyx</option>
                         </select>
+                        {% if sms_unsupported %}
+                        <div class="form-text text-danger">The saved provider ({{ settings.sms_provider }}) cannot send messages from Clientst0r. Choose one of the providers above and save.</div>
+                        {% else %}
                         <div class="form-text">Choose your SMS service provider</div>
+                        {% endif %}
                     </div>
 
                     <div class="mb-3">

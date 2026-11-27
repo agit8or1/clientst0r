@@ -47,12 +47,13 @@
                     <div class="mb-3">
                         <label for="anthropic_api_key" class="form-label">Anthropic API Key</label>
                         <div class="input-group">
-                            <input type="password" class="form-control font-monospace" id="anthropic_api_key" name="anthropic_api_key" value="{{ current_anthropic_key }}" placeholder="sk-ant-api03-...">
+                            <input type="password" class="form-control font-monospace" id="anthropic_api_key" name="anthropic_api_key" value="" autocomplete="new-password" placeholder="{% if key_set.anthropic_api_key %}A key is set. Leave blank to keep it{% else %}sk-ant-api03-...{% endif %}"{% if key_set.anthropic_api_key %} data-key-set="1"{% endif %}>
                             <button type="button" class="btn btn-outline-secondary" id="test-anthropic-btn" data-action="testAnthropicKey">
                                 <i class="fas fa-vial"></i> Test
                             </button>
                         </div>
                         <div id="anthropic-test-result" class="mt-2" style="display: none;"></div>
+                        {% include "core/_ai_key_state.html" with field="anthropic_api_key" is_set=key_set.anthropic_api_key %}
                         <div class="form-text">
                             Required for AI floor plan generation and documentation. Get your API key at <a href="https://console.anthropic.com/" target="_blank">console.anthropic.com</a>
                         </div>
@@ -89,12 +90,13 @@
                         <div class="mb-3">
                             <label for="moonshot_api_key" class="form-label">Moonshot API Key</label>
                             <div class="input-group">
-                                <input type="password" class="form-control font-monospace" id="moonshot_api_key" name="moonshot_api_key" value="{{ current_moonshot_key }}" placeholder="sk-...">
+                                <input type="password" class="form-control font-monospace" id="moonshot_api_key" name="moonshot_api_key" value="" autocomplete="new-password" placeholder="{% if key_set.moonshot_api_key %}A key is set. Leave blank to keep it{% else %}sk-...{% endif %}"{% if key_set.moonshot_api_key %} data-key-set="1"{% endif %}>
                                 <button type="button" class="btn btn-outline-secondary" id="test-moonshot-btn" data-action="testMoonshotKey">
                                     <i class="fas fa-vial"></i> Test
                                 </button>
                             </div>
                             <div id="moonshot-test-result" class="mt-2" style="display: none;"></div>
+                            {% include "core/_ai_key_state.html" with field="moonshot_api_key" is_set=key_set.moonshot_api_key %}
                             <div class="form-text">
                                 Get your API key at <a href="https://platform.moonshot.cn/" target="_blank">platform.moonshot.cn</a>
                             </div>
@@ -120,12 +122,13 @@
                         <div class="mb-3">
                             <label for="minimax_api_key" class="form-label">MiniMax API Key</label>
                             <div class="input-group">
-                                <input type="password" class="form-control font-monospace" id="minimax_api_key" name="minimax_api_key" value="{{ current_minimax_key }}" placeholder="...">
+                                <input type="password" class="form-control font-monospace" id="minimax_api_key" name="minimax_api_key" value="" autocomplete="new-password" placeholder="{% if key_set.minimax_api_key %}A key is set. Leave blank to keep it{% else %}...{% endif %}"{% if key_set.minimax_api_key %} data-key-set="1"{% endif %}>
                                 <button type="button" class="btn btn-outline-secondary" id="test-minimax-btn" data-action="testMinimaxKey">
                                     <i class="fas fa-vial"></i> Test
                                 </button>
                             </div>
                             <div id="minimax-test-result" class="mt-2" style="display: none;"></div>
+                            {% include "core/_ai_key_state.html" with field="minimax_api_key" is_set=key_set.minimax_api_key %}
                             <div class="form-text">
                                 Get your API key at <a href="https://api.minimax.chat/" target="_blank">api.minimax.chat</a> or <a href="https://platform.minimax.io/" target="_blank">platform.minimax.io</a>
                             </div>
@@ -164,12 +167,13 @@
                         <div class="mb-3">
                             <label for="minimax_coding_api_key" class="form-label">MiniMax Coding API Key</label>
                             <div class="input-group">
-                                <input type="password" class="form-control font-monospace" id="minimax_coding_api_key" name="minimax_coding_api_key" value="{{ current_minimax_coding_key }}" placeholder="Your Coding Plan API key">
+                                <input type="password" class="form-control font-monospace" id="minimax_coding_api_key" name="minimax_coding_api_key" value="" autocomplete="new-password" placeholder="{% if key_set.minimax_coding_api_key %}A key is set. Leave blank to keep it{% else %}Your Coding Plan API key{% endif %}"{% if key_set.minimax_coding_api_key %} data-key-set="1"{% endif %}>
                                 <button type="button" class="btn btn-outline-secondary" id="test-minimax-coding-btn" data-action="testMinimaxCodingKey">
                                     <i class="fas fa-vial"></i> Test
                                 </button>
                             </div>
                             <div id="minimax-coding-test-result" class="mt-2" style="display: none;"></div>
+                            {% include "core/_ai_key_state.html" with field="minimax_coding_api_key" is_set=key_set.minimax_coding_api_key %}
                             <div class="form-text">
                                 Get your Coding Plan API key at <a href="https://platform.minimax.io/user-center/basic-information/interface-key" target="_blank">platform.minimax.io</a>. This key is different from the Chat API key.
                             </div>
@@ -193,12 +197,13 @@
                         <div class="mb-3">
                             <label for="openai_api_key" class="form-label">OpenAI API Key</label>
                             <div class="input-group">
-                                <input type="password" class="form-control font-monospace" id="openai_api_key" name="openai_api_key" value="{{ current_openai_key }}" placeholder="sk-...">
+                                <input type="password" class="form-control font-monospace" id="openai_api_key" name="openai_api_key" value="" autocomplete="new-password" placeholder="{% if key_set.openai_api_key %}A key is set. Leave blank to keep it{% else %}sk-...{% endif %}"{% if key_set.openai_api_key %} data-key-set="1"{% endif %}>
                                 <button type="button" class="btn btn-outline-secondary" id="test-openai-btn" data-action="testOpenAIKey">
                                     <i class="fas fa-vial"></i> Test
                                 </button>
                             </div>
                             <div id="openai-test-result" class="mt-2" style="display: none;"></div>
+                            {% include "core/_ai_key_state.html" with field="openai_api_key" is_set=key_set.openai_api_key %}
                             <div class="form-text">
                                 Get your API key at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a>
                             </div>
@@ -258,12 +263,13 @@
                     <div class="mb-3">
                         <label for="google_maps_api_key" class="form-label">Google Maps API Key</label>
                         <div class="input-group">
-                            <input type="password" class="form-control font-monospace" id="google_maps_api_key" name="google_maps_api_key" value="{{ current_google_maps_key }}" placeholder="AIza...">
+                            <input type="password" class="form-control font-monospace" id="google_maps_api_key" name="google_maps_api_key" value="" autocomplete="new-password" placeholder="{% if key_set.google_maps_api_key %}A key is set. Leave blank to keep it{% else %}AIza...{% endif %}"{% if key_set.google_maps_api_key %} data-key-set="1"{% endif %}>
                             <button type="button" class="btn btn-outline-secondary" id="test-googlemaps-btn" data-action="testGoogleMapsKey">
                                 <i class="fas fa-vial"></i> Test
                             </button>
                         </div>
                         <div id="googlemaps-test-result" class="mt-2" style="display: none;"></div>
+                        {% include "core/_ai_key_state.html" with field="google_maps_api_key" is_set=key_set.google_maps_api_key %}
                         <div class="form-text">
                             Optional. Used for geocoding addresses and fetching satellite imagery.
                         </div>
@@ -308,7 +314,8 @@
 
                     <div class="mb-3">
                         <label for="regrid_api_key" class="form-label">Regrid API Key</label>
-                        <input type="password" class="form-control font-monospace" id="regrid_api_key" name="regrid_api_key" value="{{ current_regrid_key }}" placeholder="Leave blank if not using">
+                        <input type="password" class="form-control font-monospace" id="regrid_api_key" name="regrid_api_key" value="" autocomplete="new-password" placeholder="{% if key_set.regrid_api_key %}A key is set. Leave blank to keep it{% else %}Leave blank if not using{% endif %}"{% if key_set.regrid_api_key %} data-key-set="1"{% endif %}>
+                        {% include "core/_ai_key_state.html" with field="regrid_api_key" is_set=key_set.regrid_api_key %}
                         <div class="form-text">
                             Optional. Provides property/parcel data. <a href="https://regrid.com/pricing" target="_blank">Starting at $299/month</a>
                         </div>
@@ -316,7 +323,8 @@
 
                     <div class="mb-3">
                         <label for="attom_api_key" class="form-label">AttomData API Key</label>
-                        <input type="password" class="form-control font-monospace" id="attom_api_key" name="attom_api_key" value="{{ current_attom_key }}" placeholder="Leave blank if not using">
+                        <input type="password" class="form-control font-monospace" id="attom_api_key" name="attom_api_key" value="" autocomplete="new-password" placeholder="{% if key_set.attom_api_key %}A key is set. Leave blank to keep it{% else %}Leave blank if not using{% endif %}"{% if key_set.attom_api_key %} data-key-set="1"{% endif %}>
+                        {% include "core/_ai_key_state.html" with field="attom_api_key" is_set=key_set.attom_api_key %}
                         <div class="form-text">
                             Optional. Provides property details and valuations. <a href="https://www.attomdata.com/solutions/" target="_blank">Contact for pricing</a>
                         </div>
@@ -356,7 +364,7 @@
                                 <td>AI Floor Plan Generation</td>
                                 <td>Anthropic Claude</td>
                                 <td>
-                                    {% if current_anthropic_key %}
+                                    {% if key_set.anthropic_api_key %}
                                     <span class="badge bg-success">Configured</span>
                                     {% else %}
                                     <span class="badge bg-warning text-dark">Not Configured</span>
@@ -367,7 +375,7 @@
                                 <td>Address Geocoding</td>
                                 <td>Google Maps</td>
                                 <td>
-                                    {% if current_google_maps_key %}
+                                    {% if key_set.google_maps_api_key %}
                                     <span class="badge bg-success">Configured</span>
                                     {% else %}
                                     <span class="badge bg-secondary">Optional</span>
@@ -378,7 +386,7 @@
                                 <td>Satellite Imagery</td>
                                 <td>Google Maps</td>
                                 <td>
-                                    {% if current_google_maps_key %}
+                                    {% if key_set.google_maps_api_key %}
                                     <span class="badge bg-success">Configured</span>
                                     {% else %}
                                     <span class="badge bg-secondary">Optional</span>
@@ -503,10 +511,11 @@ document.addEventListener('DOMContentLoaded', function() {
 // API Key Testing Functions
 function testAnthropicKey() {
     const apiKey = document.getElementById('anthropic_api_key').value;
+    const keySaved = !!document.getElementById('anthropic_api_key').dataset.keySet;
     const btn = document.getElementById('test-anthropic-btn');
     const resultDiv = document.getElementById('anthropic-test-result');
 
-    if (!apiKey) {
+    if (!apiKey && !keySaved) {
         resultDiv.innerHTML = '<div class="alert alert-warning small mb-0"><i class="fas fa-exclamation-circle"></i> Please enter an API key first</div>';
         resultDiv.style.display = 'block';
         return;
@@ -549,10 +558,11 @@ function testAnthropicKey() {
 
 function testGoogleMapsKey() {
     const apiKey = document.getElementById('google_maps_api_key').value;
+    const keySaved = !!document.getElementById('google_maps_api_key').dataset.keySet;
     const btn = document.getElementById('test-googlemaps-btn');
     const resultDiv = document.getElementById('googlemaps-test-result');
 
-    if (!apiKey) {
+    if (!apiKey && !keySaved) {
         resultDiv.innerHTML = '<div class="alert alert-warning small mb-0"><i class="fas fa-exclamation-circle"></i> Please enter an API key first</div>';
         resultDiv.style.display = 'block';
         return;
@@ -595,11 +605,12 @@ function testGoogleMapsKey() {
 
 function testMoonshotKey() {
     const apiKey = document.getElementById('moonshot_api_key').value;
+    const keySaved = !!document.getElementById('moonshot_api_key').dataset.keySet;
     const model = document.getElementById('moonshot_model').value;
     const btn = document.getElementById('test-moonshot-btn');
     const resultDiv = document.getElementById('moonshot-test-result');
 
-    if (!apiKey) {
+    if (!apiKey && !keySaved) {
         resultDiv.innerHTML = '<div class="alert alert-warning small mb-0"><i class="fas fa-exclamation-circle"></i> Please enter an API key first</div>';
         resultDiv.style.display = 'block';
         return;
@@ -640,12 +651,13 @@ function testMoonshotKey() {
 
 function testMinimaxKey() {
     const apiKey = document.getElementById('minimax_api_key').value;
+    const keySaved = !!document.getElementById('minimax_api_key').dataset.keySet;
     const groupId = document.getElementById('minimax_group_id').value;
     const model = document.getElementById('minimax_model').value;
     const btn = document.getElementById('test-minimax-btn');
     const resultDiv = document.getElementById('minimax-test-result');
 
-    if (!apiKey || !groupId) {
+    if ((!apiKey && !keySaved) || !groupId) {
         resultDiv.innerHTML = '<div class="alert alert-warning small mb-0"><i class="fas fa-exclamation-circle"></i> Please enter both API key and Group ID</div>';
         resultDiv.style.display = 'block';
         return;
@@ -686,11 +698,12 @@ function testMinimaxKey() {
 
 function testOpenAIKey() {
     const apiKey = document.getElementById('openai_api_key').value;
+    const keySaved = !!document.getElementById('openai_api_key').dataset.keySet;
     const model = document.getElementById('openai_model').value;
     const btn = document.getElementById('test-openai-btn');
     const resultDiv = document.getElementById('openai-test-result');
 
-    if (!apiKey) {
+    if (!apiKey && !keySaved) {
         resultDiv.innerHTML = '<div class="alert alert-warning small mb-0"><i class="fas fa-exclamation-circle"></i> Please enter an API key first</div>';
         resultDiv.style.display = 'block';
         return;
@@ -731,11 +744,12 @@ function testOpenAIKey() {
 
 function testMinimaxCodingKey() {
     const apiKey = document.getElementById('minimax_coding_api_key').value;
+    const keySaved = !!document.getElementById('minimax_coding_api_key').dataset.keySet;
     const model = document.getElementById('minimax_coding_model').value;
     const btn = document.getElementById('test-minimax-coding-btn');
     const resultDiv = document.getElementById('minimax-coding-test-result');
 
-    if (!apiKey) {
+    if (!apiKey && !keySaved) {
         resultDiv.innerHTML = '<div class="alert alert-warning small mb-0"><i class="fas fa-exclamation-circle"></i> Please enter an API key first</div>';
         resultDiv.style.display = 'block';
         return;

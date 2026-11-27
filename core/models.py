@@ -2537,22 +2537,62 @@ class FirewallIPRule(models.Model):
         desc = f" - {self.description}" if self.description else ""
         return f"{self.ip_address}{desc} ({status})"
 
+    @staticmethod
+    def normalise_address(value):
+        """Return ``value`` as a canonical IPv4/IPv6 address or CIDR network.
+
+        Raises ``ValidationError`` for anything else. A network with host
+        bits set is stored as its network (``10.0.0.5/24`` becomes
+        ``10.0.0.0/24``), which is how the firewall has always matched it.
+        """
+        import ipaddress
+        from django.core.exceptions import ValidationError
+        text = (value or '').strip()
+        if not text:
+            raise ValidationError('Enter an IP address or CIDR range.')
+        try:
+            if '/' in text:
+                return str(ipaddress.ip_network(text, strict=False))
+            return str(ipaddress.ip_address(text))
+        except ValueError:
+            raise ValidationError(
+                f'"{text[:60]}" is not an IP address or CIDR range. Use a single '
+                'address such as 203.0.113.50 or 2001:db8::1, or a range such as '
+                '192.168.1.0/24 or 2001:db8::/32.'
+            )
+
+    @property
+    def is_valid_address(self):
+        """False for rows saved before entries were checked: the firewall
+        never matches them, so the list flags them for fixing."""
+        from django.core.exceptions import ValidationError
+        try:
+            self.normalise_address(self.ip_address)
+        except ValidationError:
+            return False
+        return True
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        super().clean()
+        try:
+            self.ip_address = self.normalise_address(self.ip_address)
+        except ValidationError as exc:
+            raise ValidationError({'ip_address': exc.messages})
+
     def matches_ip(self, ip_address):
         """
         Check if the given IP address matches this rule.
-        Supports both single IPs and CIDR ranges.
+        Supports both single IPs and CIDR ranges (IPv4 and IPv6).
         """
         import ipaddress
         try:
+            ip_obj = ipaddress.ip_address(ip_address)
             # Parse the rule (could be single IP or network)
             if '/' in self.ip_address:
-                # CIDR notation
                 network = ipaddress.ip_network(self.ip_address, strict=False)
-                ip_obj = ipaddress.ip_address(ip_address)
                 return ip_obj in network
-            else:
-                # Single IP address
-                return self.ip_address == ip_address
+            return ipaddress.ip_address(self.ip_address.strip()) == ip_obj
         except (ValueError, ipaddress.AddressValueError):
             return False
 

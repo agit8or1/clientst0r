@@ -117,6 +117,12 @@ GUIDES = (
           'Card and direct-debit payments.'),
     Guide('tax', 'docs/TAX.md', 'Business and billing', 'Sales tax.'),
     # Access and security
+    Guide('settings-general', 'docs/SETTINGS_GENERAL.md', 'Access and security',
+          'General settings, the customer portal, Service Desk and billing defaults, custom fields, tags, holidays.'),
+    Guide('security-settings', 'docs/SECURITY_SETTINGS.md', 'Access and security',
+          'Sign-in and session rules, technician access, single sign-on, firewall, fail2ban and vulnerability scans.'),
+    Guide('ai-automation-and-communications', 'docs/AI_AUTOMATION_AND_COMMUNICATIONS.md', 'Access and security',
+          'OPTIONAL AI configuration, scheduled jobs and workflows, and e-mail and SMS settings.'),
     Guide('roles-and-access', 'docs/ROLES_AND_ACCESS.md', 'Access and security',
           'Roles, permissions and access groups.'),
     Guide('technician-access', 'docs/TECHNICIAN_ACCESS.md', 'Access and security',

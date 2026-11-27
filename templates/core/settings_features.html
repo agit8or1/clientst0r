@@ -37,7 +37,7 @@
                             <div class="form-text ms-5">
                                 {{ m.summary }}
                                 {% if row.requires %}Needs {% for d in row.requires %}{{ d.label }}{% if not forloop.last %}, {% endif %}{% endfor %}.{% endif %}
-                                {% if m.key == 'psa' %}When on, the native PSA is active for every client <strong>except</strong> those that already have an external PSA connection (ConnectWise / Halo / Autotask / etc.).{% endif %}
+                                {% if m.key == 'psa' %}When on, the Service Desk is active for every customer <strong>except</strong> those that already have an external PSA connection (ConnectWise / Halo / Autotask / etc.).{% endif %}
                             </div>
                         </div>
                     </div>

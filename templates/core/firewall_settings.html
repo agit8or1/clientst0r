@@ -139,7 +139,7 @@
 
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle"></i>
-                        <strong>GeoIP Provider:</strong> Uses ip-api.com (free service, 45 requests/minute)
+                        <strong>GeoIP Provider:</strong> A local copy of the DB-IP "IP to Country Lite" database, refreshed by <code>manage.py update_geoip_db</code> on each update. Without it, lookups fall back to ip-api.com, cached for a day.
                     </div>
 
                     <div class="form-text mb-2">These rules govern the staff backend. The customer portal follows them too unless it has its own policy below.</div>
@@ -193,7 +193,7 @@
                         <label class="form-check-label" for="bypass_for_staff">
                             <strong>Bypass for Staff Users</strong>
                         </label>
-                        <div class="form-text">Allow authenticated staff users to bypass firewall rules</div>
+                        <div class="form-text">Signed-in accounts with the Django admin staff flag (<code>is_staff</code>) skip the IP and country rules. The MSP Staff user type alone does not count.</div>
                     </div>
 
                     <div class="form-check form-switch">

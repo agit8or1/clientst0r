@@ -810,7 +810,39 @@ class UserProfile(BaseModel):
     # sign-out, so it is left out unless named in update_fields.
     _EPOCH_FIELD = 'sessions_valid_after'
 
+    def __init__(self, *args, **kwargs):
+        # Whether the caller chose a timezone. Rows loaded from the database
+        # come in as positional args, so this is only True for an explicit
+        # UserProfile(timezone=...) / create(..., timezone=...).
+        self._timezone_given = 'timezone' in kwargs
+        super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def install_default_timezone():
+        """Settings → General → Default Timezone, or None when unset/invalid."""
+        try:
+            from core.models import SystemSetting
+            name = (SystemSetting.get_settings_for_request().default_timezone or '').strip()
+        except Exception:
+            return None
+        if not name:
+            return None
+        try:
+            from zoneinfo import ZoneInfo
+            ZoneInfo(name)
+        except Exception:
+            return None
+        return name
+
     def save(self, *args, **kwargs):
+        if self._state.adding and not self._timezone_given:
+            # Every new profile (the User post_save signal, get_or_create in
+            # views, imports, SSO) starts in the install's default timezone.
+            # Existing profiles are never touched.
+            tz = self.install_default_timezone()
+            if tz:
+                self.timezone = tz
+            self._timezone_given = True
         if (not self._state.adding and self.pk and kwargs.get('update_fields') is None
                 and not kwargs.get('force_insert') and not (args and args[0])):
             from django.db import DatabaseError

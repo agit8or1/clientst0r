@@ -102,7 +102,12 @@ class FirewallMiddleware(MiddlewareMixin):
 
         return False
 
+    # The staff sign-in (and its 2FA step) is /account/login/; the
+    # '/accounts/login/' and '/two_factor/' entries never matched a real page,
+    # so the exemption used to miss the sign-in form.
     AUTH_PREFIXES = (
+        '/account/login/',
+        '/logout/',
         '/accounts/login/',
         '/accounts/logout/',
         '/accounts/auth/',   # SSO: Azure/OAuth login + callback

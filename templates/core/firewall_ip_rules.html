@@ -18,17 +18,21 @@
             <div class="row">
                 <div class="col-md-4">
                     <label for="ip_address" class="form-label">IP Address or CIDR Range *</label>
-                    <input type="text" class="form-control" id="ip_address" name="ip_address"
-                           placeholder="192.168.1.100 or 10.0.0.0/24" required>
+                    <input type="text" class="form-control{% if form_error %} is-invalid{% endif %}" id="ip_address" name="ip_address"
+                           placeholder="192.168.1.100 or 10.0.0.0/24" value="{{ form_values.ip_address|default:'' }}"
+                           {% if form_error %}aria-invalid="true" aria-describedby="ip_address_error"{% endif %} required>
+                    {% if form_error %}
+                    <div class="invalid-feedback d-block" id="ip_address_error">{{ form_error }}</div>
+                    {% endif %}
                     <small class="form-text text-muted">
-                        Single IP: 192.168.1.100<br>
-                        CIDR Range: 192.168.0.0/16
+                        Single IP: 192.168.1.100 or 2001:db8::1<br>
+                        CIDR Range: 192.168.0.0/16 or 2001:db8::/32
                     </small>
                 </div>
                 <div class="col-md-6">
                     <label for="description" class="form-label">Description (Optional)</label>
                     <input type="text" class="form-control" id="description" name="description"
-                           placeholder="Office Network, VPN Gateway, etc.">
+                           placeholder="Office Network, VPN Gateway, etc." value="{{ form_values.description|default:'' }}">
                 </div>
                 <div class="col-md-2 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary w-100">
@@ -46,6 +50,13 @@
         <h6 class="mb-0"><i class="fas fa-list"></i> IP Rules ({{ rules.count }})</h6>
     </div>
     <div class="card-body">
+        {% if invalid_rule_count %}
+        <div class="alert alert-warning" role="alert">
+            <i class="fas fa-exclamation-triangle"></i>
+            {{ invalid_rule_count }} rule{{ invalid_rule_count|pluralize }} below {{ invalid_rule_count|pluralize:"is,are" }} not a valid IP address or CIDR range and never match{{ invalid_rule_count|pluralize:"es," }} any request.
+            Delete {{ invalid_rule_count|pluralize:"it,them" }} and add the address again.
+        </div>
+        {% endif %}
         {% if rules %}
         <div class="table-responsive">
             <table class="table table-hover">
@@ -60,10 +71,12 @@
                 </thead>
                 <tbody>
                     {% for rule in rules %}
-                    <tr>
+                    <tr{% if not rule.is_valid_address %} class="table-warning"{% endif %}>
                         <td>
                             <code>{{ rule.ip_address }}</code>
-                            {% if '/' in rule.ip_address %}
+                            {% if not rule.is_valid_address %}
+                            <span class="badge bg-warning text-dark" data-invalid-rule="{{ rule.pk }}">Invalid &mdash; never matches</span>
+                            {% elif '/' in rule.ip_address %}
                             <span class="badge bg-info">CIDR Range</span>
                             {% endif %}
                         </td>
@@ -115,6 +128,7 @@
         <li><strong>Office Network:</strong> <code>192.168.1.0/24</code> (192.168.1.1 - 192.168.1.254)</li>
         <li><strong>Large Network:</strong> <code>10.0.0.0/8</code> (10.0.0.0 - 10.255.255.255)</li>
         <li><strong>VPN Range:</strong> <code>172.16.0.0/12</code></li>
+        <li><strong>IPv6:</strong> <code>2001:db8::1</code> or <code>2001:db8::/32</code></li>
     </ul>
 </div>
     </div>

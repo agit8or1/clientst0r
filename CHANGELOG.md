@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.796] - 2026-11-27
+
+### Added
+- **Administration guides with annotated screenshots** (roadmap 112.8): *General settings* (every General settings
+  section and the Service Desk settings), *Security settings* (security dashboard, firewall and country rules,
+  fail2ban, scanners, Snyk, sessions and sign-in) and *AI, automation and communications* (AI provider keys, the
+  scheduler, e-mail, text messages and module switches). Each one opens from the Help button of its settings pages.
+
+### Fixed
+- **AI keys are never sent back to the page.** AI Configuration shows whether a key is saved, not the key. A blank
+  field keeps the saved key, a new value replaces it, *Clear* removes it, the Test button uses the saved key when the
+  field is blank, and line breaks in a key can no longer add lines to the environment file.
+- **Scheduler interval.** A value outside 1 to 10,080 minutes is refused with a message instead of an error page,
+  and a valid change moves the next run up straight away. The status box no longer says the scheduler is running
+  unless it has evidence that it is.
+- **Text-message providers.** Settings → SMS offers only the providers that can actually send; the others are
+  refused if submitted.
+- **fail2ban.** Checking an address matches it exactly (not as part of a longer one, and in any IPv6 spelling);
+  unban and unban-all accept IPv6; invalid addresses are refused before anything runs; start, unban and unban-all
+  are written to the audit log.
+- **Firewall.** IP allow and block entries are checked and saved in a single canonical form (IPv4, IPv6 and CIDR);
+  existing invalid entries are flagged rather than deleted. Enabling the firewall and every rule or country change
+  is audited. The IP allow list now exempts the real staff sign-in page.
+- **Package and Python scanners are for superusers.** The staff flag alone no longer opens the scanner pages or runs
+  scans and package updates.
+- **Default time zone.** New users get the install's default time zone (Settings → General) instead of UTC; a time
+  zone chosen explicitly, and existing profiles, are left alone.
+- **Equipment catalog** is for MSP staff only; customer users get 403.
+- **Service Desk settings.** Pressing Enter in a text field saves the main settings rather than the follow-up section.
+- **Clearer settings pages.** The security dashboard states the scan interval plainly, the firewall page names the
+  local GeoIP database, the Snyk page says its frequency field is not used, and the security pages say exactly when
+  single sign-on applies.
+- **Service Desk name.** Settings pages, the guides and the module list use *Service Desk* and *per-customer* where
+  they still said PSA and per-client; the CRM help points to Modules → Feature Toggles, where its switch now lives.
+
+### Changed
+- Roadmap: 112.8 shipped.
+
 ## [3.17.795] - 2026-11-26
 
 Thanks to Dijar Vrella for the suggestion in GitHub Discussion #161: a source that recovers after failed reads and

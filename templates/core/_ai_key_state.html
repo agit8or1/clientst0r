@@ -1,0 +1,12 @@
+{% comment %}A saved secret on Settings → AI & LLM. The key itself is never rendered:
+the page says one is set; typing a new value replaces it, the checkbox clears it.{% endcomment %}
+{% if is_set %}
+<div class="d-flex flex-wrap align-items-center gap-2 mt-1 small" data-key-state="{{ field }}">
+    <span class="badge bg-success"><i class="fas fa-key"></i> A key is set</span>
+    <span class="text-muted">Type a new key to replace it.</span>
+    <div class="form-check mb-0">
+        <input class="form-check-input" type="checkbox" id="clear_{{ field }}" name="clear_{{ field }}" value="1">
+        <label class="form-check-label" for="clear_{{ field }}">Clear the saved key</label>
+    </div>
+</div>
+{% endif %}

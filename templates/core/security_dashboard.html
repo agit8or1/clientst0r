@@ -443,9 +443,7 @@
                     </span>
                 </div>
                 <small class="text-muted mt-2 d-block">
-                    Runs every {{ auto_scan_task.interval_minutes }} minutes
-                    ({{ auto_scan_task.interval_minutes|floatformat:0 }} min = every
-                    {% if auto_scan_task.interval_minutes >= 1440 %}{{ auto_scan_task.interval_minutes|add:0|floatformat:0|slice:":99" }}{% with h=auto_scan_task.interval_minutes|add:0 %}{% if h >= 1440 %}day{% elif h >= 60 %}{{ h }}h{% else %}{{ h }}m{% endif %}{% endwith %}{% else %}{{ auto_scan_task.interval_minutes }}m{% endif %}).
+                    Runs {{ auto_scan_every }}.
                     Emails all superusers when findings are detected.
                 </small>
             </div>

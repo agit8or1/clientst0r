@@ -4754,6 +4754,711 @@
         }
       ],
       "caption": "Pricing Advisor thresholds."
+    },
+    {
+      "name": "guide-setg-general-top",
+      "guide": "docs/SETTINGS_GENERAL.md",
+      "route": "/core/settings/general/",
+      "theme": "light",
+      "selector": "#custom_logo_height",
+      "extend_up": 620,
+      "max_h": 1100,
+      "organization": "Beacon Managed IT",
+      "alt": "General Settings with numbered callouts on the site name, site URL, default timezone, custom company name, custom logo and logo height",
+      "caption": "Administration → General → General Settings: site and branding.",
+      "annotate": [
+        {
+          "selector": "#site_name",
+          "note": "Site Name: the installation's name, used in emails and the browser title."
+        },
+        {
+          "selector": "#site_url",
+          "note": "Site URL: the base address put in email links and used to build the customer portal address."
+        },
+        {
+          "selector": "#default_timezone",
+          "note": "Default Timezone. Saved, but nothing reads it yet (see the notes below)."
+        },
+        {
+          "selector": "#custom_company_name",
+          "note": "Custom Company Name: replaces \"Clientst0r\" in the header, titles and outgoing email."
+        },
+        {
+          "selector": "#custom_logo",
+          "note": "Custom Logo: shown in the top bar in place of the Clientst0r logo."
+        },
+        {
+          "selector": "#custom_logo_height",
+          "note": "Logo Height in pixels (20 to 100, default 30)."
+        }
+      ]
+    },
+    {
+      "name": "guide-setg-general-bottom",
+      "guide": "docs/SETTINGS_GENERAL.md",
+      "route": "/core/settings/general/",
+      "theme": "light",
+      "selector": "button:has-text('Save Changes')",
+      "extend_up": 800,
+      "max_h": 1100,
+      "organization": "Beacon Managed IT",
+      "alt": "General Settings with numbered callouts on the map zoom, the background policy, the stay-on-page switch, the CRM switch and Save Changes",
+      "caption": "Administration → General → General Settings: map, background and interface.",
+      "annotate": [
+        {
+          "selector": "#map_default_zoom",
+          "note": "Default Zoom Level for the organization dashboard map (1 to 18, default 4)."
+        },
+        {
+          "selector": "#background_policy",
+          "note": "Background policy: who decides the app background. Anything but user controlled overrides every profile."
+        },
+        {
+          "selector": "#stay_on_page_after_org_switch",
+          "note": "Stay on the current page when the client switcher changes customer (on by default)."
+        },
+        {
+          "selector": "p.form-text a[href$='/core/settings/features/']",
+          "note": "CRM and every other module are switched on or off under Modules → Feature Toggles."
+        },
+        {
+          "selector": "button:has-text('Save Changes')",
+          "note": "Save Changes writes the whole page at once."
+        }
+      ]
+    },
+    {
+      "name": "guide-setg-portal-address",
+      "guide": "docs/SETTINGS_GENERAL.md",
+      "route": "/core/settings/portal/",
+      "theme": "light",
+      "selector": "#portal-branding",
+      "extend_up": 600,
+      "max_h": 2000,
+      "organization": "Beacon Managed IT",
+      "alt": "Customer Portal settings with numbered callouts on the sign-in button, the section links, the host name, the portal name, the accent colour and the portal logo",
+      "caption": "Administration → General → Customer Portal: address and branding.",
+      "annotate": [
+        {
+          "selector": "[data-open-portal]",
+          "note": "Open portal sign-in: the portal's sign-in page in a new tab."
+        },
+        {
+          "selector": "nav[aria-label='Sections on this page']",
+          "note": "Links to the six sections of the page."
+        },
+        {
+          "selector": "#portal_hostname",
+          "note": "Customer portal host name: leave empty to serve the portal at /portal/ on the main host."
+        },
+        {
+          "selector": "#portal_name",
+          "note": "Portal name shown on portal pages and in the footer."
+        },
+        {
+          "selector": "#portal_accent_custom",
+          "note": "Use my own accent colour: buttons, links and the header stripe."
+        },
+        {
+          "selector": "#portal_logo",
+          "note": "Portal logo (PNG, JPEG or WebP, up to 2 MB)."
+        }
+      ]
+    },
+    {
+      "name": "guide-setg-portal-layout",
+      "guide": "docs/SETTINGS_GENERAL.md",
+      "route": "/core/settings/portal/",
+      "theme": "light",
+      "selector": "#portal-country",
+      "extend_up": 1300,
+      "max_h": 1700,
+      "organization": "Beacon Managed IT",
+      "alt": "Customer Portal settings with numbered callouts on the layout choices, the feature switches and the customer list",
+      "caption": "Administration → General → Customer Portal: layout, features, customers.",
+      "annotate": [
+        {
+          "selector": "#portal-layout",
+          "note": "Layout: navigation, content width and default theme."
+        },
+        {
+          "selector": "#portal-features",
+          "note": "Features: four portal switches, shown while the Service Desk is on."
+        },
+        {
+          "selector": "#portal-customers",
+          "note": "Customers: the portal on or off for each customer."
+        },
+        {
+          "selector": "#portal-country",
+          "note": "Country policy: read-only; changed in Firewall Settings."
+        }
+      ]
+    },
+    {
+      "name": "guide-setg-psa-top",
+      "guide": "docs/SETTINGS_GENERAL.md",
+      "route": "/psa/settings/",
+      "theme": "light",
+      "max_h": 2400,
+      "organization": "Beacon Managed IT",
+      "alt": "Service Desk settings with numbered callouts on the close-out switch, the follow-up policy, the AI switch and the opt-out list",
+      "caption": "Administration → General → Service Desk.",
+      "annotate": [
+        {
+          "selector": "#psa_closeout_require_time",
+          "note": "Require time logged to close (off by default)."
+        },
+        {
+          "selector": "#followup_enabled",
+          "note": "Follow up with customers and close after silence (off by default)."
+        },
+        {
+          "selector": "#followup_first_after_days",
+          "note": "The day counts for the first follow-up, the second reminder and the automatic close."
+        },
+        {
+          "selector": "#psa_ai_enabled",
+          "note": "OPTIONAL AI: Suggested Replies and Actions (off by default)."
+        },
+        {
+          "selector": "button.btn-primary:has-text('Save Settings')",
+          "note": "Save Settings saves the close-out and AI settings; the follow-up has its own save button."
+        }
+      ]
+    },
+    {
+      "name": "guide-setg-fields",
+      "guide": "docs/SETTINGS_GENERAL.md",
+      "route": "/assets/custom-fields/",
+      "theme": "light",
+      "max_h": 1200,
+      "organization": "Beacon Managed IT",
+      "alt": "Custom Fields and Types with numbered callouts on the Add field button, the field rows and the custom asset types card",
+      "caption": "Administration → General → Custom Fields & Types.",
+      "annotate": [
+        {
+          "selector": "a:has-text('Add field')",
+          "note": "Add field."
+        },
+        {
+          "selector": "table >> nth=0",
+          "note": "Each custom field: label, stored key, type, the asset types it applies to, required and status."
+        },
+        {
+          "selector": "a:has-text('Add type')",
+          "note": "Add type: a custom asset type that appears in the asset form's Type list."
+        }
+      ]
+    },
+    {
+      "name": "guide-setg-tags",
+      "guide": "docs/SETTINGS_GENERAL.md",
+      "route": "/core/tags/",
+      "theme": "light",
+      "max_h": 800,
+      "organization": "Beacon Managed IT",
+      "alt": "Tags with numbered callouts on the Add Tag button, a tag, its usage and the row buttons",
+      "caption": "Administration → General → Tags.",
+      "annotate": [
+        {
+          "selector": "a:has-text('Add Tag')",
+          "note": "Add Tag."
+        },
+        {
+          "selector": "tbody tr:first-child .badge",
+          "note": "A tag as it appears on records, in its colour."
+        },
+        {
+          "selector": "tbody tr:first-child td:nth-child(3)",
+          "note": "Usage: how many assets and passwords carry the tag."
+        },
+        {
+          "selector": "tbody tr:first-child td:last-child",
+          "note": "Edit and Delete."
+        }
+      ]
+    },
+    {
+      "name": "guide-setg-holidays",
+      "guide": "docs/SETTINGS_GENERAL.md",
+      "route": "/resourcing/holidays/",
+      "theme": "light",
+      "max_h": 1200,
+      "organization": "Beacon Managed IT",
+      "alt": "Holidays with numbered callouts on the Add Holiday button, a date, the scope badge and the recurrence",
+      "caption": "Administration → General → Holidays.",
+      "annotate": [
+        {
+          "selector": "a:has-text('Add Holiday')",
+          "note": "Add Holiday."
+        },
+        {
+          "selector": "tbody tr:first-child td:nth-child(1)",
+          "note": "The date."
+        },
+        {
+          "selector": "tbody tr:first-child td:nth-child(3)",
+          "note": "Scope: one customer, or Global (all orgs)."
+        },
+        {
+          "selector": "tbody tr:first-child td:nth-child(4)",
+          "note": "Yearly repeats every year on the same month and day; One-time applies once."
+        }
+      ]
+    },
+    {
+      "name": "guide-setg-catalog",
+      "guide": "docs/SETTINGS_GENERAL.md",
+      "route": "/assets/vendors/",
+      "theme": "light",
+      "max_h": 1200,
+      "organization": "Beacon Managed IT",
+      "alt": "Equipment Catalog with numbered callouts on the Add Vendor button, a vendor, its model count and the row buttons",
+      "caption": "Administration → General → Equipment Catalog.",
+      "annotate": [
+        {
+          "selector": "a:has-text('Add Vendor')",
+          "note": "Add Vendor."
+        },
+        {
+          "selector": "tbody tr:first-child td:nth-child(1)",
+          "note": "The vendor; the name opens its detail page and models."
+        },
+        {
+          "selector": "tbody tr:first-child td:nth-child(4)",
+          "note": "How many equipment models the vendor has."
+        },
+        {
+          "selector": "tbody tr:first-child td:nth-child(5)",
+          "note": "View, and Edit for people who may manage the catalog."
+        }
+      ]
+    },
+    {
+      "name": "guide-setsec-dashboard",
+      "guide": "docs/SECURITY_SETTINGS.md",
+      "route": "/core/security/",
+      "theme": "light",
+      "max_h": 2400,
+      "alt": "The Security Dashboard with numbered callouts on Run Full Scan, the Vulnerability Status card, the OS Package Security and Python Dependency Security tiles and the Automated Security Scans card",
+      "annotate": [
+        {
+          "selector": "#runFullScanBtn",
+          "note": "Run Full Scan: Snyk Open Source, Code and IaC scans (when Snyk is on) plus an OS package scan, in the background."
+        },
+        {
+          "selector": "main .card:has(h6:has-text('Vulnerability Status'))",
+          "note": "The newest completed Snyk scan: counts by severity and the change from the scan before it."
+        },
+        {
+          "selector": "main .card:has(h6:has-text('OS Package Security'))",
+          "note": "The latest OS package scan. Details opens the package scanner."
+        },
+        {
+          "selector": "main .card:has(h6:has-text('Python Dependency Security'))",
+          "note": "The latest pip-audit scan of the Python packages Clientst0r runs on."
+        },
+        {
+          "selector": "main .card:has(h6:has-text('Automated Security Scans'))",
+          "note": "The automated security scan task: off by default, daily once switched on, mails superusers when it finds something."
+        }
+      ],
+      "caption": "Administration → Security → Security Dashboard."
+    },
+    {
+      "name": "guide-setsec-settings",
+      "guide": "docs/SECURITY_SETTINGS.md",
+      "route": "/core/settings/security/",
+      "theme": "light",
+      "max_h": 1400,
+      "alt": "Security Settings with numbered callouts on the idle timeout, the maximum session length, Require 2FA, the minimum password length, the failed login attempts field marked set by environment, and Save Changes",
+      "annotate": [
+        {
+          "selector": "#session_idle_timeout_minutes",
+          "note": "Idle timeout: signed out after this many minutes without a request (default 60)."
+        },
+        {
+          "selector": "#session_timeout_minutes",
+          "note": "Maximum session length, counted from sign-in (default 480 minutes)."
+        },
+        {
+          "selector": "label[for=require_2fa]",
+          "note": "Require 2FA for all users (default on)."
+        },
+        {
+          "selector": "#password_min_length",
+          "note": "Minimum password length (default 12). The special-character rule is under it."
+        },
+        {
+          "selector": "#failed_login_attempts",
+          "note": "A field marked Set by environment is fixed by a variable in the server's .env and is read-only here."
+        },
+        {
+          "selector": "main button[type=submit]:has-text('Save Changes')",
+          "note": "Save Changes. Applies within about 30 seconds on every worker."
+        }
+      ],
+      "caption": "Administration → Security → Security Settings."
+    },
+    {
+      "name": "guide-setsec-features",
+      "guide": "docs/SECURITY_SETTINGS.md",
+      "route": "/core/security/features/",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "Security Features with numbered callouts on the customer picker and on the failed sign-in lockout row: the safeguard, its shipped status, its default and its effective state",
+      "annotate": [
+        {
+          "selector": "#securityFeaturesOrg",
+          "note": "The customer whose effective state the last column shows."
+        },
+        {
+          "selector": "tr[data-feature=lockout] td >> nth=0",
+          "note": "The safeguard, what it protects and the document that explains it. The title links to where it is set."
+        },
+        {
+          "selector": "tr[data-feature=lockout] td >> nth=1",
+          "note": "How it ships: Enforced, On by default, Opt-in or Partial."
+        },
+        {
+          "selector": "tr[data-feature=lockout] td >> nth=2",
+          "note": "The default, what it needs, and how it works."
+        },
+        {
+          "selector": "tr[data-feature=lockout] td >> nth=3",
+          "note": "Its state at that customer, read from the live settings, with any environment variable that fixes it."
+        }
+      ],
+      "caption": "Administration → Security → Security Features."
+    },
+    {
+      "name": "guide-setsec-rmm",
+      "guide": "docs/SECURITY_SETTINGS.md",
+      "route": "/settings/security/rmm-permissions/",
+      "theme": "light",
+      "max_h": 1400,
+      "alt": "RMM Permissions with numbered callouts on the effective-permissions pickers, the Add an override form, a pending allow override waiting for a second administrator, and the overrides in force",
+      "annotate": [
+        {
+          "selector": "main select[aria-label=Technician] >> nth=0",
+          "note": "Effective permissions for one technician, or every technician at one customer, with the reason for each answer."
+        },
+        {
+          "selector": "main .card:has(strong:text-is('Add an override')) form",
+          "note": "Add an override: allow, deny or require approval, for one action or all, a customer, a technician or a role."
+        },
+        {
+          "selector": "main .card:has(strong:text-is('Waiting for a second administrator')) .card-body",
+          "note": "An allow override waits here until a different administrator approves it with their password."
+        },
+        {
+          "selector": "main .card:has(strong:text-is('In force')) .card-body",
+          "note": "Deny and require-approval overrides apply at once. Lifting one needs a second administrator."
+        }
+      ],
+      "caption": "Administration → Security → RMM Permissions."
+    },
+    {
+      "name": "guide-setsec-vault",
+      "guide": "docs/SECURITY_SETTINGS.md",
+      "route": "/core/security/vault-visibility/",
+      "theme": "light",
+      "max_h": 900,
+      "alt": "Vault Visibility with numbered callouts on a technician, the customers whose vault they still see, the customers they no longer see and the number of entries hidden",
+      "annotate": [
+        {
+          "selector": "#vaultVisibilityTable tbody tr >> nth=0 >> td >> nth=0",
+          "note": "An MSP staff user with no global role."
+        },
+        {
+          "selector": "#vaultVisibilityTable tbody tr >> nth=0 >> td >> nth=1",
+          "note": "Customers whose vault they still see, through a membership that grants view vault."
+        },
+        {
+          "selector": "#vaultVisibilityTable tbody tr >> nth=0 >> td >> nth=2",
+          "note": "Customers whose vault they saw before 3.17.653 and no longer see."
+        },
+        {
+          "selector": "#vaultVisibilityTable tbody tr >> nth=0 >> td >> nth=3",
+          "note": "How many shared vault entries that hides from them."
+        }
+      ],
+      "caption": "Administration → Security → Vault Visibility."
+    },
+    {
+      "name": "guide-setsec-firewall",
+      "guide": "docs/SECURITY_SETTINGS.md",
+      "route": "/core/settings/firewall/",
+      "theme": "light",
+      "max_h": 1800,
+      "alt": "Firewall settings with numbered callouts on Enable IP Firewall, Enable GeoIP Firewall, the customer portal country policy, Bypass for Staff Users and Log Blocked Requests",
+      "annotate": [
+        {
+          "selector": "label[for=ip_firewall_enabled]",
+          "note": "The IP firewall and its mode: block list or allow list. Off by default."
+        },
+        {
+          "selector": "label[for=geoip_firewall_enabled]",
+          "note": "The country (GeoIP) firewall and its mode. Off by default."
+        },
+        {
+          "selector": "#portal_geoip_mode",
+          "note": "The customer portal's country policy: the same as staff (default), none, or its own list."
+        },
+        {
+          "selector": "label[for=bypass_for_staff]",
+          "note": "Accounts with the Django admin staff flag skip both firewalls (default on). API requests can be let through too."
+        },
+        {
+          "selector": "label[for=log_blocked_requests]",
+          "note": "Record every blocked request in the firewall log (default on)."
+        }
+      ],
+      "caption": "Administration → Security → Firewall & GeoIP."
+    },
+    {
+      "name": "guide-setsec-scans",
+      "guide": "docs/SECURITY_SETTINGS.md",
+      "route": "/core/settings/snyk/scans/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "Snyk Scan History with numbered callouts on Cleanup Old Scans, a scan's status, its severity breakdown and its View button",
+      "annotate": [
+        {
+          "selector": "#cleanupScansBtn",
+          "note": "Delete scans older than 30 days, and all but the newest 30."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=1",
+          "note": "Status. A completed scan is red when it found critical or high issues."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=5",
+          "note": "Critical, high, medium and low counts."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=7",
+          "note": "View opens the scan's findings and fix suggestions."
+        }
+      ],
+      "caption": "Administration → Security → Vulnerability Scans."
+    },
+    {
+      "name": "guide-setx-psa-switch",
+      "guide": "docs/AI_AUTOMATION_AND_COMMUNICATIONS.md",
+      "route": "/core/settings/psa/",
+      "theme": "light",
+      "alt": "The Service Desk settings page, AI Assist section, with numbered callouts on the master switch, the voice, the minimum confidence and the blocked subject keywords",
+      "annotate": [
+        {
+          "selector": "#psa_ai_enabled",
+          "note": "The AI master switch. Off by default. With it off, every AI feature in Clientst0r refuses to call a provider."
+        },
+        {
+          "selector": "input[name=psa_ai_voice]",
+          "note": "Voice / tone: a sentence added to the instructions for suggested replies."
+        },
+        {
+          "selector": "input[name=psa_ai_min_confidence]",
+          "note": "Suggestions below this confidence are shown collapsed."
+        },
+        {
+          "selector": "textarea[name=psa_ai_blocked_subject_keywords]",
+          "note": "Tickets whose subject contains any of these lines are skipped by AI generation."
+        }
+      ],
+      "caption": "Administration → General → Service Desk, AI Assist section.",
+      "max_h": 900,
+      "selector": "#psa_ai_enabled",
+      "pad": 280
+    },
+    {
+      "name": "guide-setx-ai",
+      "guide": "docs/AI_AUTOMATION_AND_COMMUNICATIONS.md",
+      "route": "/core/settings/ai/",
+      "theme": "light",
+      "alt": "Administration → AI Configuration → AI & LLM with numbered callouts on the active provider, a key field, its Test button and Save Settings",
+      "annotate": [
+        {
+          "selector": "#llm_provider",
+          "note": "The active provider for the document, floor-plan, asset and receipt features."
+        },
+        {
+          "selector": "#anthropic_api_key",
+          "note": "The provider key. Stored in the .env file as plain text, not encrypted."
+        },
+        {
+          "selector": "#test-anthropic-btn",
+          "note": "Test sends the key you typed to the provider to check it. Do not use it with a key you are not ready to use."
+        },
+        {
+          "selector": "#saveSettingsBtn",
+          "note": "Save writes the .env file and reloads the application."
+        }
+      ],
+      "caption": "Administration → AI Configuration → AI & LLM.",
+      "max_h": 3000
+    },
+    {
+      "name": "guide-setx-profiles",
+      "guide": "docs/AI_AUTOMATION_AND_COMMUNICATIONS.md",
+      "route": "/psa/ai/profiles/",
+      "theme": "light",
+      "alt": "Administration → AI Configuration → Ticket AI models with numbered callouts on the gateway status, installation limits, model profiles, the new profile form and the customer policies",
+      "annotate": [
+        {
+          "selector": "div.alert:has-text(\"Gateway\")",
+          "note": "Gateway status: whether provider keys are isolated from the web application."
+        },
+        {
+          "selector": "#ai-installation-settings",
+          "note": "Installation-wide monthly cap and the read-only command allowlist for AI Troubleshoot."
+        },
+        {
+          "selector": ".card:has(strong:text-is(\"Model profiles\"))",
+          "note": "Model profiles: provider, model, whether a key is stored (write-only), owner and status."
+        },
+        {
+          "selector": ".card:has(strong:text-is(\"New profile\"))",
+          "note": "Add or edit a profile. The key field is write-only."
+        },
+        {
+          "selector": ".card:has(strong:text-is(\"Customer AI policies\"))",
+          "note": "Each customer's AI policy. A customer without one allows no ticket AI."
+        }
+      ],
+      "caption": "Administration → AI Configuration → Ticket AI models.",
+      "max_h": 2600
+    },
+    {
+      "name": "guide-setx-scheduler",
+      "guide": "docs/AI_AUTOMATION_AND_COMMUNICATIONS.md",
+      "route": "/core/settings/scheduler/",
+      "theme": "light",
+      "alt": "Administration → Automation → Task Scheduler with numbered callouts on a task, its interval, its Enabled switch, the last and next run, the status and Save Changes",
+      "annotate": [
+        {
+          "selector": "tbody tr:nth-child(2) td:first-child",
+          "note": "A task and what it does. A red line under it is the last error."
+        },
+        {
+          "selector": "tbody tr:nth-child(2) input[type=number]",
+          "note": "Interval in minutes, 1 to 10080."
+        },
+        {
+          "selector": "tbody tr:nth-child(2) .form-switch",
+          "note": "Enabled: off means the scheduler skips the task."
+        },
+        {
+          "selector": "tbody tr:nth-child(2) td:nth-child(4)",
+          "note": "When the last run started, and when the next is due."
+        },
+        {
+          "selector": "tbody tr:nth-child(2) .badge",
+          "note": "Status of the last run: Success, Failed, Running or Pending."
+        }
+      ],
+      "caption": "Administration → Automation → Task Scheduler.",
+      "max_h": 720
+    },
+    {
+      "name": "guide-setx-smtp",
+      "guide": "docs/AI_AUTOMATION_AND_COMMUNICATIONS.md",
+      "route": "/core/settings/smtp/",
+      "theme": "light",
+      "alt": "Administration → Communications → SMTP / Email with numbered callouts on the enable switch, the host and port, the password, the From address, the notification switches and the test card",
+      "annotate": [
+        {
+          "selector": "#smtp_enabled",
+          "note": "Turn outgoing email on. Everything below is ignored while it is off."
+        },
+        {
+          "selector": "#smtp_host",
+          "note": "The mail server name and port."
+        },
+        {
+          "selector": "#smtp_password",
+          "note": "The password is write-only: leave it blank to keep the saved one."
+        },
+        {
+          "selector": "#smtp_from_email",
+          "note": "The From address and name on every message Clientst0r sends."
+        },
+        {
+          "selector": "#notify_on_ssl_expiry",
+          "note": "Which expiry warnings to email and how many days ahead."
+        },
+        {
+          "selector": "#test_email",
+          "note": "Send Test Email: sends one real message to this address."
+        }
+      ],
+      "caption": "Administration → Communications → SMTP / Email.",
+      "max_h": 2000
+    },
+    {
+      "name": "guide-setx-sms",
+      "guide": "docs/AI_AUTOMATION_AND_COMMUNICATIONS.md",
+      "route": "/core/settings/sms/",
+      "theme": "light",
+      "alt": "Administration → Communications → SMS Provider with numbered callouts on the enable switch, the provider, the account fields, the credential test and the From number",
+      "annotate": [
+        {
+          "selector": "#sms_enabled",
+          "note": "Turn SMS on."
+        },
+        {
+          "selector": "#sms_provider",
+          "note": "Twilio, Plivo, Vonage or Telnyx."
+        },
+        {
+          "selector": "#sms_account_sid",
+          "note": "Account SID or API key."
+        },
+        {
+          "selector": "#sms_auth_token",
+          "note": "Auth token or secret: write-only, leave blank to keep the saved one."
+        },
+        {
+          "selector": "#sms_from_number",
+          "note": "The sending number in international format, such as +15551234567."
+        }
+      ],
+      "caption": "Administration → Communications → SMS Provider.",
+      "max_h": 900
+    },
+    {
+      "name": "guide-setx-consult",
+      "guide": "docs/AI_AUTOMATION_AND_COMMUNICATIONS.md",
+      "route": "/core/free-consult/requests/",
+      "theme": "light",
+      "alt": "Administration → Communications → Consultation Requests with numbered callouts on the new count, an unread row, the areas, the details and the mark-read button",
+      "annotate": [
+        {
+          "selector": "h2 .badge",
+          "note": "How many requests are unread."
+        },
+        {
+          "selector": "tbody tr.table-warning",
+          "note": "Unread requests are highlighted."
+        },
+        {
+          "selector": "tbody tr.table-warning td:nth-child(6)",
+          "note": "The areas of interest the visitor ticked."
+        },
+        {
+          "selector": "tbody tr.table-warning td:nth-child(7)",
+          "note": "Details, best time and how they heard of you."
+        },
+        {
+          "selector": "tbody tr.table-warning button[name=mark_read]",
+          "note": "Mark read."
+        }
+      ],
+      "caption": "Administration → Communications → Consultation Requests.",
+      "max_h": 1100,
+      "width": 1900
     }
   ]
 }

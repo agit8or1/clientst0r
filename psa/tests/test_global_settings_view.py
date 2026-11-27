@@ -72,3 +72,64 @@ class GlobalPSASettingsSaveTests(TestCase):
         entry = AuditLog.objects.filter(object_type='core.SystemSetting').latest('id')
         changed = entry.extra_data.get('changed_fields', {})
         self.assertNotIn('psa_ai_min_confidence', changed)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class GlobalPSASettingsDefaultSubmitTests(TestCase):
+    """Enter in a text field submits with the form's first submit button; that
+    must be the main Save Settings, not "Save follow-up settings"."""
+
+    def setUp(self):
+        _enable_psa_global()
+        self.admin = User.objects.create_user(
+            username='psa-admin2', password='pw', is_staff=True, is_superuser=True)
+        self.client = Client()
+        self.client.force_login(self.admin)
+        session = self.client.session
+        session['2fa_prompted'] = True
+        session.save()
+
+    def _first_submit_in_settings_form(self, html):
+        from html.parser import HTMLParser
+
+        class P(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.forms, self.cur = [], None
+
+            def handle_starttag(self, tag, attrs):
+                a = dict(attrs)
+                if tag == 'form':
+                    self.cur = {'submits': [], 'has_followup': False}
+                    self.forms.append(self.cur)
+                elif self.cur is not None and tag in ('button', 'input'):
+                    if a.get('type', 'submit' if tag == 'button' else 'text') == 'submit':
+                        self.cur['submits'].append(a)
+                        if a.get('value') == 'save_followup':
+                            self.cur['has_followup'] = True
+
+            def handle_endtag(self, tag):
+                if tag == 'form':
+                    self.cur = None
+
+        p = P()
+        p.feed(html)
+        form = next(f for f in p.forms if f['has_followup'])
+        return form['submits'][0]
+
+    def test_first_submit_button_is_the_main_save(self):
+        r = self.client.get('/psa/settings/')
+        self.assertEqual(r.status_code, 200)
+        first = self._first_submit_in_settings_form(r.content.decode())
+        self.assertEqual(first.get('name'), 'action')
+        self.assertEqual(first.get('value'), 'save_globals')
+
+    def test_default_submit_saves_globals_not_followup(self):
+        from psa.models import FollowUpPolicy
+        before = FollowUpPolicy.get().enabled
+        r = self.client.post('/psa/settings/', {
+            'action': 'save_globals', 'psa_closeout_require_time': 'on',
+            'followup_enabled': '' if before else 'on'})
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(SystemSetting.get_settings().psa_closeout_require_time)
+        self.assertEqual(FollowUpPolicy.get().enabled, before)

@@ -274,13 +274,13 @@
                                 <option value="manual" {% if settings.snyk_scan_frequency == 'manual' %}selected{% endif %}>Manual Only</option>
                             </select>
                             <div class="form-text">
-                                How often to run automatic vulnerability scans
+                                Saved, but not used yet: automatic scans run on the <em>Automated Security Scan</em> task's interval (Administration → Automation → Task Scheduler).
                             </div>
                         </div>
 
                         <h5 class="mb-3 mt-4">Snyk Products</h5>
                         <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i> Select which Snyk products to enable. Different products scan different aspects of your application.
+                            <i class="fas fa-info-circle"></i> These decide which scans the <em>Run Scan Now</em> menu offers. Run Full Scan (Security Dashboard) and the automated scan always run Open Source, Code and Infrastructure as Code, whatever is ticked here.
                         </div>
 
                         <div class="form-check form-switch mb-3">
