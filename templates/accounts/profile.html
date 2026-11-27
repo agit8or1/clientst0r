@@ -190,7 +190,7 @@
                     <dt class="col-sm-3">{% trans "Notifications:" %}</dt>
                     <dd class="col-sm-9">
                         {% if profile.email_notifications %}
-                        <i class="fas fa-check-circle text-success"></i> {% trans "Enabled" %} ({{ profile.get_notification_frequency_display }})
+                        <i class="fas fa-check-circle text-success"></i> {% trans "Enabled" %}
                         {% else %}
                         <i class="fas fa-times-circle text-danger"></i> {% trans "Disabled" %}
                         {% endif %}

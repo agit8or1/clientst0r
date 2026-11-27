@@ -1,0 +1,18 @@
+{% extends "two_factor/_base_focus.html" %}
+{% load i18n %}
+
+{% block content %}
+  <h1>{% block title %}{% trans "Two-factor sign-in is on" %}{% endblock %}</h1>
+
+  <p>{% blocktrans trimmed %}From now on you will be asked for a code from your
+      authenticator app when you sign in.{% endblocktrans %}</p>
+
+  <p>{% blocktrans trimmed %}Get your recovery codes now: each one signs you in once
+      if you lose your phone. They are shown only once.{% endblocktrans %}</p>
+
+  {# Posts straight to the recovery-codes page, which generates a set and shows it once. #}
+  <form method="post" action="{% url 'two_factor:backup_tokens' %}">{% csrf_token %}
+    <button class="btn btn-primary" type="submit">{% trans "Get recovery codes" %}</button>
+  </form>
+  <p class="mt-3 text-center"><a href="{% url 'accounts:two_factor_setup' %}">{% trans "Back to 2FA Settings" %}</a></p>
+{% endblock %}

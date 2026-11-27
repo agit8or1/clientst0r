@@ -14,7 +14,7 @@
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
             <h2 class="card-title mb-0 flex-grow-1">{{ ticket.subject }}</h2>
-            {% if voting_enabled %}
+            {% if voting_enabled and can_reply %}
             <form method="post" action="{% url 'portal:ticket_vote' ticket.ticket_number %}" class="m-0">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-sm {% if user_voted %}btn-warning{% else %}btn-outline-warning{% endif %}"
@@ -81,7 +81,7 @@
     <div class="card-header"><h2 class="h5 mb-0">Conversation</h2></div>
     {% include "psa/_conversation.html" with entries=conversation staff_view=False allow_reply=reply_open stale_comment_ids=None empty_text="No replies yet." %}
 
-    {% if not ticket.status.is_terminal %}
+    {% if not ticket.status.is_terminal and can_reply %}
     <form method="post" action="{% url 'portal:post_reply' ticket.ticket_number %}" class="card-body border-top" id="reply-form" data-reply-form>
         {% csrf_token %}
         <input type="hidden" name="parent_id" id="reply-parent-id" value="">

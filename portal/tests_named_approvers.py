@@ -65,6 +65,26 @@ class NamedApproverTests(_Base):
         self.assertContains(r, 'Approver: Dana Whitfield')
         self.assertFalse(r.context['pending'][0].can_decide)
 
+    def test_heading_names_approver_for_someone_who_cannot_decide(self):
+        self.name(self.dana)
+        self.submit()
+        r = self.login(self.approver).get('/portal/approvals/')
+        self.assertNotContains(r, 'Awaiting your decision')
+        self.assertContains(r, "Awaiting someone else's approval")
+        self.assertContains(r, 'Awaiting approval by Dana Whitfield.')
+        self.assertNotContains(r, 'name="decision"')
+        # The named approver gets the decision heading and the buttons.
+        r = self.login(self.dana).get('/portal/approvals/')
+        self.assertContains(r, 'Awaiting your decision')
+        self.assertNotContains(r, "Awaiting someone else's approval")
+        self.assertContains(r, 'name="decision"')
+
+    def test_heading_names_admins_when_no_approvers_named(self):
+        self.submit()
+        r = self.login(self.user).get('/portal/approvals/')  # the requester
+        self.assertNotContains(r, 'Awaiting your decision')
+        self.assertContains(r, f'Awaiting approval by an administrator of {self.org.name}.')
+
     def test_any_one_of_several_approves(self):
         self.name(self.dana, self.sam)
         a = self.submit()

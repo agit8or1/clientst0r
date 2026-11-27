@@ -267,15 +267,6 @@
                         {% endif %}
                     </div>
 
-                    <div class="mb-3">
-                        <label for="{{ form.notification_frequency.id_for_label }}" class="form-label">{% trans "Notification Frequency" %}</label>
-                        {{ form.notification_frequency }}
-                        {% if form.notification_frequency.errors %}
-                        <div class="invalid-feedback d-block">{{ form.notification_frequency.errors }}</div>
-                        {% endif %}
-                        <small class="form-text text-muted">{% trans "How often you want to receive email notifications" %}</small>
-                    </div>
-
                     <hr class="my-4">
                     <h6><i class="fas fa-bell"></i> {% trans "Service Desk notifications" %}</h6>
                     <p class="small text-muted">Choose how you want to be notified about tickets assigned to you.</p>
@@ -348,13 +339,8 @@
                 <p class="small">Your timezone is used to display all dates and times in your local time zone. Common timezones are listed first for convenience.</p>
 
                 <h6>Notifications</h6>
-                <p class="small">Control how often you receive email notifications:</p>
-                <ul class="small">
-                    <li><strong>Real-time:</strong> Immediate notifications</li>
-                    <li><strong>Hourly:</strong> Digest every hour</li>
-                    <li><strong>Daily:</strong> Daily summary at 9 AM</li>
-                    <li><strong>Weekly:</strong> Weekly summary on Monday</li>
-                </ul>
+                <p class="small"><strong>Enable Email Notifications</strong> turns off the general e-mails about you (ticket follow-ups, document and contract notices). E-mails are sent as things happen; there are no hourly, daily or weekly digests.</p>
+                <p class="small"><strong>Service Desk notifications</strong> choose e-mail and/or text for tickets assigned to you and for due dates set on them.</p>
             </div>
         </div>
     </div>

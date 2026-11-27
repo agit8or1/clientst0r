@@ -54,6 +54,10 @@ GUIDES = (
           'A tour of the application, screen by screen.'),
     Guide('faq', 'docs/faq.md', 'Getting started', 'Frequently asked questions.'),
     # Everyday work
+    Guide('your-account', 'docs/YOUR_ACCOUNT.md', 'Getting started',
+          'Your profile and preferences, password and two-factor sign-in, sessions, and your own AI keys.'),
+    Guide('customer-portal', 'docs/CUSTOMER_PORTAL.md', 'Everyday work',
+          'What customers see in the portal, how it is switched on per customer, and what each page does.'),
     Guide('my-work', 'docs/MY_WORK.md', 'Everyday work',
           'Your queue, tasks, timesheet, schedule, leave and resources; shifts and scheduled tasks.'),
     Guide('tickets', 'docs/TICKETS.md', 'Everyday work',

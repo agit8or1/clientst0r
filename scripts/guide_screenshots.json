@@ -5459,6 +5459,646 @@
       "caption": "Administration → Communications → Consultation Requests.",
       "max_h": 1100,
       "width": 1900
+    },
+    {
+      "name": "guide-acct-profile",
+      "guide": "docs/YOUR_ACCOUNT.md",
+      "route": "/accounts/profile/",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "My Profile with numbered callouts on the account buttons, the security status, the web sessions buttons, the profile information and the organization memberships",
+      "annotate": [
+        {
+          "selector": ".d-grid.gap-2.mt-3",
+          "note": "Edit Profile, Change Password, 2FA Settings and Single sign-on (link SSO account)."
+        },
+        {
+          "selector": ".col-md-4 dl",
+          "note": "Security Status: whether two-factor is on, plus your last sign-in time and address once you have signed in."
+        },
+        {
+          "selector": "h6:has-text('Web sessions') >> xpath=..",
+          "note": "Sign out of all other browsers (you stay signed in here), or everywhere including this browser."
+        },
+        {
+          "selector": "h5:has-text('Profile Information') >> xpath=ancestor::div[contains(@class,'card')][1]",
+          "note": "What the profile currently holds: contact details, time zone, language, theme, density, background and notifications."
+        },
+        {
+          "selector": "h5:has-text('Organization Memberships') >> xpath=ancestor::div[contains(@class,'card')][1]",
+          "note": "The customers you belong to and your role in each. Read only here."
+        }
+      ],
+      "caption": "My Profile."
+    },
+    {
+      "name": "guide-acct-edit",
+      "guide": "docs/YOUR_ACCOUNT.md",
+      "route": "/accounts/profile/edit/",
+      "theme": "light",
+      "max_h": 3200,
+      "alt": "Edit Profile with numbered callouts on the name and contact fields, the default organization, time zone and language, theme and density, the email notification switch and the ticket notification choices",
+      "annotate": [
+        {
+          "selector": "#id_first_name >> xpath=ancestor::div[contains(@class,'row')][1]",
+          "note": "Name, e-mail, phone, job title and department."
+        },
+        {
+          "selector": "#id_preferred_organization",
+          "note": "Default Organization: the customer loaded when you sign in."
+        },
+        {
+          "selector": "#id_timezone",
+          "note": "Time zone, language and time format."
+        },
+        {
+          "selector": "#id_theme",
+          "note": "Color theme, and Density next to it."
+        },
+        {
+          "selector": "#id_email_notifications >> xpath=..",
+          "note": "Email notifications on or off."
+        },
+        {
+          "selector": "h6:has-text('When a ticket is assigned to me') >> xpath=ancestor::div[contains(@class,'row')][1]",
+          "note": "Ticket notifications: email or text when a ticket is assigned to you, and when an assigned ticket gets a due date."
+        }
+      ],
+      "caption": "My Profile → Edit Profile."
+    },
+    {
+      "name": "guide-acct-2fa",
+      "guide": "docs/YOUR_ACCOUNT.md",
+      "route": "/accounts/profile/2fa/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "Two-factor settings with numbered callouts on the status, the authenticator apps list and the Enable 2FA button",
+      "annotate": [
+        {
+          "selector": ".card-header >> nth=0",
+          "note": "Whether two-factor is enabled on your account."
+        },
+        {
+          "selector": ".card-body ul >> nth=0",
+          "note": "Any authenticator app that makes time-based codes works."
+        },
+        {
+          "selector": "button:has-text('Enable 2FA'), button:has-text('Disable 2FA')",
+          "note": "Enable starts setup: a QR code, then a six-digit code to confirm. Disable turns it off at once."
+        }
+      ],
+      "caption": "My Profile → 2FA Settings."
+    },
+    {
+      "name": "guide-acct-password",
+      "guide": "docs/YOUR_ACCOUNT.md",
+      "route": "/accounts/profile/password/",
+      "theme": "light",
+      "max_h": 900,
+      "alt": "Change Password with numbered callouts on the current password and the new password fields",
+      "annotate": [
+        {
+          "selector": "#id_old_password",
+          "note": "Your current password."
+        },
+        {
+          "selector": "#id_new_password1",
+          "note": "The new password, which must meet the password rules shown under it."
+        },
+        {
+          "selector": "#id_new_password2",
+          "note": "The new password again."
+        }
+      ],
+      "caption": "My Profile → Change Password."
+    },
+    {
+      "name": "guide-acct-ai-keys",
+      "guide": "docs/YOUR_ACCOUNT.md",
+      "route": "/psa/ai/my-keys/",
+      "theme": "light",
+      "max_h": 1500,
+      "alt": "My AI keys with numbered callouts on the gateway status, your profiles, the customers that allow your own keys and the new profile form",
+      "annotate": [
+        {
+          "selector": "h4 + p",
+          "note": "A profile is usable only by you, and only at customers whose AI policy allows technicians' own keys."
+        },
+        {
+          "selector": ".alert:has-text('Gateway:')",
+          "note": "Gateway: whether provider keys are stored and opened in isolation."
+        },
+        {
+          "selector": "table",
+          "note": "Your profiles. A key shows only as stored (write-only)."
+        },
+        {
+          "selector": "div.text-muted:has(strong:has-text('Customers you work for'))",
+          "note": "Customers where your own key can be used."
+        },
+        {
+          "selector": "form:has(input[name=action][value=save])",
+          "note": "Add a profile: provider, model ID and API key."
+        }
+      ],
+      "caption": "My Profile → My AI keys."
+    },
+    {
+      "name": "guide-portal-login",
+      "guide": "docs/CUSTOMER_PORTAL.md",
+      "route": "/portal/login/",
+      "theme": "light",
+      "max_h": 800,
+      "alt": "The portal sign-in page with numbered callouts on the sign-in card, the email or username field, the forgot password link and the note that staff use another sign-in",
+      "annotate": [
+        {
+          "selector": ".portal-auth-card",
+          "note": "The portal sign-in, at /portal/login/ (or on the portal host name). It shows your provider's name, logo and welcome message."
+        },
+        {
+          "selector": "input[name$='username']",
+          "note": "Customers sign in with the email address or username of their customer account."
+        },
+        {
+          "selector": "a:has-text('Forgot your password?')",
+          "note": "Forgot your password: a reset link is sent to portal accounts only."
+        },
+        {
+          "selector": ".portal-auth-note",
+          "note": "Staff accounts cannot sign in here, and customer accounts cannot sign in to the staff pages."
+        }
+      ],
+      "caption": "The customer portal sign-in.",
+      "user": "",
+      "min_h": 640
+    },
+    {
+      "name": "guide-portal-home",
+      "guide": "docs/CUSTOMER_PORTAL.md",
+      "route": "/portal/",
+      "theme": "light",
+      "max_h": 1050,
+      "alt": "My Tickets with numbered callouts on the menu, the announcements, Request a service, the All Open Closed filter, a ticket number, a status badge and New Ticket",
+      "annotate": [
+        {
+          "selector": "nav.portal-nav",
+          "note": "The portal menu. Which items appear depends on the customer's settings and the person's role."
+        },
+        {
+          "selector": "#portal-announcements",
+          "note": "Announcements your provider posted for this customer. A person can dismiss one for the rest of the session."
+        },
+        {
+          "selector": "a:has-text('Request a service')",
+          "note": "Request a service: the list of request types."
+        },
+        {
+          "selector": ".btn-group[role=group]",
+          "note": "Show all, open or closed tickets."
+        },
+        {
+          "selector": "tbody tr:nth-child(1) td:nth-child(1)",
+          "note": "The ticket number opens the ticket."
+        },
+        {
+          "selector": "tbody tr:nth-child(1) td:nth-child(4)",
+          "note": "The status is one of five plain phrases, not the internal status name."
+        },
+        {
+          "selector": ".portal-cta",
+          "note": "New Ticket: pick what you need help with."
+        }
+      ],
+      "caption": "The portal home page, My Support Tickets.",
+      "system_settings": {
+        "psa_portal_announcements_enabled": true,
+        "psa_portal_voting_enabled": true,
+        "psa_portal_escalation_enabled": true,
+        "psa_portal_customer_approvals_enabled": true
+      },
+      "user": "demo.dwhitfield"
+    },
+    {
+      "name": "guide-portal-new",
+      "guide": "docs/CUSTOMER_PORTAL.md",
+      "route": "/portal/new/",
+      "theme": "light",
+      "max_h": 1500,
+      "alt": "What do you need help with, with numbered callouts on the category heading, a request type card, the turnaround and approval line, and General support",
+      "annotate": [
+        {
+          "selector": "h2#cat-1",
+          "note": "Request types are grouped by category."
+        },
+        {
+          "selector": ".js-request-type >> nth=0",
+          "note": "Each card is a request type your provider published for this customer."
+        },
+        {
+          "selector": ".js-request-type >> nth=0 >> .card-footer",
+          "note": "The usual turnaround, and whether an approver at the customer must say yes first."
+        },
+        {
+          "selector": "#general-support-link",
+          "note": "General support: describe anything else in your own words."
+        }
+      ],
+      "caption": "Choosing what to ask for.",
+      "min_h": 1100,
+      "user": "demo.dwhitfield"
+    },
+    {
+      "name": "guide-portal-form",
+      "guide": "docs/CUSTOMER_PORTAL.md",
+      "route": "/portal/requests/portal-access-request/",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "A guided request form with numbered callouts on the title, the questions, the What to expect panel and the submit button",
+      "annotate": [
+        {
+          "selector": "h1",
+          "note": "The request type and what it is for."
+        },
+        {
+          "selector": "#service-request-form .card-body",
+          "note": "The questions for this request type. Required ones are marked with a red asterisk."
+        },
+        {
+          "selector": "h2:has-text('What to expect') >> xpath=ancestor::div[contains(@class,'card')][1]",
+          "note": "What to expect: turnaround and whether approval is needed."
+        },
+        {
+          "selector": "button.btn-primary:has-text('Submit request')",
+          "note": "Submit request creates one ticket, routed by the request type."
+        }
+      ],
+      "caption": "A guided request form.",
+      "user": "demo.dwhitfield"
+    },
+    {
+      "name": "guide-portal-ticket",
+      "guide": "docs/CUSTOMER_PORTAL.md",
+      "route": "/portal/t/PSA-2026-000018/",
+      "theme": "light",
+      "max_h": 1500,
+      "alt": "A portal ticket with numbered callouts on the progress bar, the I am affected button, Escalate this ticket, the attachments, the reply box and the secure reply box",
+      "annotate": [
+        {
+          "selector": "#ticket-progress",
+          "note": "Progress in three steps: Received, In progress, Resolved, with a plain sentence about what is happening."
+        },
+        {
+          "selector": "button:has-text(\"I'm affected\")",
+          "note": "I'm affected: a vote that tells the support team more people are hit. Off unless your provider turns it on."
+        },
+        {
+          "selector": "summary:has-text('Escalate this ticket')",
+          "note": "Escalate this ticket, with a reason. Off unless your provider turns it on."
+        },
+        {
+          "selector": "summary:has-text('Attachments')",
+          "note": "Files from the conversation that are not internal."
+        },
+        {
+          "selector": "#reply-form",
+          "note": "Reply to the support team."
+        },
+        {
+          "selector": "#secure-reply-form",
+          "note": "Send something sensitive securely: stored encrypted, never e-mailed, and read only by the support team."
+        }
+      ],
+      "caption": "A ticket in the portal.",
+      "system_settings": {
+        "psa_portal_announcements_enabled": true,
+        "psa_portal_voting_enabled": true,
+        "psa_portal_escalation_enabled": true,
+        "psa_portal_customer_approvals_enabled": true
+      },
+      "user": "demo.dwhitfield"
+    },
+    {
+      "name": "guide-portal-conversation",
+      "guide": "docs/CUSTOMER_PORTAL.md",
+      "route": "/portal/t/PSA-2026-000017/",
+      "theme": "light",
+      "max_h": 1500,
+      "alt": "A resolved ticket conversation with numbered callouts on the customer message, a support reply, the Cc line and the secure message note",
+      "annotate": [
+        {
+          "selector": ".tc-msg--customer >> nth=0",
+          "note": "The customer's own messages."
+        },
+        {
+          "selector": ".tc-msg--technician >> nth=0",
+          "note": "Replies from the support team, with their name."
+        },
+        {
+          "selector": ".tc-cc",
+          "note": "Cc: who was copied on an e-mailed reply."
+        },
+        {
+          "selector": ".tc-secure",
+          "note": "A secure message: the password itself went to the requester's e-mail as a separate link. The ticket shows only whether it was opened."
+        }
+      ],
+      "caption": "A conversation with a Cc and a secure message.",
+      "user": "demo.dwhitfield"
+    },
+    {
+      "name": "guide-portal-kb",
+      "guide": "docs/CUSTOMER_PORTAL.md",
+      "route": "/portal/kb/",
+      "theme": "light",
+      "max_h": 700,
+      "alt": "The Knowledge Base page with numbered callouts on the search box, the category heading, an article title and the views count",
+      "annotate": [
+        {
+          "selector": "input[name=q]",
+          "note": "Search the titles and the customer-visible text of articles."
+        },
+        {
+          "selector": "table",
+          "note": "Only articles your provider marked visible in the customer portal appear, grouped by category."
+        },
+        {
+          "selector": "tbody tr:nth-child(1) td:nth-child(1) a",
+          "note": "An article title opens the article."
+        }
+      ],
+      "caption": "The customer knowledge base.",
+      "min_h": 500,
+      "user": "demo.dwhitfield"
+    },
+    {
+      "name": "guide-portal-agreements",
+      "guide": "docs/CUSTOMER_PORTAL.md",
+      "route": "/portal/agreements/",
+      "theme": "light",
+      "max_h": 700,
+      "alt": "The Agreements page with numbered callouts on the open list, a document waiting for acknowledgment and the explanation of versions",
+      "annotate": [
+        {
+          "selector": "p.text-muted.small",
+          "note": "Each signature or acknowledgment is tied to the exact version the person read."
+        },
+        {
+          "selector": ".list-group",
+          "note": "Open: documents waiting for a signature or acknowledgment, and those already done."
+        },
+        {
+          "selector": ".list-group-item .badge >> nth=0",
+          "note": "Needs signature or Needs acknowledgment, depending on the document."
+        }
+      ],
+      "caption": "Agreements in the portal.",
+      "min_h": 500,
+      "user": "demo.dwhitfield"
+    },
+    {
+      "name": "guide-portal-approvals",
+      "guide": "docs/CUSTOMER_PORTAL.md",
+      "route": "/portal/approvals/",
+      "theme": "light",
+      "max_h": 800,
+      "alt": "The Approvals page with numbered callouts on the page title, a request waiting for approval and the approver line",
+      "annotate": [
+        {
+          "selector": "h1",
+          "note": "Approvals waiting on this customer. The menu item appears only when your provider turns customer approvals on."
+        },
+        {
+          "selector": ".card:has([data-awaiting-approver])",
+          "note": "One request, with who asked, the ticket and what was asked."
+        },
+        {
+          "selector": "[data-awaiting-approver]",
+          "note": "Someone who is not an approver for this request sees it, with who it is waiting on, but cannot decide it."
+        }
+      ],
+      "caption": "Approvals.",
+      "system_settings": {
+        "psa_portal_announcements_enabled": true,
+        "psa_portal_voting_enabled": true,
+        "psa_portal_escalation_enabled": true,
+        "psa_portal_customer_approvals_enabled": true
+      },
+      "min_h": 500,
+      "user": "demo.dwhitfield"
+    },
+    {
+      "name": "guide-portal-status",
+      "guide": "docs/CUSTOMER_PORTAL.md",
+      "route": "/portal/status/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The Service Status page with numbered callouts on the overall status, the services list and planned maintenance",
+      "annotate": [
+        {
+          "selector": "h1",
+          "note": "The status page your provider published for this customer. Without one, the portal says nothing is published yet."
+        },
+        {
+          "selector": ".banner",
+          "note": "The overall state; the worst service decides it."
+        },
+        {
+          "selector": ".svc >> nth=0",
+          "note": "One service with its current status and uptime over 30, 90 and 365 days (\"no data\" until it has been monitored that long)."
+        },
+        {
+          "selector": "h2:has-text('Scheduled maintenance')",
+          "note": "Planned work is posted before it starts."
+        }
+      ],
+      "caption": "Service status in the portal.",
+      "user": "demo.dwhitfield"
+    },
+    {
+      "name": "guide-portal-billing",
+      "guide": "docs/CUSTOMER_PORTAL.md",
+      "route": "/portal/billing/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The Billing page with numbered callouts on the outstanding balance, autopay, the invoice list and payment history",
+      "annotate": [
+        {
+          "selector": "h4:has-text('Billing')",
+          "note": "Billing appears only for people whose role is Billing Contact."
+        },
+        {
+          "selector": ".card.card-body >> nth=0",
+          "note": "What is outstanding for this customer."
+        },
+        {
+          "selector": "a:has-text('Payment methods')",
+          "note": "Saved payment methods and autopay."
+        },
+        {
+          "selector": "div.card-header:has-text('Invoices') >> xpath=..",
+          "note": "Invoices billed to this customer. Drafts are never shown."
+        },
+        {
+          "selector": "div.card-header:has-text('Payment history') >> xpath=..",
+          "note": "Payments and receipts."
+        }
+      ],
+      "caption": "Billing for a billing contact.",
+      "user": "demo.rbennett"
+    },
+    {
+      "name": "guide-portal-credentials",
+      "guide": "docs/CUSTOMER_PORTAL.md",
+      "route": "/portal/vault/",
+      "theme": "light",
+      "max_h": 800,
+      "alt": "Shared Credentials as a customer administrator, with numbered callouts on the manage button, a credential shared with everyone and the Reveal button",
+      "annotate": [
+        {
+          "selector": "a:has-text('Manage access for my team')",
+          "note": "Manage access for my team: only for a customer administrator."
+        },
+        {
+          "selector": "tbody tr:nth-child(1) td:nth-child(1)",
+          "note": "A credential your provider shared. The badge says who may see it."
+        },
+        {
+          "selector": ".reveal-btn >> nth=0",
+          "note": "Reveal shows the password once; every reveal is audited."
+        }
+      ],
+      "caption": "Shared credentials.",
+      "user": "demo.nlindgren",
+      "min_h": 500
+    },
+    {
+      "name": "guide-portal-credentials-admin",
+      "guide": "docs/CUSTOMER_PORTAL.md",
+      "route": "/portal/vault/admin/",
+      "theme": "light",
+      "max_h": 800,
+      "alt": "Manage shared credentials with numbered callouts on a delegated credential, who it is shared with and Manage",
+      "annotate": [
+        {
+          "selector": "table",
+          "note": "Credentials your provider delegated to the customer administrator."
+        },
+        {
+          "selector": "tbody tr:nth-child(1) td:nth-child(3)",
+          "note": "Who in the organization can see it now."
+        },
+        {
+          "selector": "a:has-text('Manage') >> nth=0",
+          "note": "Manage: tick the people who may see this credential."
+        }
+      ],
+      "caption": "Managing who sees a delegated credential.",
+      "user": "demo.nlindgren",
+      "min_h": 500
+    },
+    {
+      "name": "guide-portal-prefs",
+      "guide": "docs/CUSTOMER_PORTAL.md",
+      "route": "/portal/preferences/",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "Notification Preferences with numbered callouts on the e-mail switches, the weekly security digest and the SMS section",
+      "annotate": [
+        {
+          "selector": "#reply",
+          "note": "Reply to my tickets, status changes and survey invitations: each its own switch."
+        },
+        {
+          "selector": "#security_digest",
+          "note": "A weekly summary of open security alerts for this customer."
+        },
+        {
+          "selector": "#phone",
+          "note": "A mobile number for SMS, used only if your provider has SMS on and the status-change text switch is on."
+        },
+        {
+          "selector": "button:has-text('Save preferences')",
+          "note": "Save preferences."
+        }
+      ],
+      "caption": "Notification preferences.",
+      "user": "demo.dwhitfield"
+    },
+    {
+      "name": "guide-portal-password",
+      "guide": "docs/CUSTOMER_PORTAL.md",
+      "route": "/portal/account/password/",
+      "theme": "light",
+      "max_h": 1300,
+      "alt": "Change password with numbered callouts on the current and new password fields and the sign out of other devices button",
+      "annotate": [
+        {
+          "selector": "input[name=old_password]",
+          "note": "The current password is required, and the new one follows your provider's password rules."
+        },
+        {
+          "selector": "button:has-text('Change password')",
+          "note": "Change password. Every other device signed in to the account is signed out, and an e-mail tells the account holder."
+        },
+        {
+          "selector": "h2:has-text('Other sessions'), h3:has-text('Other sessions'), :text('Other sessions')",
+          "note": "Other sessions: sign out of every other browser without changing the password."
+        }
+      ],
+      "caption": "Changing the password.",
+      "min_h": 500,
+      "user": "demo.dwhitfield"
+    },
+    {
+      "name": "guide-portal-settings",
+      "guide": "docs/CUSTOMER_PORTAL.md",
+      "route": "/core/settings/portal/",
+      "theme": "light",
+      "max_h": 1700,
+      "alt": "The Customer Portal settings page with numbered callouts on the address, branding, layout, features, customers and country policy sections",
+      "annotate": [
+        {
+          "selector": "#portal-address",
+          "note": "Address: the portal host name, and the effective sign-in address."
+        },
+        {
+          "selector": "#portal-branding",
+          "note": "Branding: portal name, logo, accent colour, sign-in background and message, support contacts."
+        },
+        {
+          "selector": "#portal-layout",
+          "note": "Layout: top bar or side navigation, content width and default theme."
+        }
+      ],
+      "caption": "Administration, General, Customer Portal.",
+      "user": "demo.tech"
+    },
+    {
+      "name": "guide-portal-settings-features",
+      "guide": "docs/CUSTOMER_PORTAL.md",
+      "route": "/core/settings/portal/",
+      "theme": "light",
+      "max_h": 1700,
+      "alt": "The Customer Portal settings page lower half with numbered callouts on the feature switches, the customer list and the country policy",
+      "annotate": [
+        {
+          "selector": "#portal-features",
+          "note": "Features: the four switches that turn portal pages and buttons on."
+        },
+        {
+          "selector": "#portal-customers",
+          "note": "Customers: switch the portal on or off for each customer."
+        },
+        {
+          "selector": "#portal-country",
+          "note": "Country policy: shown here, set on the firewall page."
+        }
+      ],
+      "caption": "Features and customers.",
+      "user": "demo.tech",
+      "selector": "#portal-customers",
+      "extend_up": 330,
+      "pad": 170
     }
   ]
 }

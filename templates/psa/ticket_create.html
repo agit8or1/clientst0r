@@ -156,6 +156,12 @@
         </div>
         {% endif %}
 
+        <div class="mt-3 form-check form-switch">
+            <input type="checkbox" class="form-check-input" name="client_can_view" id="client_can_view" value="1">
+            <label class="form-check-label" for="client_can_view"><i class="fas fa-eye me-1 text-muted"></i>Visible to customer</label>
+            <small class="form-text text-muted d-block">Off: only technicians see this ticket. On: the customer's portal users see it and its public replies (never internal notes). You can change it later on the ticket.</small>
+        </div>
+
         {% comment %} Optional workflow attachment — pick a Process template and the
            ticket will be created with that workflow's checklist already
            embedded (you can also attach one later via Launch Workflow). {% endcomment %}

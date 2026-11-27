@@ -635,27 +635,95 @@ def two_factor_setup(request):
                     # Clear session
                     del request.session['totp_secret']
 
-                    messages.success(request, '2FA enabled successfully! You will now be prompted for a code when logging in.')
-                    return redirect('accounts:profile')
+                    # This session just proved the code: mark it verified, or
+                    # the 2FA middleware would end it on the next page.
+                    from django_otp import login as otp_login
+                    otp_login(request, device)
+
+                    _audit_two_factor(request, 'enabled')
+
+                    # Recovery codes straight away, shown once (stored hashed).
+                    from .otp_views import generate_backup_codes, render_fresh_backup_codes
+                    codes = generate_backup_codes(request.user)
+                    return render_fresh_backup_codes(request, codes, context={'just_enabled': True})
                 else:
                     messages.error(request, 'Invalid code. Please try again.')
 
         elif action == 'disable':
-            # Delete TOTPDevice
-            from django_otp.plugins.otp_totp.models import TOTPDevice
-            TOTPDevice.objects.filter(user=request.user).delete()
+            from core.security_policy import require_2fa
+            if require_2fa():
+                # The install requires 2FA: removing it is refused here (the
+                # middleware would force a new enrolment anyway).
+                messages.error(request, 'Two-factor sign-in is required on this installation '
+                                        'and cannot be turned off.')
+                _audit_two_factor(request, 'disable_refused', success=False,
+                                  reason='two-factor required by policy')
+                return redirect('accounts:two_factor_setup')
+            if not _confirms_identity(request.user, request.POST.get('confirm_password') or '',
+                                      request.POST.get('confirm_code') or ''):
+                messages.error(request, 'To turn off 2FA, enter your current password or a valid '
+                                        'code from your authenticator app or a recovery code.')
+                _audit_two_factor(request, 'disable_refused', success=False,
+                                  reason='password or code not confirmed')
+                return redirect('accounts:two_factor_setup')
+
+            # Every device: the authenticator and the recovery codes. A
+            # leftover backup-code device would still count as 2FA.
+            from django_otp import devices_for_user
+            for device in list(devices_for_user(request.user, confirmed=None)):
+                device.delete()
 
             # Update profile
             profile.two_factor_enabled = False
             profile.save()
 
+            _audit_two_factor(request, 'disabled')
             messages.success(request, '2FA disabled. You will no longer be prompted for a code when logging in.')
             return redirect('accounts:profile')
 
+    from core.security_policy import require_2fa
+    from django_otp.plugins.otp_static.models import StaticToken
     return render(request, 'accounts/two_factor_setup.html', {
         'profile': profile,
         'step': 'initial',
+        'two_factor_required': require_2fa(),
+        'recovery_codes_left': StaticToken.objects.filter(device__user=request.user).count(),
     })
+
+
+def _confirms_identity(user, password, code):
+    """True when `password` is the user's current password, or `code` is a
+    valid current code from one of their 2FA devices (authenticator or an
+    unused recovery code, which is then spent)."""
+    if password and user.has_usable_password() and user.check_password(password):
+        return True
+    code = (code or '').strip().replace(' ', '')
+    if code:
+        from django_otp import match_token
+        return match_token(user, code) is not None
+    return False
+
+
+def _audit_two_factor(request, event, success=True, reason=''):
+    extra = {'event': f'two_factor_{event}'}
+    if reason:
+        extra['reason'] = reason
+    descriptions = {
+        'enabled': 'Turned on two-factor sign-in',
+        'disabled': 'Turned off two-factor sign-in',
+        'disable_refused': 'Refused to turn off two-factor sign-in',
+    }
+    try:
+        AuditLog.log(
+            user=request.user, action='update', object_type='user',
+            object_id=request.user.pk, object_repr=request.user.username,
+            description=descriptions.get(event, event) + (f' ({reason})' if reason else ''),
+            ip_address=request.META.get('REMOTE_ADDR'),
+            user_agent=request.META.get('HTTP_USER_AGENT', '')[:255],
+            path=request.path, extra_data=extra, success=success,
+        )
+    except Exception:
+        logger.exception('Audit entry for a two-factor change failed')
 
 
 # Organization Management Views (Admin Only)

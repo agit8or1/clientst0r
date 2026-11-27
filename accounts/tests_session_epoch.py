@@ -435,12 +435,16 @@ class EpochMechanicsTests(TestCase):
         self.assertIsNotNone(self.customer.profile.sessions_valid_after)
         self.assertIsNone(self.tech.profile.sessions_valid_after)
 
+    # Turning 2FA off is refused while the install requires it (REQUIRE_2FA
+    # may be set in this machine's environment).
+    @override_settings(REQUIRE_2FA=False)
     def test_own_2fa_removal_keeps_current_session(self):
         from django_otp.plugins.otp_totp.models import TOTPDevice
         current, other = _two_clients(self.tech)
         TOTPDevice.objects.create(user=self.tech, name='default', confirmed=True)
         # Mark the sessions verified the cheap way: the test stack has no 2FA middleware.
-        r = current.post(reverse('accounts:two_factor_setup'), {'action': 'disable'})
+        r = current.post(reverse('accounts:two_factor_setup'),
+                         {'action': 'disable', 'confirm_password': PASSWORD})
         self.assertEqual(r.status_code, 302)
         self.assertFalse(TOTPDevice.objects.filter(user=self.tech).exists())
         self.assertEqual(_get(current).status_code, 200)

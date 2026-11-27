@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.797] - 2026-11-27
+
+### Added
+- **Your account and Customer portal guides with annotated screenshots** (roadmap 112.9). *Your account* covers
+  the profile and preferences, password, two-factor sign-in and recovery codes, sessions and personal AI keys.
+  *Customer portal* covers what a customer sees: how the portal is switched on per customer, signing in, tickets,
+  the knowledge base, approvals, agreements, billing and shared credentials. It is written so it can be handed to
+  customers as it stands. My Profile and My Work Details open the matching guide from their Help button.
+- **"Visible to customer" on tickets.** Staff can share a ticket with the customer's portal users when creating it,
+  or later from the ticket page; staff-created tickets stay internal unless shared. Changing it needs permission
+  to edit tickets for that customer, and each change is noted on the ticket and audited.
+
+### Fixed
+- **Turning off two-factor sign-in now needs your password or a valid code.** The library's own two-factor profile
+  and disable pages, which turned it off with only a tick box, now redirect to My Profile → 2FA Settings. Disabling
+  is refused while the install requires two-factor sign-in, and a plain page visit changes nothing.
+- **Recovery codes** are shown once when two-factor sign-in is enabled and are linked from the 2FA settings page and
+  the setup-complete page.
+- **Portal approvals** show who a request is waiting on ("Awaiting approval by …"), the requests a person can decide
+  first under their own heading, and the others under *Awaiting someone else's approval*.
+- **Portal replies.** A portal user whose role cannot reply is no longer offered the reply form or voting.
+- **No more promised digests.** The profile's *Notification Frequency* setting is removed: nothing read it, and
+  e-mails have always been sent as things happen. The help text now says so.
+- **Service Desk name** in the profile's notification settings and the portal guide.
+
+### Changed
+- Roadmap: 112.9 shipped.
+
 ## [3.17.796] - 2026-11-27
 
 ### Added

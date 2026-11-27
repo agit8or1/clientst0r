@@ -74,14 +74,14 @@ SECTION_GUIDES = {
     'settings_integrations': 'integrations',
     'settings_system': 'auto-update',
     'settings_maintenance': 'backup-and-restore',
+    'account_profile': 'your-account',
+    'account_work': 'my-work',
     'account_help': 'getting-started',
     'account_apps': 'install-app',
 }
 
 # Sections without a guide yet, by roadmap batch.
 PENDING_SECTIONS = frozenset({
-    # 112.9 Your account
-    'account_profile', 'account_work',
 })
 
 # Guides (by slug) without an annotated figure yet (112.10 and the batches above).

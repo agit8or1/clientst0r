@@ -50,6 +50,13 @@ urlpatterns = [
     # refused (they sign in at /portal/login/). Same path and wizard prefix
     # as two_factor:login, listed first so it wins.
     path('account/login/', StaffLoginView.as_view(), name='staff_login'),
+    # The library's own 2FA profile and disable pages would turn 2FA off with
+    # only a tick box. Both go to My Profile → 2FA Settings, whose Disable
+    # needs the current password or a valid code and honours "2FA required".
+    path('account/two_factor/', RedirectView.as_view(pattern_name='accounts:two_factor_setup'),
+         name='two_factor_profile_redirect'),
+    path('account/two_factor/disable/', RedirectView.as_view(pattern_name='accounts:two_factor_setup'),
+         name='two_factor_disable_redirect'),
     path('', include(tf_urls)),
 
     # Sign-out. After a single sign-on session it continues to the identity

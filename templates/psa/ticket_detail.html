@@ -664,7 +664,18 @@
                 <dl class="row mb-0 small">
                     <dt class="col-5">Type</dt><dd class="col-7">{{ ticket.ticket_type.name }}</dd>
                     <dt class="col-5">Source</dt><dd class="col-7">{{ ticket.get_source_display }}</dd>
-                    <dt class="col-5">Visibility</dt><dd class="col-7">{{ ticket.get_visibility_display }}</dd>
+                    <dt class="col-5">Visible to customer</dt>
+                    <dd class="col-7" id="ticket-customer-visible">
+                        {% if ticket.client_can_view %}Yes{% else %}No{% endif %}
+                        {% if can_set_customer_visible %}
+                        <form method="post" action="{% url 'psa:ticket_quick_action' ticket.ticket_number %}" class="d-inline ms-1">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="set_customer_visible">
+                            <input type="hidden" name="visible" value="{% if ticket.client_can_view %}0{% else %}1{% endif %}">
+                            <button type="submit" class="btn btn-link btn-sm p-0 align-baseline">{% if ticket.client_can_view %}Hide from customer{% else %}Share with customer{% endif %}</button>
+                        </form>
+                        {% endif %}
+                    </dd>
                     <dt class="col-5">Impact</dt><dd class="col-7">{{ ticket.get_impact_display }}</dd>
                     <dt class="col-5">Urgency</dt><dd class="col-7">{{ ticket.get_urgency_display }}</dd>
                     <dt class="col-5">Assignee</dt><dd class="col-7">{{ ticket.assigned_to.username|default:"—" }}</dd>

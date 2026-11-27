@@ -237,7 +237,9 @@ class TwoFactorFlowTests(TestCase):
         self.assertContains(resp, '<svg width="200" height="200"')
         resp = c.post('/accounts/profile/2fa/', {'action': 'verify',
                                                  'code': pyotp.TOTP(secret).now()})
-        self.assertEqual(resp.status_code, 302)
+        # Enabled: the response shows the new recovery codes once.
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.context['fresh_tokens']), 10)
         device = TOTPDevice.objects.get(user=self.user, name='default')
         raw = _raw('otp_totp_totpdevice', 'key', device.pk)
         self.assertTrue(raw.startswith('enc2h$'))

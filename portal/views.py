@@ -323,6 +323,7 @@ def ticket_detail(request, ticket_number):
         'conversation': conversation,
         'reply_open': (not (ticket.status_id and ticket.status.is_terminal)
                        and portal_perm(request, PORTAL_TICKETS_REPLY)),
+        'can_reply': portal_perm(request, PORTAL_TICKETS_REPLY),
         'progress': progress,
         'pending_approvals': pending_approvals,
         'waiting_question': waiting_question,
@@ -1152,6 +1153,20 @@ def can_decide_client_approval(approval, membership, user):
     return can_approve_service_request(approval, user)
 
 
+def _awaiting_approver_label(approval, organization):
+    """Who a pending approval waits on, for someone who can't decide it:
+    "Awaiting approval by <name(s) or role>"."""
+    if approval.object_type == SERVICE_REQUEST_APPROVAL_TYPE:
+        from psa.service_requests import SOURCE_NAMED, approvers_for_approval
+        info = approvers_for_approval(approval)
+        names = [u.get_full_name() or u.username for u in info['users']]
+        if info['source'] == SOURCE_NAMED and names:
+            return 'Awaiting approval by ' + ', '.join(names)
+        return f'Awaiting approval by an administrator of {organization.name}'
+    return (f'Awaiting approval by someone at {organization.name} '
+            'whose role allows approving requests')
+
+
 def _approver_display(approval):
     """Waiting-on text for a service-request approval in the portal list."""
     from psa.service_requests import SOURCE_NAMED, SOURCE_REQUESTER_ONLY, approvers_for_approval
@@ -1204,10 +1219,14 @@ def approvals_list(request):
     for a in pending:
         a.approver_note = (_approver_display(a)
                            if a.object_type == SERVICE_REQUEST_APPROVAL_TYPE else '')
-    # The ones this person can act on come first.
+        a.awaiting_label = ('' if a.can_decide
+                            else _awaiting_approver_label(a, m.organization))
+    # The ones this person can act on come first, under their own heading.
     pending.sort(key=lambda a: not a.can_decide)
     return render(request, 'portal/approvals_list.html', {
         'pending': pending,
+        'pending_mine': [a for a in pending if a.can_decide],
+        'pending_others': [a for a in pending if not a.can_decide],
         'decided': decided,
         'organization': m.organization,
     })

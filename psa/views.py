@@ -599,6 +599,8 @@ def ticket_detail(request, ticket_number):
         'closure_categories': Ticket.CLOSURE_CATEGORIES,
         'is_closed': is_closed,
         'can_edit_request_answers': _can_edit_request_answers(request.user, ticket),
+        'can_set_customer_visible': (workspace['is_msp_staff']
+                                     and _org_perm(request, ticket.organization_id, 'tickets_edit')),
         'attachment_max_mb': ATTACHMENT_MAX_BYTES // (1024 * 1024),
         'watchers_count': watchers_count,
         'activity': _ticket_activity(request, ticket),
@@ -862,6 +864,7 @@ def ticket_create(request):
             except (User.DoesNotExist, ValueError, TypeError):
                 pass
 
+        customer_visible = request.POST.get('client_can_view') in ('1', 'on', 'true')
         ticket = Ticket.objects.create(
             organization=org,
             subject=subject,
@@ -876,6 +879,10 @@ def ticket_create(request):
             assigned_to=initial_assignee,
             related_asset=related_asset,
             project=_visible_project_or_none(request, request.POST.get('project')),
+            # "Visible to customer" switch; off unless ticked (staff-created
+            # tickets stay internal by default).
+            visibility='client' if customer_visible else 'staff',
+            client_can_view=customer_visible,
         )
         # Compute SLA due-dates from the priority's targets
         apply_due_dates(ticket)
@@ -890,6 +897,7 @@ def ticket_create(request):
             description=f'Created PSA ticket {ticket.ticket_number}: {ticket.subject[:120]}',
             ip_address=_client_ip(request),
             path=request.path,
+            extra_data={'client_can_view': customer_visible},
         )
 
         # Optional workflow attachment — if the user picked a Process template,
@@ -2284,6 +2292,26 @@ def _ticket_quick_action(request, ticket_number):
             description = f'Status of {ticket.ticket_number}: {prev} → {new_status.name}'
             audit_extra['from'] = prev
             audit_extra['to'] = new_status.name
+
+    elif action == 'set_customer_visible':
+        # Share the ticket with the customer's portal users, or stop sharing
+        # it. Needs tickets_edit on the ticket's customer (checked above).
+        visible = (request.POST.get('visible') or '') in ('1', 'on', 'true')
+        prev = bool(ticket.client_can_view)
+        ticket.client_can_view = visible
+        ticket.visibility = 'client' if visible else 'staff'
+        ticket.updated_by = request.user
+        ticket.save(update_fields=['client_can_view', 'visibility', 'updated_by', 'updated_at'])
+        TicketComment.objects.create(
+            ticket=ticket, author=request.user,
+            body=('Shared with the customer: now visible in the portal.' if visible
+                  else 'No longer shared with the customer: hidden from the portal.'),
+            is_internal=True, is_system=True,
+        )
+        description = (f'{ticket.ticket_number} '
+                       + ('shared with the customer' if visible else 'no longer shared with the customer'))
+        audit_extra['from'] = prev
+        audit_extra['to'] = visible
 
     elif action == 'reopen':
         target = (

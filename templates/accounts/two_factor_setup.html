@@ -39,19 +39,45 @@
                     <i class="fas fa-check-circle"></i> Your account is currently protected with 2FA using TOTP (Time-based One-Time Password).
                 </div>
 
+                <h6 class="mt-4"><i class="fas fa-key"></i> Recovery codes</h6>
+                <p class="text-muted mb-2">
+                    Recovery codes sign you in once each when your authenticator app is not available.
+                    {% if recovery_codes_left %}You have {{ recovery_codes_left }} unused code{{ recovery_codes_left|pluralize }}.{% else %}You have no unused recovery codes.{% endif %}
+                    They are shown only when generated; a new set replaces the old one.
+                </p>
+                <a href="{% url 'two_factor:backup_tokens' %}" class="btn btn-outline-primary" id="recovery-codes-link">
+                    <i class="fas fa-key"></i> Recovery codes
+                </a>
+
                 <h6 class="mt-4">Disable Two-Factor Authentication</h6>
+                {% if two_factor_required %}
+                <p class="text-muted" id="two-factor-required-note">
+                    Two-factor sign-in is required on this installation, so it cannot be turned off.
+                </p>
+                {% else %}
                 <p class="text-muted">
                     Warning: Disabling 2FA will make your account less secure. Only disable if necessary.
+                    To confirm it is you, enter your current password or a code from your authenticator app
+                    (a recovery code also works).
                 </p>
 
                 <form method="post" data-confirm="Are you sure you want to disable 2FA?">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="disable">
+                    <div class="mb-2">
+                        <label for="confirm_password" class="form-label">Current password</label>
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" autocomplete="current-password">
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirm_code" class="form-label">or a code from your authenticator app or a recovery code</label>
+                        <input type="text" class="form-control" id="confirm_code" name="confirm_code" inputmode="numeric" autocomplete="one-time-code">
+                    </div>
                     <button type="submit" class="btn btn-danger">
                         <i class="fas fa-times"></i> Disable 2FA
                     </button>
                     <a href="{% url 'accounts:profile' %}" class="btn btn-outline-secondary">Cancel</a>
                 </form>
+                {% endif %}
 
                 {% else %}
                 <div class="alert alert-warning">
@@ -147,7 +173,7 @@
             <div class="card-body">
                 <ul class="mb-0">
                     <li>Keep your authenticator app on a secure device</li>
-                    <li>Consider backing up your 2FA codes in a secure password manager</li>
+                    <li>Keep your recovery codes somewhere other than your phone, such as a password manager</li>
                     <li>Never share your 2FA codes with anyone</li>
                     <li>If you lose access to your authenticator, contact your organization administrator</li>
                 </ul>

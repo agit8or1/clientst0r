@@ -634,6 +634,8 @@ class UserProfile(BaseModel):
     
     # Notifications
     email_notifications = models.BooleanField(default=True)
+    # Stored but not read by anything: e-mail goes out as it happens. Hidden
+    # from the profile form until digests exist (roadmap: "Email digests").
     notification_frequency = models.CharField(max_length=20, choices=[
         ('daily', 'Daily Digest'),
         ('hourly', 'Hourly Digest'),

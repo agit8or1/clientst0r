@@ -164,6 +164,16 @@ class PortalTicketAudienceTests(TestCase):
             self.assertEqual(self._detail(self.pat_ticket).status_code, 200)
         self.assertEqual(TicketComment.objects.filter(ticket=self.pat_ticket).count(), before)
 
+    def test_role_without_reply_is_not_offered_reply_forms_or_vote(self):
+        n = self.pat_ticket.ticket_number
+        page = self._detail(self.pat_ticket).content.decode()
+        self.assertIn(f'/portal/t/{n}/reply/', page)
+        with deny_flags(self.pat, 'portal_tickets_reply'):
+            page = self._detail(self.pat_ticket).content.decode()
+        self.assertNotIn(f'/portal/t/{n}/reply/', page)
+        self.assertNotIn(f'/portal/t/{n}/secure-reply/', page)
+        self.assertNotIn(f'/portal/t/{n}/vote/', page)
+
     # --- approvals ----------------------------------------------------------
 
     def _approval(self, **kw):
