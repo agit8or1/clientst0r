@@ -1,0 +1,48 @@
+{% extends "reports/display/base.html" %}
+{% block title %}Pair this display{% endblock %}
+{% block style %}
+<style>
+    .code { font: 800 clamp(48px, 11vw, 220px)/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+            letter-spacing: 0.08em; color: var(--text); padding: 2vh 3vw;
+            border: 3px solid var(--line); border-radius: 16px; background: var(--panel); }
+    ol { text-align: left; font-size: clamp(16px, 1.5vw, 30px); color: var(--muted); margin: 0; }
+    #pair-status { font-size: clamp(14px, 1.2vw, 24px); }
+</style>
+{% endblock %}
+{% block body %}
+<main class="center">
+    <h1>Pair this display</h1>
+    <div class="code" id="pair-code" aria-label="Pairing code">{{ code }}</div>
+    <ol>
+        <li>On a computer, sign in and open the wallboard you want on this screen.</li>
+        <li>Choose <strong>Displays</strong> → <strong>Pair a display</strong>.</li>
+        <li>Type the code above and approve.</li>
+    </ol>
+    <p class="muted" id="pair-status">Waiting for approval · the code expires in 10 minutes</p>
+</main>
+{% endblock %}
+{% block script %}
+<script nonce="{{ csp_nonce }}">
+(function () {
+    var statusUrl = "{{ status_url|escapejs }}";
+    var displayUrl = "{{ display_url|escapejs }}";
+    var deadline = Date.now() + {{ ttl_seconds }} * 1000;
+    var status = document.getElementById('pair-status');
+    var delay = 5000;
+    function again() { window.location.replace(displayUrl); }
+    function poll() {
+        if (Date.now() > deadline) { again(); return; }
+        fetch(statusUrl, { credentials: 'same-origin', cache: 'no-store' })
+            .then(function (r) { return r.json().catch(function () { return { state: 'error' }; }); })
+            .then(function (p) {
+                if (p.state === 'paired') { status.textContent = 'Paired — loading the board…'; again(); return; }
+                if (p.state === 'expired') { again(); return; }
+                delay = (p.state === 'slow_down' || p.state === 'error') ? 30000 : 5000;
+                setTimeout(poll, delay);
+            })
+            .catch(function () { setTimeout(poll, 30000); });
+    }
+    setTimeout(poll, delay);
+})();
+</script>
+{% endblock %}

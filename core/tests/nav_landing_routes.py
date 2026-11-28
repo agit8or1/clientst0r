@@ -30,7 +30,10 @@ TO_LANDING = {'core:favorite_list', 'core:webhook_list', 'core:system_status', '
 NOT_LANDING = {'core:cleanup_old_snyk_scans', 'core:restart_application', 'core:client_switcher_search',
                'core:debug_version', 'vault:password_list_datatables', 'accounts:lockout',
                'backup_tokens_hashed', 'legacy_inbox', 'office:managed_progress', 'beta_onboarding',
-               'psa:ticket_client_assets', 'hardware:model_request', 'network_discovery:collector_config'}
+               'psa:ticket_client_assets', 'hardware:model_request', 'network_discovery:collector_config',
+               # The TV's no-sign-in wallboard pages: the display itself and the
+               # page a display link opens (its secret is in the URL fragment).
+               'reports:display_home', 'reports:display_link'}
 
 
 def _routes():

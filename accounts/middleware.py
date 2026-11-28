@@ -301,6 +301,9 @@ class SectionPermissionMiddleware:
     )
 
     EXEMPT_PREFIXES = (
+        # Wallboard displays (reports/displays.py): authorised by the display
+        # cookie only; a signed-in browser on the TV must not change that.
+        '/reports/wallboards/display/',
         '/vault/personal/',        # the user's own personal vault
         '/vault/api/extension/',   # token-authenticated browser extension
         '/vault/api/generate/',    # password generator utility
@@ -355,6 +358,9 @@ class SectionPermissionMiddleware:
         '/security/digest/unsubscribe/',
         # Signature-verified payment provider webhooks (payments.webhooks).
         '/payments/webhooks/',
+        # Wallboard displays: the display cookie decides, never the browser's
+        # user (reports/displays.py); those views do not read request.user.
+        '/reports/wallboards/display/',
     )
 
     def __call__(self, request):

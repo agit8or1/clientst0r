@@ -1,0 +1,10 @@
+{% extends "reports/display/base.html" %}
+{% block head %}{% if retry_seconds %}<meta http-equiv="refresh" content="{{ retry_seconds }}">{% endif %}{% endblock %}
+{% block title %}{{ title }}{% endblock %}
+{% block body %}
+<main class="center" id="display-message">
+    <h1>{{ title }}</h1>
+    <p class="muted">{{ body }}</p>
+    {% if pair_again %}<a class="button" href="{{ pair_url }}">Pair again</a>{% endif %}
+</main>
+{% endblock %}

@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Displays — {{ wallboard.name }}{% endblock %}
+{% block content %}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'reports:home' %}">Reports</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'reports:wallboard_list' %}">Wallboards</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'reports:wallboard_view' wallboard.pk %}">{{ wallboard.name }}</a></li>
+        <li class="breadcrumb-item active">Displays</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h2 class="mb-0"><i class="fas fa-display me-2"></i>Displays <span class="text-muted small ms-2">— {{ wallboard.name }}</span></h2>
+    <div class="d-flex gap-2">
+        <a href="{% url 'reports:wallboard_view' wallboard.pk %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-tv me-1"></i>Open board</a>
+        <a href="{% url 'reports:wallboard_edit' wallboard.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-edit me-1"></i>Edit board</a>
+    </div>
+</div>
+
+<p class="text-muted">
+    A display shows this board on a TV without anyone signing in. It sees only this board,
+    with data for {% if wallboard.organization %}<strong>{{ wallboard.organization.name }}</strong> only{% else %}<strong>every customer</strong>{% endif %},
+    and nothing else in Clientst0r.
+    {% if not wallboard.is_active %}<br><span class="text-warning">This board is switched off, so its displays show "Display revoked" until it is switched on again.</span>{% endif %}
+</p>
+
+{% if not all_customers_ok %}
+<div class="alert alert-warning">This is a global board. Only someone who can see every customer can put it on a display.</div>
+{% endif %}
+
+{% if unsafe_widgets %}
+<div class="alert alert-info small">
+    Not available on displays (shown as a placeholder):
+    {% for w in unsafe_widgets %}<strong>{{ w.title }}</strong>{% if not forloop.last %}, {% endif %}{% endfor %}.
+    Vault activity, failed sign-ins and "my tickets" never appear on a screen nobody is signed in to.
+</div>
+{% endif %}
+
+{% if new_link %}
+<div class="alert alert-success" id="new-display-link">
+    <strong>Display link for "{{ new_link.name }}"</strong> — copy it now; it is shown only once.
+    <div class="input-group mt-2">
+        <input type="text" class="form-control font-monospace" readonly value="{{ new_link.url }}" id="new-link-url" aria-label="Display link">
+    </div>
+    <div class="small mt-1">Open it once on the TV. The TV then remembers it and the address bar shows only {{ display_url }}.</div>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-3">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header"><strong><i class="fas fa-link me-2"></i>Pair a display</strong></div>
+            <div class="card-body">
+                <p class="small text-muted mb-2">On the TV, open <code>{{ display_url }}</code>. It shows an 8-character code. Enter it here.</p>
+                <form method="post" action="{% url 'reports:wallboard_display_pair' wallboard.pk %}" autocomplete="off">
+                    {% csrf_token %}
+                    <div class="mb-2">
+                        <label class="form-label" for="pair-code">Code on the TV</label>
+                        <input class="form-control font-monospace text-uppercase" id="pair-code" name="code" maxlength="12" required placeholder="ABCD-EFGH">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label" for="pair-name">Display name</label>
+                        <input class="form-control" id="pair-name" name="name" maxlength="120" required placeholder="NOC TV left">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label" for="pair-nets">Allowed networks <span class="text-muted">(optional)</span></label>
+                        <textarea class="form-control font-monospace" id="pair-nets" name="allowed_networks" rows="2" placeholder="203.0.113.10&#10;192.168.10.0/24"></textarea>
+                        <div class="form-text">IP addresses or CIDR ranges, one per line. Empty = any network.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="pair-exp">Expires after (days) <span class="text-muted">(optional)</span></label>
+                        <input class="form-control" id="pair-exp" name="expires_days" type="number" min="1" max="3650">
+                    </div>
+                    <button class="btn btn-primary" type="submit"{% if not all_customers_ok %} disabled{% endif %}><i class="fas fa-check me-1"></i>Approve display</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header"><strong><i class="fas fa-key me-2"></i>Create display link</strong></div>
+            <div class="card-body">
+                <p class="small text-muted mb-2">For screens where typing a code is awkward. Anyone with the link can show this board, so restrict it to your network and keep it private.</p>
+                <form method="post" action="{% url 'reports:wallboard_display_link_create' wallboard.pk %}" autocomplete="off">
+                    {% csrf_token %}
+                    <div class="mb-2">
+                        <label class="form-label" for="link-name">Display name</label>
+                        <input class="form-control" id="link-name" name="name" maxlength="120" required placeholder="Lobby screen">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label" for="link-nets">Allowed networks <span class="text-muted">(recommended)</span></label>
+                        <textarea class="form-control font-monospace" id="link-nets" name="allowed_networks" rows="2" placeholder="203.0.113.10"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="link-exp">Expires after (days) <span class="text-muted">(optional)</span></label>
+                        <input class="form-control" id="link-exp" name="expires_days" type="number" min="1" max="3650">
+                    </div>
+                    <button class="btn btn-outline-primary" type="submit"{% if not all_customers_ok %} disabled{% endif %}><i class="fas fa-plus me-1"></i>Create link</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><strong>Displays for this board</strong></div>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0" id="display-table">
+            <thead>
+                <tr>
+                    <th>Name</th><th>Type</th><th>Status</th><th>Data</th><th>Created</th>
+                    <th>Last seen</th><th>Networks</th><th>Expires</th><th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for r in rows %}
+                <tr>
+                    <td>
+                        <form method="post" action="{% url 'reports:wallboard_display_rename' wallboard.pk r.d.pk %}" class="d-flex gap-1">
+                            {% csrf_token %}
+                            <input class="form-control form-control-sm" name="name" value="{{ r.d.name }}" maxlength="120" aria-label="Display name" style="min-width:9rem">
+                            <button class="btn btn-sm btn-outline-secondary" type="submit" title="Rename"><i class="fas fa-pen"></i><span class="visually-hidden">Rename</span></button>
+                        </form>
+                    </td>
+                    <td>{{ r.d.get_kind_display }}</td>
+                    <td>{% if r.status == 'Active' %}<span class="badge bg-success">Active</span>{% elif r.status == 'Waiting for the TV' %}<span class="badge bg-info text-dark">{{ r.status }}</span>{% else %}<span class="badge bg-secondary">{{ r.status }}</span>{% endif %}</td>
+                    <td class="small">{{ r.scope }}</td>
+                    <td class="small">{{ r.d.created_at|date:"Y-m-d H:i" }}<br><span class="text-muted">{{ r.d.created_by.username|default:"—" }}</span></td>
+                    <td class="small">{% if r.d.last_seen_at %}{{ r.d.last_seen_at|date:"Y-m-d H:i" }}<br><span class="text-muted">{{ r.d.last_seen_ip|default:"" }} · {{ r.device }}</span>{% else %}<span class="text-muted">never</span>{% endif %}</td>
+                    <td class="small font-monospace">{% for n in r.networks %}{{ n }}{% if not forloop.last %}<br>{% endif %}{% empty %}<span class="text-muted">any</span>{% endfor %}</td>
+                    <td class="small">{% if r.d.expires_at %}{{ r.d.expires_at|date:"Y-m-d" }}{% else %}<span class="text-muted">never</span>{% endif %}</td>
+                    <td class="text-end">
+                        {% if not r.d.revoked_at %}
+                        <form method="post" action="{% url 'reports:wallboard_display_revoke' wallboard.pk r.d.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <button class="btn btn-sm btn-outline-danger" type="submit"><i class="fas fa-ban me-1"></i>Revoke</button>
+                        </form>
+                        {% else %}
+                        <span class="small text-muted">{{ r.d.revoked_at|date:"Y-m-d H:i" }}{% if r.d.revoked_by %} by {{ r.d.revoked_by.username }}{% endif %}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="9" class="text-center text-muted py-4">No displays yet.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

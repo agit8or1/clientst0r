@@ -6971,6 +6971,33 @@
         }
       ],
       "caption": "The Install page (no sign-in needed)."
+    },
+    {
+      "name": "guide-wall-displays",
+      "guide": "docs/WALLBOARD_DISPLAYS.md",
+      "route": "/reports/wallboards/1/displays/",
+      "theme": "light",
+      "max_h": 1400,
+      "alt": "A board's Displays page with numbered callouts on the code box, the display link form, the list of displays and a Revoke button",
+      "annotate": [
+        {
+          "selector": "#pair-code",
+          "note": "Pair a display: type the code the TV shows, give the screen a name and approve it. An IP rule and an expiry are optional."
+        },
+        {
+          "selector": "#link-name",
+          "note": "Or create a display link for a player that takes an address. It is shown once; keep it like a password."
+        },
+        {
+          "selector": "#display-table",
+          "note": "Every display of this board: its type, status, scope, last seen time and address, IP rule and expiry."
+        },
+        {
+          "selector": "#display-table button:has-text('Revoke') >> nth=0",
+          "note": "Revoke stops the screen at its next refresh. It then shows Display revoked — pair again."
+        }
+      ],
+      "caption": "Reports, Wallboards, a board, Displays."
     }
   ]
 }

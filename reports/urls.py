@@ -5,7 +5,7 @@ from django.urls import path
 
 from core.feature_gates import gate_patterns
 
-from . import views
+from . import display_views, views
 
 app_name = 'reports'
 
@@ -104,6 +104,26 @@ urlpatterns = [
          views.wallboard_widget_add, name='wallboard_widget_add'),
     path('wallboards/widgets/<int:pk>/delete/',
          views.wallboard_widget_delete, name='wallboard_widget_delete'),
+    # Wallboard displays: a TV shows one board without signing in
+    # (reports/displays.py, docs/WALLBOARD_DISPLAYS.md). TV side under
+    # wallboards/display/ (the display cookie's path); management per board.
+    path('wallboards/display/', display_views.display_home, name='display_home'),
+    path('wallboards/display/pair/status/', display_views.display_pair_status,
+         name='display_pair_status'),
+    path('wallboards/display/data/', display_views.display_data, name='display_data'),
+    path('wallboards/display/link/', display_views.display_link, name='display_link'),
+    path('wallboards/display/link/open/', display_views.display_link_open,
+         name='display_link_open'),
+    path('wallboards/<int:pk>/displays/', display_views.wallboard_displays,
+         name='wallboard_displays'),
+    path('wallboards/<int:pk>/displays/pair/', display_views.wallboard_display_pair,
+         name='wallboard_display_pair'),
+    path('wallboards/<int:pk>/displays/link/', display_views.wallboard_display_link_create,
+         name='wallboard_display_link_create'),
+    path('wallboards/<int:pk>/displays/<int:display_pk>/revoke/',
+         display_views.wallboard_display_revoke, name='wallboard_display_revoke'),
+    path('wallboards/<int:pk>/displays/<int:display_pk>/rename/',
+         display_views.wallboard_display_rename, name='wallboard_display_rename'),
     # v3.17.225 — Phase 36 Agreement Reconciliation
     path('agreement-reconciliation/',
          views.agreement_reconciliation, name='agreement_reconciliation'),

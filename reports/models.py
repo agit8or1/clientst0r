@@ -495,3 +495,123 @@ class SavedQuery(models.Model):
 
     def can_edit(self, user) -> bool:
         return self.owner_id == user.id or user.is_superuser
+
+
+# ---------------------------------------------------------------------------
+# Wallboard displays: a TV shows one board without anyone signing in.
+#
+# A display holds a long random credential in a cookie scoped to
+# /reports/wallboards/display/. Only an HMAC of it is stored
+# (vault.secret_fields.hash_token), like share links and API keys. The data a
+# display sees is fixed when it is authorised (`scope`): the board's customer,
+# or every customer only when the person who authorised it could see every
+# customer. Nothing about that person's rights is consulted afterwards.
+# See reports/displays.py and docs/WALLBOARD_DISPLAYS.md.
+# ---------------------------------------------------------------------------
+
+class WallboardDisplay(models.Model):
+    """One TV (paired) or one secret display link allowed to show a board."""
+
+    KIND_PAIRED = 'paired'
+    KIND_LINK = 'link'
+    KIND_CHOICES = [
+        (KIND_PAIRED, 'Paired display'),
+        (KIND_LINK, 'Display link'),
+    ]
+
+    wallboard = models.ForeignKey(
+        Wallboard, on_delete=models.CASCADE, related_name='displays',
+    )
+    name = models.CharField(max_length=120, help_text='e.g. "NOC TV left".')
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES, default=KIND_PAIRED)
+
+    credential_hash = models.CharField(
+        max_length=64, unique=True, null=True, blank=True, editable=False,
+        help_text='HMAC-SHA256 of the display credential (paired) or link token '
+                  '(link). Empty until a paired TV collects its credential.',
+    )
+    scope = models.JSONField(
+        default=dict, blank=True, editable=False,
+        help_text='Data scope fixed when the display was authorised: '
+                  '{"org_ids": [id] | null, "perm_orgs": {perm: [ids] | null}}.',
+    )
+    allowed_networks = models.TextField(
+        blank=True,
+        help_text='Optional IP addresses / CIDR ranges, one per line. '
+                  'Empty = any network.',
+    )
+    expires_at = models.DateTimeField(null=True, blank=True)
+
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoked_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='wallboard_displays_revoked',
+    )
+
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='wallboard_displays_created',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # Where the TV asked to be paired from (paired displays only).
+    pairing_ip = models.GenericIPAddressField(null=True, blank=True)
+    pairing_user_agent = models.CharField(max_length=255, blank=True)
+
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+    last_seen_ip = models.GenericIPAddressField(null=True, blank=True)
+    last_seen_user_agent = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        db_table = 'reports_wallboard_displays'
+        ordering = ['wallboard', '-created_at']
+
+    def __str__(self):
+        return f'{self.name} → {self.wallboard.name}'
+
+    @property
+    def is_revoked(self):
+        return self.revoked_at is not None
+
+    @property
+    def is_expired(self):
+        return self.expires_at is not None and self.expires_at <= timezone.now()
+
+    @property
+    def is_usable(self):
+        return not self.is_revoked and not self.is_expired
+
+    @property
+    def network_list(self):
+        return [n.strip() for n in (self.allowed_networks or '').replace(',', '\n').splitlines()
+                if n.strip()]
+
+
+class WallboardPairingRequest(models.Model):
+    """A TV asking to be paired: a short code shown on screen and a random
+    secret in its cookie. Valid 10 minutes, single use; only hashes stored."""
+
+    code_hash = models.CharField(max_length=64, unique=True, editable=False)
+    secret_hash = models.CharField(max_length=64, unique=True, editable=False)
+    requested_ip = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+
+    display = models.OneToOneField(
+        WallboardDisplay, on_delete=models.CASCADE, null=True, blank=True,
+        related_name='pairing_request',
+        help_text='Set when someone approves the code; the TV then collects '
+                  'its credential and this request is deleted.',
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'reports_wallboard_pairing_requests'
+
+    def __str__(self):
+        return f'Pairing request {self.pk} ({"approved" if self.display_id else "pending"})'
+
+    @property
+    def is_expired(self):
+        return self.expires_at <= timezone.now()

@@ -94,6 +94,8 @@ GUIDES = (
           'Generate reports, use the ready-made report catalogue, see what was generated, and check software compliance.'),
     Guide('executive-reporting', 'docs/EXECUTIVE_REPORTING.md', 'Everyday work',
           'Business Overview, the Executive Scorecard, custom dashboards and analytics for owners and managers.'),
+    Guide('wallboard-displays', 'docs/WALLBOARD_DISPLAYS.md', 'Everyday work',
+          'Show a wallboard on a TV without anyone signing in: pairing codes, display links, IP rules and revoking.'),
     Guide('wallboards-and-pricing-advisor', 'docs/WALLBOARDS_AND_PRICING_ADVISOR.md', 'Everyday work',
           'Build wallboards for a wall-mounted screen, and act on the Pricing Advisor\'s profitability findings.'),
     Guide('security-alerts-and-incidents', 'docs/SECURITY_ALERTS_AND_INCIDENTS.md', 'Everyday work',

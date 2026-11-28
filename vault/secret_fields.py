@@ -586,6 +586,11 @@ HASHED_SECRET_FIELDS = [
     # Contract signing links and e-mailed signing codes (contracts.signing).
     ('contracts', 'ContractAccessToken', 'token_hash', 'hex64'),
     ('contracts', 'ContractInvitation', 'code_hash', 'hex64'),
+    # Wallboard display credentials / link tokens and TV pairing codes and
+    # secrets (reports.displays).
+    ('reports', 'WallboardDisplay', 'credential_hash', 'hex64'),
+    ('reports', 'WallboardPairingRequest', 'code_hash', 'hex64'),
+    ('reports', 'WallboardPairingRequest', 'secret_hash', 'hex64'),
 ]
 
 # Columns encrypted by their model with vault.encryption_v2 and a per-row AAD

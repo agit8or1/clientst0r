@@ -23,9 +23,9 @@ IT documentation and assets, a password vault, monitoring, a customer portal and
 | Active stage | Stage 1 — core completion (P0) |
 | Phases | **110** in total |
 | ✅ Complete | 53 (of which 2 marked for verification) |
-| 🔵 In progress | 29 |
+| 🔵 In progress | 30 |
 | 🟡 Partial | 4 |
-| ⬜ Planned | 23 |
+| ⬜ Planned | 22 |
 | 🔴 Blocked | 0 (plus blocked items inside other phases — see [Blockers](#blockers)) |
 | ⏸️ Deferred | 1 |
 
@@ -339,7 +339,7 @@ unchanged. Click a feature for its details.
 |---|---|---|---|---|---|
 | 75 | [Profitability analytics, customer commercial portal, onboarding wizard and executive dashboard](#phase-75) | P3\* | 🔵 In progress | 68–74 | 75.2 customer commercial portal; 75.5 permissions |
 | 78 | [Customer health score](#phase-78) | P3\* | 🔵 In progress | 66, 74, 75 | 78.6 portal display |
-| 83 | [NOC/SOC wallboards and secure display pairing](#phase-83) | P3\* | ⬜ Planned | 82 | 83.1 presentation mode |
+| 83 | [NOC/SOC wallboards and secure display pairing](#phase-83) | P3\* | 🔵 In progress | 82 | 83.1 presentation mode; 83.6 display credential rotation |
 | 89 | [Security posture scorecards and customer service reviews](#phase-89) | P3\* | ⬜ Planned | 78, 82, 84 | 89.1 posture scorecard |
 | 90 | [AI Operations Analyst](#phase-90) | P3\* | ⬜ Planned | 85, 56 | 90.1 alert analysis |
 | 110 | [Service-delivery reporting and one set of definitions](#phase-110) | P3 | ⬜ Planned | 3, 75, 102 | 110.1 one calculation layer |
@@ -3023,10 +3023,10 @@ Implements [Monitoring Health Standard 1.1.0](https://github.com/agit8or1/client
 
 <a id="phase-83"></a>
 
-## Phase 83 — NOC/SOC wallboards and secure display pairing **(XL · monitoring)** [planned]
-<!-- phase: ws=H stage=6 view=later deps=82 next="83.1 presentation mode" -->
-**Status:** ⬜ Planned · **Priority:** P3\* · **Workstream:** H. Reporting, Analytics & Optional AI · **Depends on:** 82  
-**Next:** 83.1 presentation mode
+## Phase 83 — NOC/SOC wallboards and secure display pairing **(XL · monitoring)** [in progress]
+<!-- phase: ws=H stage=6 view=later deps=82 next="83.1 presentation mode; 83.6 display credential rotation" -->
+**Status:** 🔵 In progress · **Priority:** P3\* · **Workstream:** H. Reporting, Analytics & Optional AI · **Depends on:** 82  
+**Next:** 83.1 presentation mode; 83.6 display credential rotation
 
 <details markdown="1">
 <summary>Details, completed work and acceptance criteria</summary>
@@ -3056,10 +3056,15 @@ widget sources) into large-screen operations displays.
 - **83.5 Efficient refresh** *(planned)* — one cached snapshot request per board per interval with
   conditional responses, a bounded minimum interval and recovery after disconnects, instead of a query per
   widget.
-- **83.6 Secure display pairing** *(in progress — pairing by code and display links built, in testing; extends the token-based schedule board pattern)* — read-only
+- **83.6 Secure display pairing** *(partial — pairing by code, display links, IP rules, expiry, revocation and audit shipped v3.17.800; credential rotation planned; extends the token-based schedule board pattern)* — read-only
   display identities paired by an administrator, with expiry, rotation, instant revocation, per-board and
   per-customer scope, optional address restrictions (Phase 81) and an audit trail. A display holds no user
   session and reaches no write or admin function; on expiry it blanks.
+  - **Wallboard displays without sign-in** *(shipped v3.17.800)* — pair a TV with one wallboard by typing the
+    8-character code it shows, or open a one-time-shown display link (the secret travels in the URL fragment); optional IP / CIDR rule and expiry
+    per display, data fixed to the board's customer (every customer only when the approver sees every
+    customer), vault and sign-in widgets withheld, revoke and rename from the board's Displays page,
+    audit entries for pair, link, rename and revoke. Guide: [WALLBOARD_DISPLAYS.md](WALLBOARD_DISPLAYS.md).
 - **83.7 Visual validation** *(planned)* — screenshot checks of every preset at 1920×1080, 2560×1440,
   3840×2160, desktop and tablet widths.
 

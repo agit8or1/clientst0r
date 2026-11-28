@@ -64,6 +64,7 @@
         <a href="{% url 'reports:wallboard_edit' wallboard.pk %}" class="btn btn-sm btn-outline-secondary">
             <i class="fas fa-edit me-1"></i>Edit
         </a>
+        <a href="{% url 'reports:wallboard_displays' wallboard.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-display me-1"></i>Displays</a>
         {% if wallboard.rotate_seconds > 0 and not rotate_target_pk %}
         <a href="{% url 'reports:wallboard_rotate' wallboard.pk %}" class="btn btn-sm btn-info">
             <i class="fas fa-sync me-1"></i>Start rotation

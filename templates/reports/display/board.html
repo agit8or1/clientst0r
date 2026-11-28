@@ -1,0 +1,226 @@
+{% extends "reports/display/base.html" %}
+{% block title %}{{ board.name }}{% endblock %}
+{% block style %}
+<style>
+    body { overflow: auto; }
+    .wrap { min-height: 100%; display: flex; flex-direction: column; padding: 1.6vh 1.4vw; gap: 1.2vh; }
+    header { display: flex; justify-content: space-between; align-items: baseline; gap: 2vw; }
+    header h1 { font-size: clamp(20px, 2.2vw, 48px); }
+    .stamp { color: var(--muted); font-size: clamp(12px, 0.95vw, 20px); font-variant-numeric: tabular-nums; }
+    .stamp.stale { color: var(--warn); }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1vh 0.8vw; flex: 1; align-content: start; }
+    .tile { grid-column: span 4; background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+            display: flex; flex-direction: column; min-height: 18vh; overflow: hidden; }
+    .tile.metric { grid-column: span 3; }
+    .tile h2 { margin: 0; padding: 0.8vh 0.8vw; font-size: clamp(12px, 0.95vw, 20px); color: var(--muted);
+               text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--line);
+               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .body { flex: 1; padding: 1vh 0.8vw; display: flex; flex-direction: column; justify-content: center; min-height: 0; }
+    .value { font-size: clamp(32px, 4.4vw, 110px); font-weight: 800; line-height: 1.05; text-align: center;
+             font-variant-numeric: tabular-nums; }
+    .sub { color: var(--muted); text-align: center; font-size: clamp(12px, 0.95vw, 20px); margin-top: 0.6vh; }
+    .c-success .value { color: var(--ok); } .c-danger .value { color: var(--bad); } .c-warning .value { color: var(--warn); }
+    .note { color: var(--muted); text-align: center; font-size: clamp(13px, 1vw, 22px); }
+    .err { color: var(--warn); }
+    table { width: 100%; border-collapse: collapse; font-size: clamp(12px, 0.95vw, 22px); }
+    th { text-align: left; color: var(--muted); font-weight: 600; padding: 0.4vh 0.4vw; border-bottom: 1px solid var(--line); }
+    td { padding: 0.5vh 0.4vw; border-bottom: 1px solid #1f2735; }
+    svg { width: 100%; height: 100%; min-height: 12vh; }
+    .legend { display: flex; flex-wrap: wrap; gap: 0.3vh 1vw; justify-content: center; font-size: clamp(11px, 0.8vw, 18px); color: var(--muted); }
+    .legend i { display: inline-block; width: 0.8em; height: 0.8em; border-radius: 2px; margin-right: 0.3em; vertical-align: -0.05em; }
+    #revoked { display: none; position: fixed; inset: 0; background: var(--bg); }
+    body.revoked #revoked { display: flex; }
+    @media (max-width: 900px) { .tile, .tile.metric { grid-column: span 12; } }
+</style>
+{% endblock %}
+{% block body %}
+<div class="wrap">
+    <header>
+        <h1>{{ board.name }}</h1>
+        <span class="stamp" id="stamp">Updated <span id="stamp-time">—</span></span>
+    </header>
+    <div class="grid" id="grid">
+        <div class="note" id="empty-note" hidden>This board has no widgets yet.</div>
+    </div>
+</div>
+<div id="revoked" class="center">
+    <h1 id="revoked-title">Display revoked — pair again</h1>
+    <p class="muted" id="revoked-body">This screen is no longer allowed to show the wallboard.</p>
+    <a class="button" id="revoked-link" href="?pair=1">Pair again</a>
+</div>
+{{ widgets|json_script:"display-widgets" }}
+{% endblock %}
+{% block script %}
+<script nonce="{{ csp_nonce }}">
+(function () {
+    var dataUrl = "{{ data_url|escapejs }}";
+    var layout = "{{ layout_version|escapejs }}";
+    var refresh = {{ refresh_seconds|default:60 }};
+    var palette = ['#7fb2ff', '#5fd39a', '#ffc857', '#ff7b7b', '#b58cff', '#4fd1c5', '#ff9f5a', '#9ad0ff'];
+    var SVGNS = 'http://www.w3.org/2000/svg';
+    var grid = document.getElementById('grid');
+    var lastOk = Date.now();
+
+    function el(tag, cls, text) {
+        var e = document.createElement(tag);
+        if (cls) e.className = cls;
+        if (text !== undefined && text !== null) e.textContent = String(text);
+        return e;
+    }
+    function svg(tag, attrs) {
+        var e = document.createElementNS(SVGNS, tag);
+        for (var k in attrs) e.setAttribute(k, attrs[k]);
+        return e;
+    }
+    function legend(names) {
+        var box = el('div', 'legend');
+        names.forEach(function (n, i) {
+            var s = el('span'); var sw = el('i'); sw.style.background = palette[i % palette.length];
+            s.appendChild(sw); s.appendChild(document.createTextNode(String(n))); box.appendChild(s);
+        });
+        return box;
+    }
+    function num(v) { var n = Number(v); return isFinite(n) ? n : 0; }
+
+    function lineBar(body, type, data) {
+        var labels = data.labels || [], series = data.series || [];
+        var W = 400, H = 180, P = 8;
+        var max = 0;
+        series.forEach(function (s) { (s.data || []).forEach(function (v) { max = Math.max(max, num(v)); }); });
+        if (max <= 0) max = 1;
+        var root = svg('svg', { viewBox: '0 0 ' + W + ' ' + H, preserveAspectRatio: 'none', role: 'img' });
+        root.appendChild(svg('line', { x1: P, y1: H - P, x2: W - P, y2: H - P, stroke: '#263042' }));
+        var n = Math.max(labels.length, 1);
+        series.forEach(function (s, si) {
+            var color = palette[si % palette.length], pts = [];
+            (s.data || []).forEach(function (v, i) {
+                var x = P + (W - 2 * P) * (n === 1 ? 0.5 : i / (n - 1));
+                var y = H - P - (H - 2 * P) * num(v) / max;
+                if (type === 'chart_bar') {
+                    var bw = (W - 2 * P) / n / Math.max(series.length, 1) * 0.8;
+                    var bx = P + (W - 2 * P) * i / n + bw * si + bw * 0.1;
+                    root.appendChild(svg('rect', { x: bx, y: y, width: bw, height: Math.max(0, H - P - y), fill: color }));
+                } else { pts.push(x.toFixed(1) + ',' + y.toFixed(1)); }
+            });
+            if (type !== 'chart_bar' && pts.length) {
+                root.appendChild(svg('polyline', { points: pts.join(' '), fill: 'none', stroke: color,
+                                                   'stroke-width': 3, 'vector-effect': 'non-scaling-stroke' }));
+            }
+        });
+        body.appendChild(root);
+        if (series.length > 1) body.appendChild(legend(series.map(function (s) { return s.name; })));
+        if (labels.length) {
+            body.appendChild(el('div', 'sub', labels[0] + ' – ' + labels[labels.length - 1] + ' · max ' + max));
+        }
+    }
+
+    function pie(body, data) {
+        var labels = data.labels || [], vals = (data.data || []).map(num);
+        var total = vals.reduce(function (a, b) { return a + b; }, 0);
+        if (!total) { body.appendChild(el('div', 'note', 'No data')); return; }
+        var root = svg('svg', { viewBox: '-1.1 -1.1 2.2 2.2', role: 'img' });
+        var a = -Math.PI / 2;
+        vals.forEach(function (v, i) {
+            if (!v) return;
+            var color = palette[i % palette.length];
+            if (v === total) { root.appendChild(svg('circle', { cx: 0, cy: 0, r: 1, fill: color })); return; }
+            var b = a + 2 * Math.PI * v / total;
+            var d = 'M0,0 L' + Math.cos(a) + ',' + Math.sin(a) + ' A1,1 0 ' + (b - a > Math.PI ? 1 : 0) +
+                    ',1 ' + Math.cos(b) + ',' + Math.sin(b) + ' Z';
+            root.appendChild(svg('path', { d: d, fill: color }));
+            a = b;
+        });
+        body.appendChild(root);
+        body.appendChild(legend(labels.map(function (l, i) { return l + ' (' + vals[i] + ')'; })));
+    }
+
+    function table(body, data) {
+        var t = el('table'), cols = data.headers || data.columns || [];
+        if (cols.length) {
+            var tr = el('tr'); cols.forEach(function (c) { tr.appendChild(el('th', '', c)); });
+            var th = el('thead'); th.appendChild(tr); t.appendChild(th);
+        }
+        var tb = el('tbody');
+        (data.rows || []).forEach(function (r) {
+            var tr = el('tr'); (r || []).forEach(function (c) { tr.appendChild(el('td', '', c)); }); tb.appendChild(tr);
+        });
+        if (!(data.rows || []).length) { var tr = el('tr'); var td = el('td', 'note', 'Nothing to show'); td.colSpan = Math.max(cols.length, 1); tr.appendChild(td); tb.appendChild(tr); }
+        t.appendChild(tb); body.appendChild(t);
+    }
+
+    function tile(w) {
+        var box = el('section', 'tile ' + (w.type || ''));
+        if (w.width) box.style.gridColumn = 'span ' + Math.min(12, Math.max(1, parseInt(w.width, 10) || 4));
+        if (w.height) box.style.gridRow = 'span ' + Math.min(6, Math.max(1, parseInt(w.height, 10) || 1));
+        box.appendChild(el('h2', '', w.title));
+        var body = el('div', 'body'), d = w.data || {};
+        box.appendChild(body);
+        if (d.error) { body.appendChild(el('div', 'note err', d.error)); return box; }
+        if (w.type === 'metric') {
+            if (d.color) box.classList.add('c-' + String(d.color).replace(/[^a-z]/g, ''));
+            body.appendChild(el('div', 'value', d.value === undefined || d.value === null || d.value === '' ? '—' : d.value));
+            if (d.label) body.appendChild(el('div', 'sub', d.label));
+            if (d.subtitle) body.appendChild(el('div', 'sub', d.subtitle));
+        } else if (w.type === 'table' || w.type === 'list') {
+            table(body, d);
+        } else if (w.type === 'chart_pie') {
+            pie(body, d);
+        } else if (w.type === 'chart_line' || w.type === 'chart_bar') {
+            lineBar(body, w.type, d);
+        } else {
+            body.appendChild(el('div', 'note', 'Not available on displays'));
+        }
+        return box;
+    }
+
+    function render(widgets) {
+        Array.prototype.slice.call(grid.querySelectorAll('.tile')).forEach(function (t) { t.remove(); });
+        document.getElementById('empty-note').hidden = widgets.length > 0;
+        widgets.forEach(function (w) { grid.appendChild(tile(w)); });
+        lastOk = Date.now();
+        var now = new Date();
+        document.getElementById('stamp-time').textContent =
+            now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('stamp').classList.remove('stale');
+    }
+
+    function revoked(state) {
+        if (state === 'network') {
+            document.getElementById('revoked-title').textContent = 'Not allowed from this network';
+            document.getElementById('revoked-body').textContent =
+                "This display isn't allowed to show its wallboard from the network it is on.";
+            document.getElementById('revoked-link').hidden = true;
+        }
+        grid.textContent = '';
+        document.body.classList.add('revoked');
+    }
+
+    function tick() {
+        fetch(dataUrl, { credentials: 'same-origin', cache: 'no-store' })
+            .then(function (r) {
+                return r.json().catch(function () { return { state: 'error' }; })
+                    .then(function (p) { p._status = r.status; return p; });
+            })
+            .then(function (p) {
+                if (p.state === 'revoked' || p.state === 'network') { revoked(p.state); return; }
+                if (p.state === 'ok') {
+                    if (p.layout_version !== layout) { window.location.reload(); return; }
+                    if (p.refresh_seconds) refresh = p.refresh_seconds;
+                    render(p.widgets || []);
+                }
+                schedule();
+            })
+            .catch(function () { schedule(); });
+    }
+    function schedule() {
+        if (Date.now() - lastOk > refresh * 3000) document.getElementById('stamp').classList.add('stale');
+        setTimeout(tick, refresh * 1000);
+    }
+
+    var initial = [];
+    try { initial = JSON.parse(document.getElementById('display-widgets').textContent) || []; } catch (e) {}
+    render(initial);
+    schedule();
+})();
+</script>
+{% endblock %}

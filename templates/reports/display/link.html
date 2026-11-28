@@ -1,0 +1,42 @@
+{% extends "reports/display/base.html" %}
+{% block title %}Opening wallboard display{% endblock %}
+{% block body %}
+<main class="center" id="display-message">
+    <h1 id="link-title">Opening the wallboard…</h1>
+    <p class="muted" id="link-body">One moment.</p>
+</main>
+<form id="link-form" hidden>{% csrf_token %}</form>
+{% endblock %}
+{% block script %}
+<script nonce="{{ csp_nonce }}">
+(function () {
+    var token = (window.location.hash || '').replace(/^#/, '');
+    // Take the secret out of the address bar and history straight away.
+    try { history.replaceState(null, '', window.location.pathname); } catch (e) {}
+    function show(title, body) {
+        document.getElementById('link-title').textContent = title;
+        document.getElementById('link-body').textContent = body;
+    }
+    if (!token) {
+        show('Display link not valid', 'This display link is incomplete. Copy the whole link, including the part after #.');
+        return;
+    }
+    var csrf = document.querySelector('#link-form input[name=csrfmiddlewaretoken]').value;
+    var body = new URLSearchParams();
+    body.append('token', token);
+    fetch('{{ open_url|escapejs }}', {
+        method: 'POST', credentials: 'same-origin',
+        headers: {'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded'},
+        body: body.toString()
+    }).then(function (r) { return r.json().then(function (j) { return [r.status, j]; }); })
+      .then(function (res) {
+        var j = res[1];
+        if (j.state === 'ok') { window.location.replace(j.next || '{{ display_url|escapejs }}'); return; }
+        if (j.state === 'network') { show('Not allowed from this network', "This display isn't allowed to show its wallboard from the network it is on. Ask whoever manages the board to update its IP rule."); return; }
+        if (j.state === 'slow_down') { show('Too many attempts', 'Try again in a minute.'); return; }
+        show('Display link not valid', 'This display link was revoked, has expired, or was mistyped.');
+      })
+      .catch(function () { show('Could not reach the server', 'Check the network and open the link again.'); });
+})();
+</script>
+{% endblock %}

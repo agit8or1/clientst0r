@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.800] - 2026-11-28
+
+### Added
+- **Wallboard displays: a board on a TV without anyone signing in** (roadmap 83.6). On a board, choose
+  **Displays**. Then either type the 8-character code the TV shows at `/reports/wallboards/display/` and approve
+  it, or create a display link for a signage player that takes an address. The screen shows that one board and
+  nothing else: no menus, no other boards, no API, no session and no user.
+  - **What a display may see is fixed when it is approved**: the board's customer, or every customer for a global
+    board approved by someone who sees every customer. Vault activity, failed sign-ins and *My assigned tickets*
+    never appear on a display; new widget types stay hidden on displays until reviewed.
+  - **Optional IP / CIDR rule and expiry** per display. **Revoke** stops a screen at its next refresh; switching
+    the board off or deleting it stops its displays too. Pairing, links, renames and revokes are audited.
+  - **Secrets are stored only as fingerprints.** Codes expire after 10 minutes and work once; code entry, new
+    codes and display requests are rate-limited. A display link is shown once, and its secret travels after the
+    `#`, which browsers never send to a server, so it does not end up in web-server or proxy logs.
+  - Whoever is signed in on the TV's browser makes no difference to what the display shows.
+  - Only people who may edit the board can manage its displays.
+  - The demo data includes a paired TV, a display link and a revoked TV on the Service Desk board.
+- **Wallboard displays guide** with an annotated screenshot, linked from the Wallboards guide.
+
+### Changed
+- **Wallboards guide:** the section on TVs now describes wallboard displays first; it no longer says there is no
+  share link, and charts no longer need `cdn.jsdelivr.net` (the libraries are bundled since 3.17.791).
+- Roadmap: Phase 83 in progress; 83.6 partial (credential rotation still planned).
+
 ## [3.17.799] - 2026-11-27
 
 ### Changed

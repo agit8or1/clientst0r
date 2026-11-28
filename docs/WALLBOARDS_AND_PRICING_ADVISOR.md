@@ -152,34 +152,30 @@ the editor or the board.
 
 ## Full screen, TVs and signing in
 
-- There is no separate full-screen or kiosk page. A board is the normal application page, with the sidebar and
-  the top bar around it. Put the TV's browser into full-screen (usually F11) and open the board's address, or
-  its rotation address (`/reports/wallboards/<id>/rotate/`).
-- **There is no share link and no token.** A TV signs in like a person: someone types a user name and password
-  (and the two-factor code, if the account needs one) on it, and the browser keeps the session. Nothing on a
-  board can be opened without signing in, and the address alone shows nothing.
-- **What that exposes.** Whatever the signed-in account can see. The TV is a signed-in browser with the whole
-  application behind the board: anyone at the screen with a keyboard or mouse can open other pages, and the
-  tiles can show customer names (top clients, at-risk clients, recent sales) and, for *My assigned tickets*,
-  ticket subjects. Use a dedicated MSP staff account that has only the permissions the board needs
-  (see [Roles and access](ROLES_AND_ACCESS.md)), not a person's own account, and keep the TV where visitors
-  cannot read it. The account must be MSP staff to open Reports at all, and have the staff flag to see Global
-  boards.
-- **Sessions end.** The normal session limits apply: after the maximum session length (8 hours unless changed
-  in Settings → Security) the TV returns to the sign-in page even though the board reloads every minute.
-  Plan for someone to sign the TV in again; there is no way to keep it signed in permanently.
-- Charts and the drag-to-reorder list load their scripts from `cdn.jsdelivr.net`. A TV on a network that blocks
-  it shows number and table tiles but empty chart tiles.
-- For a screen that must show work without anyone signing in, the Scheduling section has a separate
-  **Wallboard** (Scheduling → Wallboard, `/scheduling/wallboard/`): a public link, off by default, that lists
-  scheduled tasks only, with the client, technician and ticket-number fields optional. It is a different feature
-  and is not the board described here.
+- **A TV without anyone signed in: use a wallboard display.** On the board, choose **Displays**, then type the
+  code the TV shows or create a display link. The screen then shows that one board and nothing else, with data
+  fixed to the board's customer (or every customer, for a global board approved by someone who sees every
+  customer). Vault activity, failed sign-ins and *My assigned tickets* never appear on a display. Displays can
+  have an IP rule and an expiry, and are revoked from the same page. See [Wallboard displays](WALLBOARD_DISPLAYS.md).
+- **A signed-in screen.** You can also sign a browser in and open the board's normal address, or its rotation
+  address (`/reports/wallboards/<id>/rotate/`); put the browser into full-screen (usually F11). That screen is a
+  signed-in browser with the whole application behind the board: anyone at it with a keyboard or mouse can open
+  other pages, and it can see whatever the account can see. Use a dedicated MSP staff account with only the
+  permissions the board needs (see [Roles and access](ROLES_AND_ACCESS.md)), not a person's own account. The
+  normal session limits apply: after the maximum session length (8 hours unless changed in Administration →
+  Security) the screen returns to the sign-in page. A wallboard display has neither problem.
+- Charts and the drag-to-reorder list use libraries bundled with Clientst0r, so a TV on a network that blocks
+  outside sites still shows every tile.
+- The Scheduling section has a separate **Wallboard** (Scheduling → Wallboard, `/scheduling/wallboard/`): a
+  public link, off by default, that lists scheduled tasks only. It is a different feature and is not the board
+  described here.
 
 ## Sharing
 
 Boards are shared by who can open them, not by link: staff and superusers see every customer's board and the
 Global ones; anyone else (a staff user without the flag) sees the boards of the customers they may access. To
-let a colleague see a board, give them the permission and open it from the list.
+let a colleague see a board, give them the permission and open it from the list. To put a board on a screen nobody signs in to,
+use a [wallboard display](WALLBOARD_DISPLAYS.md).
 
 # Pricing Advisor
 

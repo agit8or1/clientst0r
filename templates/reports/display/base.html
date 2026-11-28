@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="referrer" content="no-referrer">
+    {% block head %}{% endblock %}
+    <title>{% block title %}Wallboard display{% endblock %}</title>
+    {% comment %}
+        Standalone on purpose: a wallboard display has no user, so the nav,
+        the customer switcher and everything session-dependent in base.html
+        are meaningless (and must not render). No external scripts or fonts.
+    {% endcomment %}
+    <style>
+        :root { color-scheme: dark; --bg: #0f131a; --panel: #171d27; --line: #263042;
+                --text: #eef2f8; --muted: #8b97ad; --accent: #7fb2ff; --bad: #ff7b7b;
+                --ok: #5fd39a; --warn: #ffc857; }
+        * { box-sizing: border-box; }
+        html, body { height: 100%; }
+        body { margin: 0; background: var(--bg); color: var(--text);
+               font: 500 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+               overflow: hidden; }
+        .center { min-height: 100%; display: flex; flex-direction: column; align-items: center;
+                  justify-content: center; text-align: center; padding: 4vh 4vw; gap: 2vh; }
+        .muted { color: var(--muted); }
+        h1 { margin: 0; font-size: clamp(24px, 3.4vw, 64px); letter-spacing: -0.02em; }
+        p { margin: 0; font-size: clamp(16px, 1.6vw, 32px); max-width: 60ch; }
+        a.button { display: inline-block; padding: 1.2vh 2.4vw; border-radius: 8px;
+                   background: var(--accent); color: #0b1220; text-decoration: none;
+                   font-weight: 700; font-size: clamp(16px, 1.5vw, 30px); }
+    </style>
+    {% block style %}{% endblock %}
+</head>
+<body>
+{% block body %}{% endblock %}
+{% block script %}{% endblock %}
+</body>
+</html>
