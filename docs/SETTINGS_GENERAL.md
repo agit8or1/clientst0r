@@ -75,7 +75,7 @@ once. Superusers only.
   service, so it needs internet access from the browser, not the server). The settings of each mode are kept
   while another mode is active, so switching back does not lose the uploaded image.
 - **Stay on Current Page When Switching Organizations** (on by default). With it on, choosing another customer in
-  the client switcher reloads the page you were on for that customer; off, the switcher goes to the dashboard.
+  the customer switcher reloads the page you were on for that customer; off, the switcher goes to the dashboard.
 - A note under the form points to **Administration → Modules → Feature Toggles**, where CRM and every other module
   is switched on or off.
 
@@ -196,7 +196,7 @@ The customer portal's own switches are on the Customer Portal page above.
 **Administration → General → Billing** (`/core/settings/billing/`). Invoice approval and late-fee rules, tax and
 currency defaults, invoice layout and footer, and the e-signature rule for contracts. It is described, with
 its defaults and the per-customer and per-contract overrides, in
-[Billing: Settings → Billing](BILLING.md#settings--billing) and is not repeated here.
+[Billing: Administration → General → Billing](BILLING.md#settings--billing) and is not repeated here.
 
 ## Custom Fields & Types
 
@@ -251,7 +251,7 @@ every customer can change them. Every add, change and delete is written to the a
 4. Edit (name and colour) and Delete. Deleting asks first, shows the counts, and removes the tag from every
    record that carries it; the records themselves stay.
 
-- **Tags belong to a customer.** The list shows the tags of the customer picked in the client switcher, and a tag
+- **Tags belong to a customer.** The list shows the tags of the customer picked in the customer switcher, and a tag
   can only be put on that customer's records. Switch customers to manage another set. Without a selected
   customer the page sends you to the customer list.
 - Passwords in the usage count are only those you are allowed to see.

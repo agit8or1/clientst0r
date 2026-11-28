@@ -152,7 +152,7 @@ global one.
 
 ### What each report type contains
 
-Every generator reports on **one customer**: the one selected in the client switcher when you press Generate.
+Every generator reports on **one customer**: the one selected in the customer switcher when you press Generate.
 Each result also carries the time it was generated.
 
 | Report type | What it contains | Needs (for that customer) |
@@ -171,7 +171,7 @@ cannot be created. Financial reports are not in this list; they are the pages on
 
 ### Generating a report
 
-1. Select the customer in the client switcher.
+1. Select the customer in the customer switcher.
 2. Press **Generate** on a template. The form asks for a format: **PDF**, **CSV** or **JSON**.
 3. The report is built at once (there is no queue) and you land on its details page. A failure is recorded
    with its error message and shows as Failed in Report History.
@@ -299,7 +299,7 @@ customer.
   most 500 rows. The counts at the top are counted before the 500-row cut.
 - A Require policy treats a device as missing the software when its inventory is empty, so an RMM device that
   has not reported software yet counts as a gap.
-- The page covers every customer you may see; the client switcher does not narrow it, and it has no filters or
+- The page covers every customer you may see; the customer switcher does not narrow it, and it has no filters or
   export.
 - This release has no screen for creating or editing software policies. They are stored with the assets
   data and are currently added by an administrator through the database tools or by the demo/sample data; the

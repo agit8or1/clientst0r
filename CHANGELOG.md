@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.799] - 2026-11-27
+
+### Changed
+- **Guide screenshots retaken after the new page headers and names** (follow-up to 113.8). 108 annotated
+  screenshots in 25 guides showed the old page header, "Clients" and "PSA"; they are captured again from the demo
+  data. Callouts that pointed at the section tab strip now point at the same pages in the sidebar, where they
+  appear on a desktop screen.
+- **Captions and callouts say Customer** (Customer Health, the customer switcher, per-customer fields) where they
+  still said client.
+- **"Customer switcher" in every guide.** The guides called the box at the top of the page the client switcher;
+  the page itself says *Switch customer*.
+- **Administration paths in the guides and README.** The last *Settings → …* paths read *Administration → …*,
+  for example Administration → General → Billing and Administration → Maintenance → Off-host Backups.
+- **README:** the quick start no longer says the Service Desk is off by default; every module is on for a new
+  install and an upgrade keeps each one as it was.
+- **Password vault:** the entry form's *Client portal access* is now *Customer portal access*.
+- Roadmap: 113.8's guide screenshots done.
+
 ## [3.17.798] - 2026-11-27
 
 ### Added

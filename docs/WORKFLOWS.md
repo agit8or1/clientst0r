@@ -75,7 +75,7 @@ priority and a ticket type). With the service desk off, a run is kept on its own
 
 ## Workflow Dashboard
 
-How far the selected customer's runbook runs have got. It needs a customer in the client switcher; in Global
+How far the selected customer's runbook runs have got. It needs a customer in the customer switcher; in Global
 View it sends you to the list of all runs.
 
 - **Active runbooks**, **Stages completed** (done out of total) and **Overall progress** across all of them.

@@ -22,7 +22,7 @@ While it is off, the menu entry is hidden, every pulse check page (staff and
 portal) answers 404, links already e-mailed stop working, and the scheduled
 task sends nothing. Turning it back on brings everything back as it was.
 
-E-mailed links need outgoing e-mail (**Settings → Communications → SMTP / Email**). Without
+E-mailed links need outgoing e-mail (**Administration → Communications → SMTP / Email**). Without
 it, sends are still recorded and people with a portal account can answer
 from the portal's **Feedback** page; the send page shows how many were
 e-mailed.
@@ -91,7 +91,7 @@ is sent.
 - **By hand:** open the pulse check and click **Send now…**, review the
   recipients, then confirm.
 - **On a schedule:** the scheduled task *Pulse Check Scheduled Sends*
-  (Settings → Automation → Task Scheduler, hourly) sends each active monthly or quarterly
+  (Administration → Automation → Task Scheduler, hourly) sends each active monthly or quarterly
   pulse check once per period, on or after its day of the month. Running it
   again in the same month or quarter sends nothing more, so it is safe to
   rerun. It can also be run by hand: `python manage.py pulse_send_due`.

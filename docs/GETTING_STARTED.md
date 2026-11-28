@@ -7,11 +7,11 @@ the application against a demo database; the customers and people in it are inve
 ## The dashboard and navigation
 
 <!-- guide-figure: guide-dashboard -->
-![The dashboard with numbered callouts on the sidebar, Go to, the client switcher, the ticket queue, Customize and the Clientst0r Docs link](images/guides/guide-dashboard.png "The dashboard, sidebar and top bar.")
+![The dashboard with numbered callouts on the sidebar, Go to, the customer switcher, the ticket queue, Customize and the Clientst0r Docs link](images/guides/guide-dashboard.png "The dashboard, sidebar and top bar.")
 
 1. The sidebar: nine work sections. Only the current one is open; type in Jump to to filter every page you may open.
 2. Go to (Ctrl+K): open any page, setting or record by name.
-3. The client switcher: the customer you are working for. Pages show that customer's records. Superusers can also choose Global View.
+3. The customer switcher: the customer you are working for. Pages show that customer's records. Superusers can also choose Global View.
 4. Your ticket queue, with SLA due times.
 5. Customize: choose and arrange the dashboard panels.
 6. Clientst0r Docs: these guides, searchable, in the app.
@@ -29,14 +29,14 @@ the application against a demo database; the customers and people in it are inve
 
 ## Choosing the customer you work for
 
-Most pages show the records of one customer at a time: the one in the client switcher. Pick another
+Most pages show the records of one customer at a time: the one in the customer switcher. Pick another
 customer there, or open **Customers → All Customers**. A new sign-in opens where you left off: the last
 customer you worked in. Superusers and staff who can reach every customer can choose **Global View**
 instead, which shows all customers together. A customer set as *Default organization* in My Profile always
 opens first.
 
 <!-- guide-figure: guide-client-overview -->
-![A customer's workspace with numbered callouts on the customer bar, quick actions, key figures, open tickets and open invoices](images/guides/guide-client-overview.png "A customer's workspace (Clients → the customer).")
+![A customer's workspace with numbered callouts on the customer bar, quick actions, key figures, open tickets and open invoices](images/guides/guide-client-overview.png "A customer's workspace (Customers → the customer).")
 
 1. The customer you are viewing, with links back to all clients and to Global View.
 2. Quick actions for this customer: ticket, contact, asset, project, document, quote.

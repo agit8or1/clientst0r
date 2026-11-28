@@ -87,7 +87,7 @@ Be clear about how they feed Clientst0r, because the provider list is longer tha
 ## The alert list
 
 **Security Alerts → Security Alerts** (`/security/alerts/`). Newest first, at most 500 shown; narrow with the
-filters. The list covers every customer you may view, not only the one picked in the client switcher.
+filters. The list covers every customer you may view, not only the one picked in the customer switcher.
 
 <!-- guide-figure: guide-sec-alerts -->
 ![The Security Alerts list with numbered callouts on the filters, the bulk buttons, a severity badge, a status badge, the vendor column and the row buttons](images/guides/guide-sec-alerts.png "Security Alerts → Security Alerts.")

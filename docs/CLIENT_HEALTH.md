@@ -105,7 +105,7 @@ A value is graded against two thresholds, **Healthy at or above** (default 75) a
 latest snapshot.
 
 <!-- guide-figure: guide-health-list -->
-![The Client Health list with numbered callouts on the Weights button, the filter, the sort, a client's overall score, its coverage, a dimension score and the computed date](images/guides/guide-health-list.png "Client Health → Client Health.")
+![The Customer Health list with numbered callouts on the Weights button, the filter, the sort, a customer's overall score, its coverage, a dimension score and the computed date](images/guides/guide-health-list.png "Customer Health → Customer Health.")
 
 1. Weights: opens the default weights and thresholds. Shown only to people who may change them.
 2. Filter: all clients, those with incomplete or unknown data, those with stale data, or those that need attention or are at risk.
@@ -123,7 +123,7 @@ latest snapshot.
   you may not see that dimension (every signal in it needs a permission you do not have).
 - Staff limited to some clients see only those clients.
 
-When the scores are computed. A scheduled task, **Customer Health Score Snapshots** (Settings → Automation →
+When the scores are computed. A scheduled task, **Customer Health Score Snapshots** (Administration → Automation →
 Task Scheduler, once a day), stores one snapshot per active client per day. It only reads existing data and
 changes nothing else. `python manage.py compute_health_scores` runs it by hand, `--client ID` for one client.
 
@@ -133,10 +133,10 @@ changes nothing else. `python manage.py compute_health_scores` runs it by hand, 
 client's overview page, with a Details link.
 
 <!-- guide-figure: guide-health-detail -->
-![One client's health page with numbered callouts on Recompute now, Weights, the overall score and coverage, what changed, and a dimension with its signals](images/guides/guide-health-detail.png "Client Health → a client.")
+![One customer's health page with numbered callouts on Recompute now, Weights, the overall score and coverage, what changed, and a dimension with its signals](images/guides/guide-health-detail.png "Customer Health → a customer.")
 
 1. Recompute now: computes today's snapshot immediately instead of waiting for the nightly run.
-2. Weights for this client only (people with the weights permission).
+2. Weights for this customer only (people with the weights permission).
 3. The overall score, its colour and its coverage, with the change since the previous snapshot.
 4. Why it changed: the signals that moved since the previous snapshot, with the records that appeared or went away.
 5. A dimension: its score, weight and how many of its signals had data, then each signal with its own score, explanation, data date, source and contributing records.
@@ -155,7 +155,7 @@ client's overview page, with a Details link.
 **Business → Customer Health → Weights** (`/client-health/settings/`).
 
 <!-- guide-figure: guide-health-weights -->
-![The weights page with numbered callouts on the two thresholds, a dimension weight and a signal weight](images/guides/guide-health-weights.png "Client Health → Weights.")
+![The weights page with numbered callouts on the two thresholds, a dimension weight and a signal weight](images/guides/guide-health-weights.png "Customer Health → Weights.")
 
 1. Healthy at or above: the lowest score shown as Healthy (green).
 2. At risk below: scores under this are At risk (red); between the two thresholds is Needs attention (amber).

@@ -7,7 +7,7 @@ the sections on signing in, tickets, the knowledge base, agreements and billing 
 customer's side.
 
 Portal pages live under `/portal/` (or on their own host name, see [Address](#where-the-portal-lives)). They have no
-sidebar, no client switcher and none of the staff pages. The numbers in each screenshot match the list under it.
+sidebar, no customer switcher and none of the staff pages. The numbers in each screenshot match the list under it.
 Every screenshot is a capture of the application against a demo database; the customers and people in it are
 invented.
 

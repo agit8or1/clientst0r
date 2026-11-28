@@ -12,7 +12,7 @@ Both modules can be switched off by a superuser in **Administration → Modules 
 ## Inventory belongs to the selected customer
 
 Inventory items, categories, storage locations and tools are recorded under an organization: the one picked
-in the client switcher when you open the page. Most MSPs keep their stock under their own organization; the
+in the customer switcher when you open the page. Most MSPs keep their stock under their own organization; the
 demo keeps it under its MSP organization, *Beacon Managed IT*. Switch to another customer and the inventory
 pages show that customer's stock instead (often none).
 
@@ -224,4 +224,4 @@ kept in the shop, in one place. The demo has none, so there is no screenshot.
 
 - [Tickets, dispatch and projects](TICKETS.md): Time & Charges and the kit list on a ticket.
 - [Billing](BILLING.md): how ticket items become invoice lines.
-- [Getting started](GETTING_STARTED.md): the client switcher and the sidebar.
+- [Getting started](GETTING_STARTED.md): the customer switcher and the sidebar.

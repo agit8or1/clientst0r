@@ -24,9 +24,9 @@ A lead that is not worth pursuing is **disqualified** instead. Nothing is delete
 
 ## Who can see and do what
 
-Every CRM page belongs to the MSP organization you are working in (the one in the client switcher). You see that
+Every CRM page belongs to the MSP organization you are working in (the one in the customer switcher). You see that
 organization's leads, opportunities, campaigns and rules; superusers see all of them. Customer organizations created
-by converting a lead are ordinary customers, with their own records, and appear in **Clients**.
+by converting a lead are ordinary customers, with their own records, and appear in **Customers**.
 
 Access comes from the role's permissions. The built-in *Sales Rep* role has the first three of these; *Sales Manager*
 has all five:
@@ -171,7 +171,7 @@ them.
 ### An opportunity's page
 
 <!-- guide-figure: guide-crm-opportunity-detail -->
-![An opportunity with numbered callouts on the client, the weighted value, and the Convert to Quote button](images/guides/guide-crm-opportunity-detail.png "An opportunity's page.")
+![An opportunity with numbered callouts on the customer, the weighted value, and the Convert to Quote button](images/guides/guide-crm-opportunity-detail.png "An opportunity's page.")
 
 1. The customer organization the deal is with.
 2. Estimated value times probability.

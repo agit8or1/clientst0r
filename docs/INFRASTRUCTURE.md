@@ -3,7 +3,7 @@
 How to document where a customer's equipment physically sits and how it is connected: racks and network
 closets, the older patch panel and port configuration records, and the two network diagrams. Everything here
 is in **Assets & Network**, under **Infrastructure** and **Network Diagrams**, and works on the customer
-selected in the client switcher. The numbers in each screenshot match the list under it. Every screenshot is
+selected in the customer switcher. The numbers in each screenshot match the list under it. Every screenshot is
 a capture of the application against a demo database; the customers and people in it are invented.
 
 The device artwork, port editor, cables, cable trace, labels and hardware catalog are described in
@@ -31,7 +31,7 @@ type: full and half racks, open frames, server cabinets, wall-mount racks, and n
 <!-- guide-figure: guide-infra-rack-list -->
 ![Infrastructure → Racks with numbered callouts on the Infrastructure tabs, Add Rack, a rack name, the type badge, the available units and the power bar](images/guides/guide-infra-rack-list.png "Assets & Network → Infrastructure → Racks.")
 
-1. The Infrastructure tabs: Racks, Network Closets, Patch Panels and Port Configurations.
+1. Infrastructure in the sidebar: Racks, Network Closets, Patch Panels and Port Configurations.
 2. Add Rack. A customer must be selected first.
 3. The rack name opens the rack page with its elevation.
 4. Rack type. Network and data closets also appear under Network Closets.

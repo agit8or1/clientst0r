@@ -84,7 +84,7 @@ key until those archives have aged out of retention. That takes `keep_weekly` we
 
 ## Setup
 
-Settings → Maintenance → **Off-host Backups** (`/core/settings/maintenance/offhost-backups/`), superusers only.
+Administration → Maintenance → **Off-host Backups** (`/core/settings/maintenance/offhost-backups/`), superusers only.
 
 1. **Generate backup key.** Copy the key shown into your escrow location. Then type its last 6
    characters and click **Confirm I stored it**. Backups cannot be switched on until you confirm.

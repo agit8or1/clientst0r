@@ -4,7 +4,7 @@ Backup Monitoring shows the health of your customers' backups in one place: whic
 
 This is not the platform's own pre-upgrade backup (that is separate and unchanged).
 
-The dashboard shows one row per customer, worst health first; it follows the client switcher until you click *Show every customer you can see*.
+The dashboard shows one row per customer, worst health first; it follows the customer switcher until you click *Show every customer you can see*.
 
 <!-- guide-figure: guide-stock-backup-dashboard -->
 ![The Backup Monitoring dashboard with numbered callouts on the tabs, a customer, its health, newest success, repository capacity, restore test state and open alerts](images/guides/guide-stock-backup-dashboard.png "Assets & Network → Backup Monitoring → Dashboard.")

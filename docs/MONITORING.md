@@ -8,7 +8,7 @@ These pages are in **Security & Monitoring → Monitoring** in the sidebar, on t
 match the list under it. Every screenshot is a capture of the application against a demo database; the
 customers and people in it are invented.
 
-Everything here shows the records of the customer in the client switcher (see
+Everything here shows the records of the customer in the customer switcher (see
 [Choosing the customer you work for](GETTING_STARTED.md#choosing-the-customer-you-work-for)). Staff with no
 customer selected (Global View) see the rows of every customer they may view. The whole Monitoring section can
 be switched off by a superuser in **Administration → Modules → Feature Toggles**.

@@ -63,7 +63,7 @@ their next run.
 Read these before applying an update that crosses them:
 
 - **3.17.610 — saved Security settings become live.** Before updating, open
-  **Settings → Security → Security Settings** and check the values. Idle timeout, maximum session length,
+  **Administration → Security → Security Settings** and check the values. Idle timeout, maximum session length,
   require 2FA, password policy, failed-login limit and lockout duration now come from that
   page unless an environment variable is set (the variable wins and the field shows
   "set by environment"). If `AXES_COOLOFF_TIME` isn't set, the lockout becomes the saved

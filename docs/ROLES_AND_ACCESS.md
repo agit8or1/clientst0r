@@ -57,7 +57,7 @@ union; a group never removes anything.
 - Row scope stays per permission. `staff_client_org_ids` and `core.tenancy.accessible_org_ids` /
   `scope_to_request` are the technician's own client scope and never include group customers; group customers are
   added only where the permission is named (`orgs_with_perm`, `filter_by_org_perm`, `accounts.scope`,
-  `scope_to_request(..., perm=...)`, workflow rules under `psa_manage_workflow_rules`). The client switcher
+  `scope_to_request(..., perm=...)`, workflow rules under `psa_manage_workflow_rules`). The customer switcher
   (`navigable_org_ids`) lets a member select a group customer; there, and whenever a customer is selected,
   `user_has_perm` answers for that customer. MSP-wide checks (single sign-on, payment gateways, platform integrations, MSP-wide report
   figures) count a group only when it covers every customer, like a global role.

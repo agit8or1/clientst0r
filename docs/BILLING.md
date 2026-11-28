@@ -8,7 +8,7 @@ item, cost or billing fields.
 Screenshots: [Ready for Billing](images/github/billing-ready-dark.png) ·
 [consolidated draft](images/github/invoice-consolidated-light.png) ·
 [prepaid-hour ledger](images/github/contract-ledger-dark.png) ·
-[Settings → Billing](images/github/settings-billing-light.png) ·
+[Administration → General → Billing](images/github/settings-billing-light.png) ·
 [sample contract library](images/github/contract-library-light.png) ·
 [contract awaiting signature](images/github/contract-awaiting-signature-light.png).
 
@@ -120,7 +120,7 @@ purchases, use, overage, expiry, reversals and manual adjustments. Open it from 
 Before relying on it, run `manage.py billing_preview` to compare old and new ticket invoices per customer;
 `manage.py prepaid_ledger_reconcile --dry-run` compares each block with the old counter.
 
-## Settings → Billing
+## Administration → General → Billing
 
 **Administration → General → Billing** (superusers and staff who can approve invoices). One page for: invoice
 approval threshold, agreement-usage approval percentage, late fee percentage and days overdue, automatic

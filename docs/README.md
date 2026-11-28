@@ -17,7 +17,7 @@ Start at the [README](../README.md) for positioning, screenshots and install ste
 * [Getting started: finding your way](GETTING_STARTED.md) — the dashboard, a customer's workspace, a ticket, and these docs, with annotated screenshots
 * [Feature list](../FEATURES.md)
 * [Screenshots](screenshots.md)
-* [Billing, prepaid hours and contracts](BILLING.md) — Time & Charges, Ready for Billing, consolidated invoices, Settings → Billing, contract e-signature
+* [Billing, prepaid hours and contracts](BILLING.md) — Time & Charges, Ready for Billing, consolidated invoices, Administration → General → Billing, contract e-signature
 * [Backing up and restoring Clientst0r](BACKUP_AND_RESTORE.md) — off-host encrypted backups and restore verification
 * [Connected Applications](CONNECTED_APPLICATIONS.md) — Agit8or Connect and Quick Connect (early release)
 * [Hardware catalog and visual inventory](HARDWARE_INVENTORY.md) — device artwork, ports, cables, racks, diagrams, labels

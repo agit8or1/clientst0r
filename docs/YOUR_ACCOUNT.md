@@ -127,7 +127,7 @@ authenticator app to your password.
   so and has no Disable button.
 - **Lost your authenticator and your codes?** Contact your administrator. This page's own advice is to ask your
   organization administrator; there is no self-service recovery page.
-- An install can require two-factor for all users (Settings → Security); see the
+- An install can require two-factor for all users (Administration → Security); see the
   [Administrator guide](ADMIN_GUIDE.md).
 
 ## Sessions and signing out

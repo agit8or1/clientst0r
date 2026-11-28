@@ -17,7 +17,7 @@ Self-hosted, open-source IT documentation, password vault, service desk and asse
 
 ---
 
-[![The Clientst0r dashboard in the Professional Dark theme with a client selected: the ten-section sidebar, the top bar with Go to (Ctrl K), Favorites, Recent and the client switcher, quick actions, a KPI row of open, at-risk, overdue and unassigned tickets, pending approvals, work due today and RMM alerts, then the ticket queue, SLA overview, technician workload, upcoming tasks and system status](docs/images/github/client-dashboard-dark.png)](docs/screenshots.md)
+[![The Clientst0r dashboard in the Professional Dark theme with a client selected: the ten-section sidebar, the top bar with Go to (Ctrl K), Favorites, Recent and the customer switcher, quick actions, a KPI row of open, at-risk, overdue and unassigned tickets, pending approvals, work due today and RMM alerts, then the ticket queue, SLA overview, technician workload, upcoming tasks and system status](docs/images/github/client-dashboard-dark.png)](docs/screenshots.md)
 
 <sub>Dashboard in the Professional Dark theme (the default). Click for the full screenshot gallery.</sub>
 
@@ -145,7 +145,7 @@ Since the last documentation refresh (v3.17.683), releases through **v3.17.761**
 - **API security.** API Access Control (IP/CIDR allow and deny rules for the API and webhooks), a rollback window that undoes risky changes, webhook signatures with timestamps and replay protection, API key expiry and rotation, mutual TLS per API key, and trusted proxies set in Settings.
 - **Business tools.** Business Overview, backup monitoring (Proxmox Backup Server, restic, Borg, Kopia), client health scores, software licensing, the pricing advisor and the customer onboarding wizard. Payments (Stripe, GoCardless), sales tax (Avalara, TaxJar) and OIDC sign-in are in the code but not yet verified against live services; see [FEATURES.md](FEATURES.md).
 
-- **Billing.** Time & Charges and Add Item on tickets, a prepaid-hour ledger, a **Ready for Billing** queue and consolidated invoices on Billing Review, and **Settings → Billing**. See [docs/BILLING.md](docs/BILLING.md).
+- **Billing.** Time & Charges and Add Item on tickets, a prepaid-hour ledger, a **Ready for Billing** queue and consolidated invoices on Billing Review, and **Administration → General → Billing**. See [docs/BILLING.md](docs/BILLING.md).
 - **Contracts.** Twelve sample agreements (starting points, not legal advice), terms and notice periods, e-signature required before a quote or a non-month-to-month contract takes effect, and Viewed tracking on quote, invoice and contract links.
 - **Customer follow-up (off by default).** Follow-up emails to customers on waiting tickets, then confirm-or-close with the reason recorded.
 - **Access groups and backups.** L1/L2/L3 Tech, Manager, Sales, Owner and other groups of staff with a role and customer scope ([docs](docs/ROLES_AND_ACCESS.md#access-groups)); encrypted **off-host backups** to SFTP or a mounted directory with weekly restore verification ([docs](docs/BACKUP_AND_RESTORE.md)).
@@ -237,14 +237,14 @@ The installer sets up Python (3.11–3.13), MariaDB, Gunicorn on port 8000 and t
 
 1. Sign in, change the default password and enrol 2FA.
 2. Create your first client under **Clients**.
-3. Add technicians under **Settings → Users & Access → Access Management** and set their **User Type** to **Staff**. Everyone else is a customer user.
-4. Turn on the service desk under **Settings → Modules → Feature Toggles** (`psa_enabled` is off by default).
-5. For the customer portal, set its address and branding under **Settings → General → Customer Portal**.
-6. Check **Settings → Automation → Task Scheduler**. Periodic jobs run from the built-in scheduler; no crontab is needed.
+3. Add technicians under **Administration → Users & Access → Access Management** and set their **User Type** to **Staff**. Everyone else is a customer user.
+4. Turn on the service desk under **Administration → Modules → Feature Toggles** if it is off (every module is on for a new install; an upgrade keeps each one as it was).
+5. For the customer portal, set its address and branding under **Administration → General → Customer Portal**.
+6. Check **Administration → Automation → Task Scheduler**. Periodic jobs run from the built-in scheduler; no crontab is needed.
 
 ## Updating and backups
 
-**Update from the web UI:** **Settings → System → System Updates** → *Check for Updates* → *Apply*. Superusers also see an **Update Available** pill when a newer release is published. Apply installs a reviewed, pinned commit, verifies the release tag signature, runs preflight checks and takes a verified backup before it changes anything. Rollback is not automatic: restoring a pre-upgrade backup is a command run on the server, shown on the Updates page. See [docs/UPGRADE_AND_RECOVERY.md](docs/UPGRADE_AND_RECOVERY.md) and [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md).
+**Update from the web UI:** **Administration → System → System Updates** → *Check for Updates* → *Apply*. Superusers also see an **Update Available** pill when a newer release is published. Apply installs a reviewed, pinned commit, verifies the release tag signature, runs preflight checks and takes a verified backup before it changes anything. Rollback is not automatic: restoring a pre-upgrade backup is a command run on the server, shown on the Updates page. See [docs/UPGRADE_AND_RECOVERY.md](docs/UPGRADE_AND_RECOVERY.md) and [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md).
 
 CLI fallback (native installs; bypasses the verified pipeline):
 
@@ -291,7 +291,7 @@ One server per MSP; there is no clustered deployment. Redis is optional (cache o
 
 ## How Clientst0r protects client data
 
-Full walkthrough with evidence and known gaps: [docs/CLIENT_DATA_PROTECTION.md](docs/CLIENT_DATA_PROTECTION.md). Administrators can check each protection per customer under **Settings → Security → Security Features**.
+Full walkthrough with evidence and known gaps: [docs/CLIENT_DATA_PROTECTION.md](docs/CLIENT_DATA_PROTECTION.md). Administrators can check each protection per customer under **Administration → Security → Security Features**.
 
 - **Customers see the shared conversation, never your working notes.** Internal notes, time entries, expenses and the RMM's view stay with technicians; posting to technician-only URLs returns 403.
 - **Revealing a credential is its own permission, and every reveal is recorded.** Optional per-entry approval and access rules (country, address range, time) apply first; reveals are rate-limited. The web vault, REST and mobile APIs and the browser extension use the same check.
@@ -305,7 +305,7 @@ Known limitations (audit log deletable by superusers, with each deletion recorde
 
 ## Security
 
-- TOTP 2FA, Argon2, brute-force lockout and session limits, set in **Settings → Security → Security Settings** (environment variables take precedence).
+- TOTP 2FA, Argon2, brute-force lockout and session limits, set in **Administration → Security → Security Settings** (environment variables take precedence).
 - AES-256-GCM for vault entries and every other stored secret; `manage.py rotate_encryption_key` and `manage.py check_secrets_storage`.
 - Role permissions for passwords, documents, assets, files, monitors and integrations, enforced across the web UI, search, the APIs and the mobile app.
 - Azure AD / Entra ID SSO, LDAP / Active Directory sign-in, and OIDC sign-in (not yet verified against a live provider).

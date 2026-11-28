@@ -13,7 +13,7 @@ did before (one key, one organization).
 
 ## Key scopes
 
-Keys belong to one customer (the one selected in the client switcher) and are made on the API Keys
+Keys belong to one customer (the one selected in the customer switcher) and are made on the API Keys
 page, `/api/keys/` (**Administration → Users & Access → Access Management → API Keys**, or the
 page's address directly). Creating one needs the **API access** permission in that customer. The list
 shows your own keys, or all of the customer's keys if you may manage them.

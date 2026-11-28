@@ -19,7 +19,7 @@ component**. Planned work is tracked in the [roadmap](docs/ROADMAP.md).
 | Database | MariaDB (MySQL also supported) on your infrastructure; SQLite for local development |
 | Topology | Single server per MSP; no clustered deployment |
 | Tenancy | Every record belongs to a customer organization; customer users see only their own |
-| Updates | Settings → System → System Updates: signed-tag check, preflight and a verified backup before Apply. Rollback is a manual restore command |
+| Updates | Administration → System → System Updates: signed-tag check, preflight and a verified backup before Apply. Rollback is a manual restore command |
 | Exports | Documents to Markdown, HTML, DOCX, PDF; audit logs to CSV/JSON; financial reports to CSV; whole-install JSON export |
 | What you pay for | Your server and your time. Optional hosting and support are offered separately by [MSP Reboot](https://mspreboot.com) |
 

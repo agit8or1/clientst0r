@@ -16,7 +16,7 @@ your role allows ([Roles and access](ROLES_AND_ACCESS.md)).
 <!-- guide-figure: guide-my-queue -->
 ![My Work → My Queue with numbered callouts on the My Work tabs, the Mine / All customers switch, running timers, tickets near SLA breach, my open tickets and unacknowledged alerts](images/guides/guide-my-queue.png "My Work → My Queue.")
 
-1. The My Work tabs: your queue, tasks, timesheet, schedule, leave and more. You see only the tabs your role allows.
+1. My Work in the sidebar: your queue, tasks, timesheet, schedule, leave and more. You see only the pages your role allows.
 2. Mine shows the customers you work for; All customers widens the waiting queues, devices and alerts to every customer you can reach.
 3. Timers you left running, with Stop.
 4. Tickets due within two hours or already breached. Work it opens the ticket.
@@ -103,7 +103,7 @@ routing is in [Ticket routing](TICKET_ROUTING.md).
 <!-- guide-figure: guide-shift-schedule -->
 ![Shift Schedule with numbered callouts on the week navigation, the team filter, the week grid and pending leave, and the form for adding a weekly shift](images/guides/guide-shift-schedule.png "Service Desk → Shifts & Locations → Shift Schedule.")
 
-1. Shifts & Locations: Shift Schedule, Location Sharing and Timeclock. Configure holds shift templates and dispatch location settings.
+1. My Schedule in the sidebar opens this page. Managers also find it under Service Desk → Shifts & Locations, next to Location Sharing and Timeclock; Configure holds shift templates and dispatch locations.
 2. Step a week back or forward, or return to this week.
 3. People who can see the team choose all technicians or one team.
 4. One row per technician: shifts, approved and pending leave, and holidays. A shift that clashes with leave is marked in red.
@@ -208,7 +208,7 @@ customer selected, the lists are empty.
 <!-- guide-figure: guide-scheduled-tasks -->
 ![Scheduled Tasks with numbered callouts on the Scheduling tabs, New Task, the filters, an overdue task and a recurring task](images/guides/guide-scheduled-tasks.png "Service Desk → Scheduling → All Tasks.")
 
-1. Scheduling: All Tasks, My Tasks and Calendar.
+1. Scheduling in the sidebar: All Tasks, My Tasks, Calendar and Wallboard.
 2. New Task: title, priority, due date, recurrence, who signs off and when to warn.
 3. Filter by status and priority, or jump to your tasks or overdue ones.
 4. An overdue task: past its due date and not yet completed.

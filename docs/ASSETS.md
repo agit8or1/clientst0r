@@ -1,12 +1,12 @@
 # Customers, assets and IP addresses
 
 How technicians bring a new customer on board, keep the customer's asset list, trace a serial number, import
-a network scan, and record subnets, IP addresses and VLANs. The onboarding wizard is in **Clients**; the rest
+a network scan, and record subnets, IP addresses and VLANs. The onboarding wizard is in **Customers**; the rest
 is in **Assets & Network** in the sidebar. The numbers in each screenshot match the list under it. Every
 screenshot is a capture of the application against a demo database; the customers and people in it are
 invented.
 
-Most pages here show the records of the customer in the client switcher (see
+Most pages here show the records of the customer in the customer switcher (see
 [Choosing the customer you work for](GETTING_STARTED.md#choosing-the-customer-you-work-for)). For devices,
 cables and switch ports, see [Hardware inventory](HARDWARE_INVENTORY.md).
 
@@ -16,7 +16,7 @@ cables and switch ports, see [Hardware inventory](HARDWARE_INVENTORY.md).
 an active customer with a signed agreement, and a shorter wizard for changes to an existing customer.
 
 <!-- guide-figure: guide-assets-onboarding -->
-![The customer onboarding page with numbered callouts on the In progress list, Onboard a customer, and the change form for an existing customer](images/guides/guide-assets-onboarding.png "Clients → Onboard Customer.")
+![The customer onboarding page with numbered callouts on the In progress list, Onboard a customer, and the change form for an existing customer](images/guides/guide-assets-onboarding.png "Customers → Onboard Customer.")
 
 1. Sessions still open. Resume one from where it was left; recently closed sessions are listed below.
 2. Start a new customer. Only the first step is required to create the customer.

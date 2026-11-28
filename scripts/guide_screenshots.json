@@ -21,7 +21,7 @@
       "route": "/core/dashboard/",
       "theme": "light",
       "max_h": 1000,
-      "alt": "The dashboard with numbered callouts on the sidebar, Go to, the client switcher, the ticket queue, Customize and the Clientst0r Docs link",
+      "alt": "The dashboard with numbered callouts on the sidebar, Go to, the customer switcher, the ticket queue, Customize and the Clientst0r Docs link",
       "annotate": [
         {
           "selector": "#appNavList",
@@ -33,7 +33,7 @@
         },
         {
           "selector": "#orgDropdown",
-          "note": "The client switcher: the customer you are working for. Pages show that customer's records. Superusers can also choose Global View."
+          "note": "The customer switcher: the customer you are working for. Pages show that customer's records. Superusers can also choose Global View."
         },
         {
           "selector": "#dash-w-my_queue",
@@ -63,7 +63,7 @@
           "note": "Search every guide. Results list the matching sections with your words highlighted, and open the guide at that section."
         },
         {
-          "selector": ".guide-card >> nth=0",
+          "selector": ".guide-card .card-header >> nth=0",
           "note": "Guides by subject."
         },
         {
@@ -133,7 +133,7 @@
           "note": "Open invoices and the balance owed."
         }
       ],
-      "caption": "A customer's workspace (Clients → the customer)."
+      "caption": "A customer's workspace (Customers → the customer)."
     },
     {
       "name": "guide-billing-ready",
@@ -309,8 +309,8 @@
       "alt": "My Work → My Queue with numbered callouts on the My Work tabs, the Mine / All customers switch, running timers, tickets near SLA breach, my open tickets and unacknowledged alerts",
       "annotate": [
         {
-          "selector": "nav.section-tabs",
-          "note": "The My Work tabs: your queue, tasks, timesheet, schedule, leave and more. You see only the tabs your role allows."
+          "selector": "#appNavGroup-my_work",
+          "note": "My Work in the sidebar: your queue, tasks, timesheet, schedule, leave and more. You see only the pages your role allows."
         },
         {
           "selector": "#mw-scope .btn-group",
@@ -435,8 +435,8 @@
       "alt": "Shift Schedule with numbered callouts on the week navigation, the team filter, the week grid and pending leave, and the form for adding a weekly shift",
       "annotate": [
         {
-          "selector": "nav.section-tabs",
-          "note": "Shifts & Locations: Shift Schedule, Location Sharing and Timeclock. Configure holds shift templates and dispatch location settings."
+          "selector": "a.app-nav__link[aria-current=page]",
+          "note": "My Schedule in the sidebar opens this page. Managers also find it under Service Desk → Shifts & Locations, next to Location Sharing and Timeclock; Configure holds shift templates and dispatch locations."
         },
         {
           "selector": "a.btn:has-text(\"Previous\")",
@@ -466,8 +466,8 @@
       "alt": "Scheduled Tasks with numbered callouts on the Scheduling tabs, New Task, the filters, an overdue task and a recurring task",
       "annotate": [
         {
-          "selector": "nav.section-tabs",
-          "note": "Scheduling: All Tasks, My Tasks and Calendar."
+          "selector": "ul.app-nav__sub:has(a.app-nav__sublink.active)",
+          "note": "Scheduling in the sidebar: All Tasks, My Tasks, Calendar and Wallboard."
         },
         {
           "selector": "a.btn:has-text(\"New Task\")",
@@ -497,12 +497,12 @@
       "alt": "The ticket list with numbered callouts on the view tabs, the filter bar, a ticket subject, the Next column and the New ticket button",
       "annotate": [
         {
-          "selector": ".section-tabs__list",
-          "note": "Views of the same list: All Tickets, Overview, My Queue, Unassigned, SLA, Escalated, and under More, Approvals (and AI Inbox when AI is on)."
+          "selector": "ul.app-nav__sub:has(a.app-nav__sublink.active)",
+          "note": "Views of the same list, under Tickets in the sidebar: All Tickets, Overview, My Queue, Unassigned, SLA, Escalated and Approvals (and AI Inbox when AI is on), then Recurring Tickets, Canned Replies, Email Ingestion and the workflow rules."
         },
         {
           "selector": ".tw-filter-bar",
-          "note": "Filters: search, client, status, priority, category, queue, assignee, request type, age, SLA and sort. They are in the address, so a filtered list can be bookmarked."
+          "note": "Filters: search, customer, status, priority, category, queue, assignee, request type, age, SLA and sort. They are in the address, so a filtered list can be bookmarked."
         },
         {
           "selector": "td.ticket-subject >> nth=0",
@@ -513,7 +513,7 @@
           "note": "Next: whose move it is. Reply when the customer spoke last, waiting when you did."
         },
         {
-          "selector": ".ui-page-head__actions a:has-text(\"New ticket\")",
+          "selector": ".page-header__actions a:has-text(\"New ticket\")",
           "note": "New ticket."
         }
       ],
@@ -536,7 +536,7 @@
           "note": "Assign the ticket from the list. Shown only where you may assign it."
         },
         {
-          "selector": ".ui-page-head__actions a:has-text(\"Dispatch Board\")",
+          "selector": ".page-header__actions a:has-text(\"Dispatch Board\")",
           "note": "Open the Dispatch Board to plan the week instead."
         }
       ],
@@ -555,7 +555,7 @@
           "note": "Priority, then status, queue and assignee."
         },
         {
-          "selector": "span.badge:has-text(\"SLA\")",
+          "selector": "main span.badge:has(i.fa-clock) >> nth=0",
           "note": "SLA state: on track, warning, breached (response or resolution) or paused."
         },
         {
@@ -612,15 +612,11 @@
       "route": "/psa/dispatch/",
       "theme": "light",
       "max_h": 1200,
-      "alt": "The Dispatch Board with numbered callouts on the Unassigned queue link, the Overdue panel, the Unassigned row, a technician row, the Other column and an assignment picker",
+      "alt": "The Dispatch Board with numbered callouts on the Unassigned queue link, the Unassigned row, a technician row, the Other column and an assignment picker",
       "annotate": [
         {
           "selector": "a[data-unassigned-link]",
-          "note": "Open unassigned tickets for the selected client, in the ticket list."
-        },
-        {
-          "selector": ".alert-danger:has-text(\"Overdue\")",
-          "note": "Overdue: open tickets whose due date has passed."
+          "note": "Open unassigned tickets for the selected customer, in the ticket list."
         },
         {
           "selector": "tr[data-tech=\"unassigned\"] td.dispatch-row-label",
@@ -652,7 +648,7 @@
       "annotate": [
         {
           "selector": ".col-md-4 .card >> nth=0",
-          "note": "Client, owner, dates, estimated hours, billable. Edit changes them."
+          "note": "Customer, owner, dates, estimated hours, billable. Edit changes them."
         },
         {
           "selector": ".card:has(strong:has-text(\"Ready to bill\"))",
@@ -909,7 +905,7 @@
           "note": "...and the change: plan change, users or devices added or removed, a location, renewal, price increase or offboarding."
         }
       ],
-      "caption": "Clients → Onboard Customer."
+      "caption": "Customers → Onboard Customer."
     },
     {
       "name": "guide-assets-list",
@@ -1080,8 +1076,8 @@
       "alt": "Infrastructure → Racks with numbered callouts on the Infrastructure tabs, Add Rack, a rack name, the type badge, the available units and the power bar",
       "annotate": [
         {
-          "selector": "nav.section-tabs",
-          "note": "The Infrastructure tabs: Racks, Network Closets, Patch Panels and Port Configurations."
+          "selector": "ul.app-nav__sub:has(a.app-nav__sublink.active)",
+          "note": "Infrastructure in the sidebar: Racks, Network Closets, Patch Panels and Port Configurations."
         },
         {
           "selector": "a.btn:has-text('Add Rack')",
@@ -1329,7 +1325,7 @@
         },
         {
           "selector": ".col-lg-8 table tbody tr:first-child td:nth-child(3)",
-          "note": "Client-wide, or the VLAN group (switching domain) it belongs to."
+          "note": "Customer-wide, or the VLAN group (switching domain) it belongs to."
         },
         {
           "selector": ".col-lg-8 table tbody tr:first-child td:nth-child(4)",
@@ -1735,7 +1731,7 @@
       "route": "/crm/opportunities/1/",
       "theme": "light",
       "max_h": 900,
-      "alt": "An opportunity with numbered callouts on the client, the weighted value, and the Convert to Quote button",
+      "alt": "An opportunity with numbered callouts on the customer, the weighted value, and the Convert to Quote button",
       "annotate": [
         {
           "selector": "dt:text-is('Client') + dd",
@@ -1896,7 +1892,7 @@
       "organization": "Beacon Managed IT",
       "theme": "light",
       "max_h": 1300,
-      "alt": "The quote editor with numbered callouts on the two client fields, the title, status, valid until, tax rate and the line items",
+      "alt": "The quote editor with numbered callouts on the two customer fields, the title, status, valid until, tax rate and the line items",
       "annotate": [
         {
           "selector": "select[name=client_org_id]",
@@ -1935,12 +1931,12 @@
       "alt": "A sent quote with numbered callouts on the action buttons, the summary card, the sign and progress panel, the line items and the totals",
       "annotate": [
         {
-          "selector": ".btn-group",
+          "selector": "main .btn-group.flex-wrap",
           "note": "Edit, View PDF, Download, Email, Copy Sign URL and Send for Approval."
         },
         {
           "selector": ".col-md-4 .card:first-child",
-          "note": "Client, dates, subtotal, tax and total. After signing it also shows who signed and whether the signature still matches this quote."
+          "note": "Customer, dates, subtotal, tax and total. After signing it also shows who signed and whether the signature still matches this quote."
         },
         {
           "selector": ".card:has(> .card-header:has-text(\"Customer progress\"))",
@@ -2351,7 +2347,7 @@
       "route": "/client-health/",
       "theme": "light",
       "max_h": 900,
-      "alt": "The Client Health list with numbered callouts on the Weights button, the filter, the sort, a client's overall score, its coverage, a dimension score and the computed date",
+      "alt": "The Customer Health list with numbered callouts on the Weights button, the filter, the sort, a customer's overall score, its coverage, a dimension score and the computed date",
       "annotate": [
         {
           "selector": "main .card a:has-text('Weights')",
@@ -2378,7 +2374,7 @@
           "note": "One dimension's score. Grey means Unknown or Stale: no score, and not counted as healthy."
         }
       ],
-      "caption": "Client Health → Client Health."
+      "caption": "Customer Health → Customer Health."
     },
     {
       "name": "guide-health-detail",
@@ -2386,7 +2382,7 @@
       "route": "/client-health/2/",
       "theme": "light",
       "max_h": 1500,
-      "alt": "One client's health page with numbered callouts on Recompute now, Weights, the overall score and coverage, what changed, and a dimension with its signals",
+      "alt": "One customer's health page with numbered callouts on Recompute now, Weights, the overall score and coverage, what changed, and a dimension with its signals",
       "annotate": [
         {
           "selector": "main button:has-text('Recompute now')",
@@ -2394,7 +2390,7 @@
         },
         {
           "selector": "main a:has-text('Weights')",
-          "note": "Weights for this client only (people with the weights permission)."
+          "note": "Weights for this customer only (people with the weights permission)."
         },
         {
           "selector": "main .card.card-body >> nth=1",
@@ -2409,7 +2405,7 @@
           "note": "A dimension: its score, weight and how many of its signals had data, then each signal with its own score, explanation, data date, source and contributing records."
         }
       ],
-      "caption": "Client Health → a client."
+      "caption": "Customer Health → a customer."
     },
     {
       "name": "guide-health-weights",
@@ -2436,7 +2432,7 @@
           "note": "A signal's weight inside its dimension. 0 turns that signal off."
         }
       ],
-      "caption": "Client Health → Weights."
+      "caption": "Customer Health → Weights."
     },
     {
       "name": "guide-health-pulse-list",
@@ -2919,8 +2915,8 @@
       "alt": "The Drafts list with callouts on the tabs, the state badges and the owner column",
       "annotate": [
         {
-          "selector": "nav.section-tabs",
-          "note": "The Review & Publishing tabs."
+          "selector": "ul.app-nav__sub:has(a.app-nav__sublink.active)",
+          "note": "Review & Publishing in the sidebar: Drafts, Approval Queue, Review Queue, Archived and KB Analytics."
         },
         {
           "selector": "table thead th:has-text(\"Owner\")",
@@ -2969,7 +2965,7 @@
       "alt": "The Review Queue with callouts on the scope switch, the Overdue and Due soon counts, the owner and last reviewed columns and Mark reviewed",
       "annotate": [
         {
-          "selector": ".btn-group[role=group]",
+          "selector": "main .btn-group[role=group]",
           "note": "My articles or All articles (MSP staff)."
         },
         {
@@ -3190,7 +3186,7 @@
       "route": "/vault/8/edit/",
       "theme": "light",
       "max_h": 2200,
-      "alt": "The vault entry form with callouts on the type, the password field and generator, the TOTP section, the notes and secure notes, and client portal access",
+      "alt": "The vault entry form with callouts on the type, the password field and generator, the TOTP section, the notes and secure notes, and customer portal access",
       "annotate": [
         {
           "selector": "#id_password_type",
@@ -3210,7 +3206,7 @@
         },
         {
           "selector": ".card.border-info",
-          "note": "Client portal access: off by default. Turn it on to share the entry with this customer's portal users."
+          "note": "Customer portal access: off by default. Turn it on to share the entry with this customer's portal users."
         }
       ],
       "caption": "Editing a vault entry."

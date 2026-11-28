@@ -33,7 +33,7 @@ Clientst0r uses a **multi-tenant architecture** where all data is isolated by **
 Each customer has its own workspace:
 
 <!-- guide-figure: guide-client-overview -->
-![A customer's workspace with numbered callouts on the customer bar, quick actions, key figures, open tickets and open invoices](images/guides/guide-client-overview.png "A customer's workspace (Clients → the customer).")
+![A customer's workspace with numbered callouts on the customer bar, quick actions, key figures, open tickets and open invoices](images/guides/guide-client-overview.png "A customer's workspace (Customers → the customer).")
 
 1. The customer you are viewing, with links back to all clients and to Global View.
 2. Quick actions for this customer: ticket, contact, asset, project, document, quote.
@@ -70,7 +70,7 @@ Organization: "Acme Corp"
 
 Users with access to multiple organizations can switch between them:
 
-1. Open the client switcher in the top bar (or press Ctrl+K / Cmd+K and type the client's name)
+1. Open the customer switcher in the top bar (or press Ctrl+K / Cmd+K and type the client's name)
 2. Select a different organization
 3. All views immediately filter to show only that organization's data
 
@@ -340,7 +340,7 @@ For fine-grained control beyond simple roles, use **Role Templates**.
 ### Switching Organizations
 
 **For Organization Users:**
-1. Open the client switcher in the top bar
+1. Open the customer switcher in the top bar
 2. Select a different organization
 3. Page reloads with new organization context
 
@@ -368,7 +368,7 @@ For fine-grained control beyond simple roles, use **Role Templates**.
 - Superusers only (via Admin panel)
 
 **Process:**
-1. Navigate to **Settings → Maintenance**
+1. Navigate to **Administration → Maintenance**
 2. Find "Organization Management" section
 3. Select organization to delete
 4. Confirm deletion (requires typing organization name)
@@ -641,7 +641,7 @@ Quick reference for simple roles:
    - Owners cannot delete (security measure)
 
 2. Use maintenance page:
-   - Navigate to **Settings → Maintenance**
+   - Navigate to **Administration → Maintenance**
    - Find "Organization Management" section
    - Follow deletion process
 

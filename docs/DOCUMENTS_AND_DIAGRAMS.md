@@ -7,7 +7,7 @@ Plans*). The Knowledge Base, Review & Publishing and Documentation Readiness ent
 separate sections. The numbers in each screenshot match the list under it. Every screenshot is a capture of
 the application against a demo database; the customers and people in it are invented.
 
-Documents and diagrams belong to the customer in the client switcher (see
+Documents and diagrams belong to the customer in the customer switcher (see
 [Choosing the customer you work for](GETTING_STARTED.md#choosing-the-customer-you-work-for)). Pick a customer
 before you create anything. Editing Word, Excel and PowerPoint files in the browser is covered in
 [Office documents](OFFICE_DOCUMENTS.md); this guide only covers the template pages.

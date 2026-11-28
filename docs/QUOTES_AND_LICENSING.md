@@ -17,7 +17,7 @@ pipeline* permission for the customer. **Licensing** is for MSP staff only, with
 ## The quote list
 
 **Business → Quotes** (`/psa/quotes/`). Up to 200 quotes, newest first, for the customer picked in the
-client switcher.
+customer switcher.
 
 <!-- guide-figure: guide-quote-list -->
 ![The quote list with numbered callouts on the status filter, a quote number, the status badge, the total, the row buttons and New Quote](images/guides/guide-quote-list.png "Quotes → Quotes.")
@@ -44,7 +44,7 @@ client switcher.
 **Business → Quotes → New Quote** (`/psa/quotes/new/`), or **Edit** on a quote (`/psa/quotes/<id>/edit/`).
 
 <!-- guide-figure: guide-quote-form -->
-![The quote editor with numbered callouts on the two client fields, the title, status, valid until, tax rate and the line items](images/guides/guide-quote-form.png "Quotes → Quotes → Edit.")
+![The quote editor with numbered callouts on the two customer fields, the title, status, valid until, tax rate and the line items](images/guides/guide-quote-form.png "Quotes → Quotes → Edit.")
 
 1. The organization the quote is filed under.
 2. Title shown on the quote and its PDF.
@@ -80,7 +80,7 @@ Click a quote number (`/psa/quotes/<id>/`).
 ![A sent quote with numbered callouts on the action buttons, the summary card, the sign and progress panel, the line items and the totals](images/guides/guide-quote-detail.png "Quotes → Quote detail.")
 
 1. Edit, View PDF, Download, Email, Copy Sign URL and Send for Approval.
-2. Client, dates, subtotal, tax and total. After signing it also shows who signed and whether the signature still matches this quote.
+2. Customer, dates, subtotal, tax and total. After signing it also shows who signed and whether the signature still matches this quote.
 3. Customer progress: Sent, Viewed, Signed, Accepted.
 4. Accept. Until the customer has signed it only says so: the quote is accepted when they sign.
 5. Line items with quantity, unit price and line total.
@@ -127,7 +127,7 @@ reads the quote, types their name, email and optional title, draws a signature a
 ## Licensing overview
 
 **Business → Licensing** (`/licensing/`). What each customer has bought, what is assigned, and when it
-renews. It lists every customer you may see, not only the one in the client switcher.
+renews. It lists every customer you may see, not only the one in the customer switcher.
 
 <!-- guide-figure: guide-quote-lic-overview -->
 ![The licensing overview with numbered callouts on the tabs, the totals line, the Needs attention list and the customer table](images/guides/guide-quote-lic-overview.png "Licensing → Overview.")

@@ -144,7 +144,7 @@ number of changes and release manager.
 
 ## Approvals
 
-The approvals waiting on your team for the customer in the client switcher (all customers in Global View):
+The approvals waiting on your team for the customer in the customer switcher (all customers in Global View):
 expenses, quotes, time entries, distributor orders, change or scope approvals and AI actions. Switch between
 Pending, Approved, Denied and Cancelled.
 

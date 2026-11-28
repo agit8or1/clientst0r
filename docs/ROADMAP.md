@@ -115,7 +115,7 @@ Work being implemented now or approved as the next P0 task.
 |---|---|---|---|---|---|
 | 1 | 94 — [Evidence integrity and routine backups](#phase-94) | P0\* | 🔵 In progress | External append-only audit shipping (94.1); protected-change approval for audit pruning (94.2); S3 destination (94.3) | — |
 | 2 | 51 — [Reliability and customer-boundary hardening](#phase-51) | P0\* | 🔵 In progress | Per-customer integration ownership (remaining part of the platform-integrations item) | — |
-| 3 | 113 — [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | guide screenshots after 113.8 | 67 |
+| 3 | 113 — [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | 113.10 customer deep links once contract proposals CX-1–CX-3 are agreed; 113.11 role dashboards | 67 |
 
 <!-- /generated:now -->
 
@@ -362,7 +362,7 @@ unchanged. Click a feature for its details.
 | 59 | [Verified installs and upgrades](#phase-59) | — | 🔵 In progress | updater, root helper | 59.7 LTS channel |
 | 67 | [Interface, navigation and dashboard redesign](#phase-67) | — | 🔵 In progress | 64 | 67.8 validation and 67.16 follow-ups |
 | 96 | [First-install setup wizard and interactive onboarding](#phase-96) | P0 | 🔵 In progress | 59, 64, 67 | 96.5 sample data |
-| 113 | [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | 67 | guide screenshots after 113.8 |
+| 113 | [One consistent interface, shared design system and standalone guarantees](#phase-113) | P1 | 🔵 In progress | 67 | 113.10 customer deep links once contract proposals CX-1–CX-3 are agreed; 113.11 role dashboards |
 
 <details markdown="1">
 <summary>5 completed phases</summary>
@@ -4000,9 +4000,9 @@ Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 1
 <a id="phase-113"></a>
 
 ## Phase 113 — One consistent interface, shared design system and standalone guarantees **(L · P1 · usability)** [in progress]
-<!-- phase: ws=I stage=7 view=now order=4 deps=67 next="guide screenshots after 113.8" -->
+<!-- phase: ws=I stage=7 view=now order=4 deps=67 next="113.10 customer deep links once contract proposals CX-1–CX-3 are agreed; 113.11 role dashboards" -->
 **Status:** 🔵 In progress · **Priority:** P1 · **Workstream:** I. Deployment, Updates & Reliability · **Depends on:** 67  
-**Next:** guide screenshots after 113.8
+**Next:** 113.10 customer deep links once contract proposals CX-1–CX-3 are agreed; 113.11 role dashboards
 
 
 Builds on Phase 67 (navigation, settings center, palette, dashboard, workspaces — shipped) rather than replacing it.
@@ -4035,7 +4035,7 @@ increment is tested with no peer application and no RMM configured. Hiding a lin
   restore-without-peer test.
 - **113.7 Page performance** *(shipped v3.17.788 — Ctrl+K fully opened is 25 queries against a target of 10; ticket detail time target not met under load; concurrent and MariaDB runs to follow)* — ticket detail, dispatch board, My Work, client workspace and palette within
   query budgets; synthetic 10/100, 60/1,200 and 200/5,000 datasets.
-- **113.8 Shell and page headers** *(shipped v3.17.790 — page header used on 27 main pages; the rest move to it as they are touched; 22 guides need new screenshots)* — one page-header component, section tabs only when the sidebar is collapsed
+- **113.8 Shell and page headers** *(shipped v3.17.790 — page header used on 27 main pages; the rest move to it as they are touched; the guide screenshots it changed were retaken v3.17.799)* — one page-header component, section tabs only when the sidebar is collapsed
   or on phones, "Service Desk" and "Customer" used consistently, less space above content.
 - **113.9 Technician speed** *(shipped v3.17.785 — "Ready to invoice" is a dashboard figure users add under Customize; the built-in layouts are full)* — timer in the first screen without a page reload, invoice draft in three clicks
   with its confirmation kept, workspace presets (presentation only, never extra permissions).

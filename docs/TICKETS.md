@@ -11,14 +11,14 @@ started. This guide goes further.
 ## The ticket list
 
 **Service Desk → Tickets → All Tickets** (`/psa/`). Every ticket you may see, newest first. The list
-ignores the client switcher: it always covers every customer you can reach. Pick a customer in the
+ignores the customer switcher: it always covers every customer you can reach. Pick a customer in the
 *Client* filter to narrow it.
 
 <!-- guide-figure: guide-ticket-list -->
 ![The ticket list with numbered callouts on the view tabs, the filter bar, a ticket subject, the Next column and the New ticket button](images/guides/guide-ticket-list.png "Service Desk → Tickets → All Tickets.")
 
-1. Views of the same list: All Tickets, Overview, My Queue, Unassigned, SLA, Escalated, and under More, Approvals (and AI Inbox when AI is on).
-2. Filters: search, client, status, priority, category, queue, assignee, request type, age, SLA and sort. They are in the address, so a filtered list can be bookmarked.
+1. Views of the same list, under Tickets in the sidebar: All Tickets, Overview, My Queue, Unassigned, SLA, Escalated and Approvals (and AI Inbox when AI is on), then Recurring Tickets, Canned Replies, Email Ingestion and the workflow rules.
+2. Filters: search, customer, status, priority, category, queue, assignee, request type, age, SLA and sort. They are in the address, so a filtered list can be bookmarked.
 3. The subject opens the ticket; the ticket number sits under it.
 4. Next: whose move it is. Reply when the customer spoke last, waiting when you did.
 5. New ticket.
@@ -66,7 +66,7 @@ example waiting on the customer) is *Paused*; a ticket with no deadline is *No S
 
 The assignment control appears only where the assignment would be accepted. **Assign to…** (any MSP
 technician) needs the *assign tickets* permission for that customer, and the ticket must belong to the
-customer in the client switcher unless you are in Global View. Without that, **Assign to me** (or *Take*)
+customer in the customer switcher unless you are in Global View. Without that, **Assign to me** (or *Take*)
 assigns it to you if you may edit the customer's tickets.
 
 On the Approvals tab, **Approve** and **Deny** appear only where you may decide. Otherwise the row says
@@ -202,17 +202,16 @@ The **Configure** menu on the Tickets tabs holds Recurring Tickets, Canned Repli
 
 **Service Desk → Dispatch Board** (`/psa/dispatch/`). The week ahead as a grid: one row per technician,
 one column per day for the next 7 days, and an *Other* column. It shows the tickets of the customer in the
-client switcher, or every customer in Global View. MSP staff only.
+customer switcher, or every customer in Global View. MSP staff only.
 
 <!-- guide-figure: guide-dispatch-board -->
-![The Dispatch Board with numbered callouts on the Unassigned queue link, the Overdue panel, the Unassigned row, a technician row, the Other column and an assignment picker](images/guides/guide-dispatch-board.png "Service Desk → Dispatch Board.")
+![The Dispatch Board with numbered callouts on the Unassigned queue link, the Unassigned row, a technician row, the Other column and an assignment picker](images/guides/guide-dispatch-board.png "Service Desk → Dispatch Board.")
 
-1. Open unassigned tickets for the selected client, in the ticket list.
-2. Overdue: open tickets whose due date has passed.
-3. Unassigned tickets, by due day.
-4. One row per technician; the envelope means they are emailed on assignment.
-5. Other: no due date, or due outside the 7 days shown.
-6. Assign from the card, or drag the card to a technician's row. The bulb lists suggested technicians.
+1. Open unassigned tickets for the selected customer, in the ticket list.
+2. Unassigned tickets, by due day.
+3. One row per technician; the envelope means they are emailed on assignment.
+4. Other: no due date, or due outside the 7 days shown.
+5. Assign from the card, or drag the card to a technician's row. The bulb lists suggested technicians.
 <!-- /guide-figure -->
 
 - A ticket sits on the day it is due (its resolution deadline, or the first-response deadline if there is
@@ -246,7 +245,7 @@ suggestion for a dispatcher. Filter by routing result, priority, customer or tex
 routing reason. Open the ticket to **Accept** or **Dismiss** a suggestion there. Accepting assigns the
 ticket, so it needs the *assign tickets* permission for that customer.
 
-The list covers every customer whose tickets you may view, whatever the client switcher says, up to 500
+The list covers every customer whose tickets you may view, whatever the customer switcher says, up to 500
 tickets. MSP staff only. It stays empty while routing is Off. Rules, modes and fallbacks are explained in
 [Ticket Routing](TICKET_ROUTING.md); the demo database has no routing decisions, so there is no screenshot.
 
@@ -264,7 +263,7 @@ only.
 
 ## Projects
 
-**Service Desk → Projects** (`/psa/projects/`). Projects of the customer in the client switcher; MSP staff
+**Service Desk → Projects** (`/psa/projects/`). Projects of the customer in the customer switcher; MSP staff
 in Global View see every project. Filter by status (Planning, Active, On Hold, Completed, Cancelled). The list
 shows the client, status, owner, due date and number of tickets, up to 200 projects.
 
@@ -276,7 +275,7 @@ technician. Reusable task lists are kept under **Configure → Project Templates
 <!-- guide-figure: guide-project -->
 ![A project with numbered callouts on the project facts, Ready to bill, Profitability, Budget, the task tools, a task's Ticket button and the project's tickets](images/guides/guide-project.png "Service Desk → Projects → a project.")
 
-1. Client, owner, dates, estimated hours, billable. Edit changes them.
+1. Customer, owner, dates, estimated hours, billable. Edit changes them.
 2. Ready to bill: what is waiting, and Create draft invoice (nothing is sent).
 3. Profitability: revenue, labour cost and margin. Only staff allowed to see profitability.
 4. Budget: hours and amount used against the budget.

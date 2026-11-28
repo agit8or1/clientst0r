@@ -9,7 +9,7 @@ are offered separately by [MSP Reboot](https://mspreboot.com).
 
 ## How it fits together
 
-Every customer is an **organization**. Pick the customer you are working for in the client switcher and the
+Every customer is an **organization**. Pick the customer you are working for in the customer switcher and the
 pages show that customer's assets, documents, passwords and tickets. The sidebar groups the work: My Work,
 Service Desk, Clients, Assets & Network, Business, Knowledge & Vault, Security & Monitoring and Reports, with
 Administration at the foot. You see only the sections and pages your role allows. The numbers in the

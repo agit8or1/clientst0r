@@ -335,7 +335,7 @@ Also part of Phase 1:
   and refreshes open proposals.
 - **Expired approvals.** A proposal still `awaiting_approval` 10 minutes past its window, while Rem0te cannot
   be read, is shown as expired.
-- **Setup wizard** (Settings → Integrations → RMM · Rem0te, superusers only). It covers the identity and keys (including
+- **Setup wizard** (Administration → Integrations → RMM · Rem0te, superusers only). It covers the identity and keys (including
   staged rotation), the peers-file entry, and per connection the status, a checklist and **Test connection**.
   Test connection runs the signed check plus a technician probe and writes an audit entry. The checklist
   covers keys, identity, approval, tested, network, auth, clock, contract, capabilities, organization,

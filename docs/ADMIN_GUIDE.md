@@ -131,7 +131,7 @@ and can switch them one at a time.
   added on, and an install that had PSA, CRM or pulse checks off keeps them off.
 - A module that is off disappears from the sidebar, tab strips, dashboard cards, quick actions,
   shortcut pins and the Go to palette; its pages answer "Page not found"; its scheduled jobs are
-  skipped (Settings → Automation → Task Scheduler shows them as skipped while the module is off).
+  skipped (Administration → Automation → Task Scheduler shows them as skipped while the module is off).
 - Turning a module off never deletes anything. Turning it back on shows every record again, and
   its scheduled jobs run on the next scheduler tick.
 - Some modules need another one (for example Projects needs PSA). Optional Modules refuses to

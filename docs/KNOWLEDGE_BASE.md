@@ -158,7 +158,7 @@ global articles.
 <!-- guide-figure: guide-kb-drafts -->
 ![The Drafts list with callouts on the tabs, the state badges and the owner column](images/guides/guide-kb-drafts.png "Review & Publishing → Drafts.")
 
-1. The Review & Publishing tabs.
+1. Review & Publishing in the sidebar: Drafts, Approval Queue, Review Queue, Archived and KB Analytics.
 2. The owner of each document.
 3. State: Draft is private; Pending review is waiting in the approval queue.
 <!-- /guide-figure -->

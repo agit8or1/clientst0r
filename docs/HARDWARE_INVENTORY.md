@@ -52,7 +52,7 @@ More views: [screenshot gallery → Hardware and cabling](screenshots.md#hardwar
 ![Hardware & Ports → VLAN Ports for Client XYZ with numbered callouts on a VLAN chip, its group or scope, the untagged and tagged port counts, the VLAN diagram link and the Add VLAN and Add VLAN group forms](images/guides/guide-infra-vlan-ports.png "Assets & Network → Hardware & Ports → VLAN Ports.")
 
 1. The VLAN number in its colour, the same colour the ports and diagrams use.
-2. Client-wide, or the VLAN group (switching domain) it belongs to.
+2. Customer-wide, or the VLAN group (switching domain) it belongs to.
 3. How many ports carry the VLAN untagged (native); the next column counts tagged ports.
 4. VLAN diagram opens Network Diagrams → VLAN View.
 5. Add a VLAN or a VLAN group. Shown only to people who can edit assets; saving also needs permission to create monitoring records.

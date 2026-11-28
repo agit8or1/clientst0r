@@ -103,13 +103,13 @@ Click a title to open the entry (`/vault/<id>/`).
 at the entry's customer.
 
 <!-- guide-figure: guide-vault-form -->
-![The vault entry form with callouts on the type, the password field and generator, the TOTP section, the notes and secure notes, and client portal access](images/guides/guide-vault-form.png "Editing a vault entry.")
+![The vault entry form with callouts on the type, the password field and generator, the TOTP section, the notes and secure notes, and customer portal access](images/guides/guide-vault-form.png "Editing a vault entry.")
 
 1. The type. It shows the fields that type needs (host, port, domain, license key ...).
 2. The password. Leave it blank to keep the stored one; the generator button fills a strong one.
 3. TOTP: paste the account's secret, or tick Auto-generate new TOTP secret.
 4. Notes are plain text anyone who can see the entry reads; secure notes are encrypted and need a reveal.
-5. Client portal access: off by default. Turn it on to share the entry with this customer's portal users.
+5. Customer portal access: off by default. Turn it on to share the entry with this customer's portal users.
 <!-- /guide-figure -->
 
 - **Type** decides the extra fields: Email (server, port), Windows/AD (domain), Database (type, host, port,
@@ -125,7 +125,7 @@ at the entry's customer.
   notes* clears them.
 - **Expires** sets an expiry date. When password-expiry notifications are switched on in the administration
   settings, the scheduler emails the customer's notification recipients before it.
-- **Client portal access** is off by default. Tick *Show in customer portal* and choose who: all members of
+- **Customer portal access** is off by default. Tick *Show in customer portal* and choose who: all members of
   the customer, specific users from the list, or *Delegated*, where a portal user marked org admin manages the
   list. Portal reveals pass the same approval requirement and access rules as staff reveals.
 - Every save and delete is written to the audit log, with the names of the fields that changed. The audit
@@ -305,4 +305,4 @@ all, because their address is the link itself. Views of a secret link are in its
   extension's offline cache.
 - [Roles and access](ROLES_AND_ACCESS.md): building roles with the vault flags.
 - [Browser extension API](browser-extension-api.md): autofill, TOTP and reveal from the extension.
-- [Getting started](GETTING_STARTED.md): the client switcher and the sidebar.
+- [Getting started](GETTING_STARTED.md): the customer switcher and the sidebar.

@@ -74,7 +74,7 @@ Once the service desk is on (`psa_enabled` in *Administration → Modules → Fe
 
 ## Customer operations
 
-**Operations** on a customer's page, or **Customer operations** in the client switcher,
+**Operations** on a customer's page, or **Customer operations** in the customer switcher,
 opens `/core/customers/<id>/operations/`: what needs attention for that customer, with a
 total per section and a link to the page where you act.
 

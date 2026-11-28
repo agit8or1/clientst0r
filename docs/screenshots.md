@@ -94,7 +94,7 @@ Where a technician starts the day, and where an owner looks at the whole book of
 
 **Light theme**
 
-[![Dashboard in light theme with Northwind Logistics selected: the navy ten-section sidebar, the top bar with Go to, Favorites, Recent and the client switcher, a header with New Ticket, Log Time, Add Client, Create Project and Dispatch Board, seven KPI tiles, My ticket queue with three tickets and their SLA due times, an SLA overview at 67 percent, technician workload, upcoming tasks and system status](images/github/client-dashboard-light.png)](images/github/client-dashboard-light.png)
+[![Dashboard in light theme with Northwind Logistics selected: the navy ten-section sidebar, the top bar with Go to, Favorites, Recent and the customer switcher, a header with New Ticket, Log Time, Add Client, Create Project and Dispatch Board, seven KPI tiles, My ticket queue with three tickets and their SLA due times, an SLA overview at 67 percent, technician workload, upcoming tasks and system status](images/github/client-dashboard-light.png)](images/github/client-dashboard-light.png)
 
 The dashboard for the client you have selected: quick actions in the header, a KPI row of what needs you (open tickets, SLA at risk, overdue, unassigned, pending approvals, due today, RMM alerts), then your ticket queue, the SLA overview, technician workload, upcoming tasks and system status. The layout follows your role.
 
@@ -1076,7 +1076,7 @@ Alerts that need handling become incidents with a severity, a status, the client
 
 **Light theme**
 
-[![Top bar in light theme: the Clientst0r logo with an amber Update Available v3.17.681 pill beside it, then Go to with its Ctrl K hint, Favorites, Recent, the client switcher, the notifications bell, Help, the settings gear and the account menu](images/github/update-badge-light.png)](images/github/update-badge-light.png)
+[![Top bar in light theme: the Clientst0r logo with an amber Update Available v3.17.681 pill beside it, then Go to with its Ctrl K hint, Favorites, Recent, the customer switcher, the notifications bell, Help, the settings gear and the account menu](images/github/update-badge-light.png)](images/github/update-badge-light.png)
 
 When the scheduled update check finds a newer release, superusers see a glowing amber Update Available pill beside the logo, at every window width, and an entry in the notifications bell; both link to Administration → System → System Updates. Pages never contact GitHub while loading, and other users never see it.
 
